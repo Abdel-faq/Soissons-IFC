@@ -122,16 +122,17 @@ export default function EventCarpooling({ eventId, currentUser }) {
     if (loading) return <div className="text-sm text-gray-400">Chargement covoiturage...</div>;
 
     return (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-700">
-                    <Car size={16} /> Covoiturage
+        <div className="mt-2">
+            <div className="flex justify-between items-center mb-2 px-1">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                    <Car size={12} /> Covoiturage
                 </h3>
                 <button
                     onClick={() => setShowForm(!showForm)}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors ${showForm ? 'bg-gray-200 text-gray-600' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                        }`}
                 >
-                    {showForm ? 'Annuler' : '+ Proposer une voiture'}
+                    {showForm ? 'Annuler' : '+ Proposer une place'}
                 </button>
             </div>
 

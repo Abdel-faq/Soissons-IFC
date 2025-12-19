@@ -5,82 +5,175 @@ const { requireAuth, supabase } = require('../middleware/auth');
 // Get all events
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { team_id } = req.query;
+    let query = supabase
       .from('events')
-      .select('*')
-      .order('start_time', { ascending: true });
+      .select(`
+        *,
+        attendance:attendance (
+          user_id,
+          status,
+          is_convoked
+        )
+      `)
+      .order('date', { ascending: true });
 
-    if (error) throw error;
-    res.json(data);
+    if (team_id) {
+      query = query.eq('team_id', team_id);
+    }
+
+    const { data: events, error } = await query;
+
+    if (error) {
+      console.error("GET Events error:", error);
+      throw error;
+    }
+
+    // Filter events based on visibility and user role/convocation
+    const filteredEvents = (events || []).filter(ev => {
+      if (req.user.role === 'COACH') return true;
+      if (ev.visibility_type === 'PUBLIC') return true;
+      const myAttendance = ev.attendance?.find(a => a.user_id === req.user.id);
+      return myAttendance?.is_convoked === true;
+    });
+
+    res.json(filteredEvents);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Create event (Coach only - logic effectively in frontend or simple role check here)
+// Create event
 router.post('/', requireAuth, async (req, res) => {
-  // Basic check if user is coach could be added here
+  console.log("POST /api/events received body:", req.body);
   try {
-    const { team_id, title, description, start_time, end_time, location, type } = req.body;
-    const { data, error } = await supabase
+    const {
+      team_id, type, date, location, notes,
+      visibility_type, is_recurring, recurrence_pattern,
+      selected_players
+    } = req.body;
+
+    const insertData = {
+      team_id, type, date, location, notes,
+      visibility_type: visibility_type || 'PUBLIC',
+      is_recurring: is_recurring || false,
+      recurrence_pattern: recurrence_pattern || (is_recurring ? 'WEEKLY' : null),
+      coach_id: req.user.id
+    };
+
+    console.log("Attempting insert into events with:", insertData);
+
+    const { data: event, error } = await supabase
       .from('events')
-      .insert([{ team_id, title, description, start_time, end_time, location, type }])
-      .select();
+      .insert([insertData])
+      .select()
+      .single();
 
-    if (error) throw error;
-    res.status(201).json(data[0]);
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return res.status(500).json({ error: error.message, details: error.details });
+    }
+
+    if (!event) throw new Error("Event creation failed: no data returned from database");
+
+    console.log("Event created successfully:", event.id);
+
+    if (selected_players && selected_players.length > 0) {
+      const convocations = selected_players.map(uid => ({
+        event_id: event.id,
+        user_id: uid,
+        is_convoked: true
+      }));
+      await supabase.from('attendance').insert(convocations);
+    }
+
+    res.status(201).json(event);
+  } catch (err) {
+    console.error("Global POST Events error:", err);
+    res.status(500).json({ error: err.message || "Unknown error during event creation" });
+  }
+});
+
+// Auto-generate recurring events
+router.post('/generate-recurring', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
+    const { team_id } = req.body;
+    const { data: templates, error: templateError } = await supabase
+      .from('events')
+      .select('*, attendance(user_id, is_convoked)')
+      .eq('team_id', team_id)
+      .eq('is_recurring', true);
+
+    if (templateError) throw templateError;
+
+    const generated = [];
+    for (const event of (templates || [])) {
+      const originalDate = new Date(event.date);
+      const nextWeekDate = new Date(originalDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const { data: newEv, error: insError } = await supabase
+        .from('events')
+        .insert([{
+          team_id: event.team_id,
+          type: event.type,
+          date: nextWeekDate.toISOString(),
+          location: event.location,
+          notes: event.notes,
+          visibility_type: event.visibility_type,
+          group_id: event.group_id,
+          coach_id: event.coach_id,
+          is_recurring: true,
+          recurrence_pattern: 'WEEKLY'
+        }])
+        .select()
+        .single();
+
+      if (insError) continue;
+      if (event.attendance?.length > 0) {
+        const convocations = event.attendance.filter(a => a.is_convoked).map(a => ({
+          event_id: newEv.id,
+          user_id: a.user_id,
+          is_convoked: true
+        }));
+        await supabase.from('attendance').insert(convocations);
+      }
+      generated.push(newEv);
+    }
+    res.json({ message: 'Recurring events generated', count: generated.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Update Presence
-router.post('/:id/presence', requireAuth, async (req, res) => {
+// Delete old events
+router.delete('/cleanup', requireAuth, async (req, res) => {
   try {
-    const { status } = req.body;
-    const { data, error } = await supabase
-      .from('attendance')
-      .upsert({
-        event_id: req.params.id,
-        user_id: req.user.id,
-        status
-      }, { onConflict: 'event_id, user_id' })
-      .select();
-
+    if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
+    const { team_id } = req.body;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const { error } = await supabase.from('events').delete().eq('team_id', team_id).lt('date', yesterday.toISOString());
     if (error) throw error;
-    res.json(data[0]);
+    res.json({ message: 'Past events cleaned up' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Update Convocations (Coach Only)
-router.post('/:id/convocations', requireAuth, async (req, res) => {
+// Update event
+router.put('/:id', requireAuth, async (req, res) => {
   try {
-    const { convocations } = req.body; // Array of { user_id, is_convoked }
-    const event_id = req.params.id;
-
-    // Efficient Upsert
-    const updates = convocations.map(c => ({
-      event_id,
-      user_id: c.user_id,
-      is_convoked: c.is_convoked,
-      // Preserve existing status if possible, but upsert requires all primary keys.
-      // If row doesn't exist, status will be null (which is fine, means no response yet but convoked)
-    }));
-
-    const { data, error } = await supabase
-      .from('attendance')
-      .upsert(updates, { onConflict: 'event_id, user_id' }) // This might overwrite "status" if we are not careful?
-      // Actually, upsert overwrites whole row if columns not specified? 
-      // supabase-js upsert by default updates. 
-      // To update ONLY is_convoked without touching status, we might need to iterate or use ignoreDuplicates? No.
-      // Ideally we fetch first or we assume frontend sends current status too.
-      // Let's assume frontend sends { user_id, is_convoked, status }
-      .select();
-
+    if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
+    const { id } = req.params;
+    const { type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, selected_players } = req.body;
+    const { data: event, error } = await supabase.from('events').update({ type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, updated_at: new Date() }).eq('id', id).select().single();
     if (error) throw error;
-    res.json(data);
+    if (selected_players) {
+      await supabase.from('attendance').delete().eq('event_id', id);
+      const convocations = selected_players.map(uid => ({ event_id: id, user_id: uid, is_convoked: true }));
+      await supabase.from('attendance').insert(convocations);
+    }
+    res.json(event);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

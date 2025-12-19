@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { LogOut, Home, Users, Calendar, MessageSquare, User } from 'lucide-react';
+import { LogOut, Home, Users, Calendar, MessageSquare, User, Layers } from 'lucide-react';
 
 export default function Layout() {
     const navigate = useNavigate();
@@ -15,6 +15,7 @@ export default function Layout() {
     const navItems = [
         { path: '/dashboard', label: 'Accueil', icon: Home },
         { path: '/dashboard/team', label: 'Équipe', icon: Users },
+        { path: '/dashboard/groups', label: 'Groupes', icon: Layers },
         { path: '/dashboard/events', label: 'Events', icon: Calendar },
         { path: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
         { path: '/dashboard/profile', label: 'Profil', icon: User },

@@ -9,6 +9,12 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Global logging
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
 // Routes
 const usersRoutes = require('./src/routes/users');
 const eventsRoutes = require('./src/routes/events');

@@ -4,6 +4,7 @@ const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
 const eventsRouterFactory = require("./routes/events");
 const authRouterFactory = require("./routes/auth");
+const groupsRouter = require("./routes/groups");
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,7 @@ const supabase = createClient(SUPABASE_URL || "", SUPABASE_KEY || "");
 app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api/events", eventsRouterFactory(supabase));
 app.use("/api/auth", authRouterFactory(supabase));
+app.use("/api/groups", groupsRouter);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Backend listening on ${port}`));

@@ -9,7 +9,7 @@ router.get('/:teamId', requireAuth, async (req, res) => {
             .from('messages')
             .select(`
                 *,
-                sender:users(full_name)
+                sender:profiles(id, full_name, role)
             `)
             .eq('team_id', req.params.teamId)
             .order('created_at', { ascending: true });
@@ -24,13 +24,15 @@ router.get('/:teamId', requireAuth, async (req, res) => {
 // Send a message
 router.post('/', requireAuth, async (req, res) => {
     try {
-        const { team_id, content } = req.body;
+        const { team_id, content, file_url, file_type } = req.body;
         const { data, error } = await supabase
             .from('messages')
             .insert([{
                 team_id,
                 sender_id: req.user.id,
-                content
+                content,
+                file_url,
+                file_type
             }])
             .select();
 

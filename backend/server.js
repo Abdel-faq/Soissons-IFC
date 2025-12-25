@@ -33,6 +33,12 @@ app.get('/', (req, res) => {
     res.json({ message: "API Football Manager Running" });
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
+// Export for Vercel
+module.exports = app;
+
+// Only listen if run directly
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Server running on port ${port}`);
+    });
+}

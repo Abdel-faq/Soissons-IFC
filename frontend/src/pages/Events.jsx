@@ -255,49 +255,33 @@ export default function Events() {
     };
 
     const saveConvocations = async (eventId) => {
-        const eventConvs = convocations[eventId];
-        if (!eventConvs) return;
+        const eventConvs = { ...(convocations[eventId] || {}) };
 
-        const updates = Object.entries(eventConvs).map(([uid, isConvoked]) => ({
-            user_id: uid,
-            is_convoked: isConvoked
+        // Prepare updates for the API
+        // If a member is NOT in eventConvs, they are considered NOT convoked? 
+        // Or we just send what we have in state.
+        const updates = members.map(m => ({
+            user_id: m.id,
+            is_convoked: !!eventConvs[m.id]
         }));
 
         try {
-            // We need to call our backend route
-            // But we are in frontend. We can call supabase direct if RLS allows, or use the custom route.
-            // Let's try direct upsert which we enabled logic for in backend too (but frontend is easier if allowed).
-            // Since we added a backend route, let's use fetch() to call it? 
-            // Or just use supabase client here.
-            // If we use supabase client, we simply iterate upserts or use bulk.
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/convocations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                },
+                body: JSON.stringify({ updates })
+            });
 
-            // Let's iterate for simplicity and robustness with existing RLS (assuming coach has write access)
-            // Actually, the backend route POST /events/:id/convocations was created. Let's use it if possible.
-            // But I don't have the backend URL easily without configuring axios/fetch base URL.
-            // I'll stick to Supabase client logic which simulates the backend logic, assuming RLS allows Coach to update presences.
-
-            const updatesFormatted = updates.map(u => ({
-                event_id: eventId,
-                user_id: u.user_id,
-                is_convoked: u.is_convoked
-                // Note: we might lose 'status' if we don't include it. 
-                // Upsert needs safety.
-                // Correct approach: RPC or reliable backend route.
-                // Let's try to just update 'is_convoked' column.
-            }));
-
-            // Supabase doesn't support partial update on upsert cleanly without knowing PKs.
-            // We have PK (event_id, user_id).
-            // PROPER WAY:
-            for (const u of updatesFormatted) {
-                await supabase.from('attendance').upsert({
-                    event_id: eventId,
-                    user_id: u.user_id,
-                    is_convoked: u.is_convoked
-                }, { onConflict: 'event_id, user_id', ignoreDuplicates: false }); // This is risky for 'status'.
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Erreur lors de la sauvegarde");
             }
 
             alert("Convocations enregistrées !");
+            fetchEvents(); // Refresh to ensure UI is in sync with server state
         } catch (e) {
             console.error(e);
             alert("Erreur: " + e.message);
@@ -465,11 +449,40 @@ export default function Events() {
                     const status = myAttendance[ev.id];
                     const isConvoked = ev.attendance?.some(a => a.user_id === user.id && a.is_convoked);
 
+                    // Statistics (Coach only)
+                    let stats = null;
+                    if (isCoach && convocations[ev.id]) {
+                        // Filter valid members that are convoked
+                        const convokedIds = Object.keys(convocations[ev.id]).filter(uid =>
+                            convocations[ev.id][uid] === true && members.some(m => m.id === uid)
+                        );
+                        const totalConvoked = convokedIds.length;
+
+                        if (totalConvoked > 0) {
+                            const respondedCount = convokedIds.filter(uid => {
+                                const s = memberAvailability[ev.id]?.[uid];
+                                return s && s !== 'UNKNOWN' && s !== 'INCONNU';
+                            }).length;
+
+                            const validCount = convokedIds.filter(uid => {
+                                const s = memberAvailability[ev.id]?.[uid];
+                                return s === 'PRESENT' || s === 'RETARD';
+                            }).length;
+
+                            stats = { total: totalConvoked, responded: respondedCount, valid: validCount };
+                        }
+                    }
+
                     // Dynamic styling based on event type and response
                     const isMatch = ev.type === 'MATCH';
                     const hasResponded = status && status !== 'UNKNOWN';
 
                     const getFrameColor = () => {
+                        // 100% Response Rule for Coach
+                        if (isCoach && stats && stats.total > 0 && stats.responded === stats.total) {
+                            return 'border-blue-400 bg-blue-50/20 shadow-blue-100';
+                        }
+
                         if (!hasResponded) return 'border-orange-300 bg-orange-50/30'; // Warning: not responded
                         if (isMatch) return 'border-red-200 bg-white';
                         return 'border-green-200 bg-white';
@@ -495,6 +508,17 @@ export default function Events() {
                                         <span className="text-indigo-600 font-semibold flex items-center gap-1">
                                             <Clock size={14} /> {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
+                                        {/* Coach Stats Badge */}
+                                        {isCoach && stats && (
+                                            <div className="flex items-center gap-2 ml-2">
+                                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200" title="Taux de réponse">
+                                                    📊 {stats.responded} / {stats.total} réponses
+                                                </span>
+                                                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200" title="Joueurs valides (Présents/Retard)">
+                                                    ✅ {stats.valid} / {stats.total} valides ({stats.total - stats.valid} abs/blessés)
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-col gap-1 text-gray-600">

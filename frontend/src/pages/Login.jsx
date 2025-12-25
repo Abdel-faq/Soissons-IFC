@@ -33,9 +33,34 @@ export default function Login() {
 
         setLoading(true);
         setError(null);
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) setError(error.message);
-        else navigate('/dashboard'); // Direct to dashboard
+
+        const { data: { session }, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (authError) {
+            setError(authError.message);
+            setLoading(false);
+            return;
+        }
+
+        // --- Role Verification ---
+        if (session?.user) {
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+
+            const targetRole = role; // The role from location.state.role
+
+            if (profile && targetRole && profile.role !== targetRole) {
+                await supabase.auth.signOut();
+                setError(`Accès refusé : vous n'avez pas le rôle requis pour cet espace (${targetRole === 'COACH' ? 'Coach' : 'Joueur'}).`);
+                setLoading(false);
+                return;
+            }
+        }
+
+        navigate('/dashboard'); // Direct to dashboard if all good
         setLoading(false);
     };
 

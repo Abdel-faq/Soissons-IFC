@@ -160,19 +160,105 @@ router.delete('/cleanup', requireAuth, async (req, res) => {
   }
 });
 
+// Update convocations only (dedicated route)
+router.post('/:id/convocations', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
+    const { id } = req.params;
+    const { updates } = req.body; // Array of { user_id, is_convoked }
+
+    if (!updates || !Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Invalid updates format' });
+    }
+
+    // 1. Fetch current attendance to preserve statuses
+    const { data: currentAtt } = await supabase
+      .from('attendance')
+      .select('user_id, status')
+      .eq('event_id', id);
+
+    const statusMap = {};
+    (currentAtt || []).forEach(a => statusMap[a.user_id] = a.status);
+
+    // 2. Prepare upsert data with existing status or default 'INCONNU'
+    const upsertData = updates.map(u => ({
+      event_id: id,
+      user_id: u.user_id,
+      is_convoked: u.is_convoked,
+      status: statusMap[u.user_id] || 'INCONNU'
+    }));
+
+    const { error } = await supabase
+      .from('attendance')
+      .upsert(upsertData, { onConflict: 'event_id, user_id' });
+
+    if (error) throw error;
+    res.json({ message: 'Convocations enregistrées' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update event
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
     const { id } = req.params;
     const { type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, selected_players } = req.body;
-    const { data: event, error } = await supabase.from('events').update({ type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, updated_at: new Date() }).eq('id', id).select().single();
+
+    const { data: event, error } = await supabase
+      .from('events')
+      .update({ type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, updated_at: new Date() })
+      .eq('id', id)
+      .select()
+      .single();
+
     if (error) throw error;
-    if (selected_players) {
-      await supabase.from('attendance').delete().eq('event_id', id);
-      const convocations = selected_players.map(uid => ({ event_id: id, user_id: uid, is_convoked: true }));
-      await supabase.from('attendance').insert(convocations);
+
+    // Non-destructive update for convocations if selected_players is provided
+    if (selected_players && Array.isArray(selected_players)) {
+      // Fetch current to preserve statuses and know who to mark as not convoked
+      const { data: currentAtt } = await supabase
+        .from('attendance')
+        .select('user_id, status')
+        .eq('event_id', id);
+
+      const statusMap = {};
+      const currentIds = [];
+      (currentAtt || []).forEach(a => {
+        statusMap[a.user_id] = a.status;
+        currentIds.push(a.user_id);
+      });
+
+      const upsertData = [];
+
+      // Mark selected as convoked
+      selected_players.forEach(uid => {
+        upsertData.push({
+          event_id: id,
+          user_id: uid,
+          is_convoked: true,
+          status: statusMap[uid] || 'INCONNU'
+        });
+      });
+
+      // Mark unselected (who were in current list) as NOT convoked
+      currentIds.forEach(uid => {
+        if (!selected_players.includes(uid)) {
+          upsertData.push({
+            event_id: id,
+            user_id: uid,
+            is_convoked: false,
+            status: statusMap[uid] || 'INCONNU'
+          });
+        }
+      });
+
+      if (upsertData.length > 0) {
+        await supabase.from('attendance').upsert(upsertData, { onConflict: 'event_id, user_id' });
+      }
     }
+
     res.json(event);
   } catch (err) {
     res.status(500).json({ error: err.message });

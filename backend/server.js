@@ -22,12 +22,20 @@ const carpoolingRoutes = require('./src/routes/carpooling');
 const messagesRoutes = require('./src/routes/messages');
 
 // Use Routes
-// Note: We might want some public routes, but mostly protected.
-// The routes files themselves apply 'requireAuth' where needed.
-app.use('/api/users', usersRoutes);
-app.use('/api/events', eventsRoutes);
-app.use('/api/carpooling', carpoolingRoutes);
-app.use('/api/messages', messagesRoutes);
+const mountRoutes = (basePath) => {
+    app.use(`${basePath}/users`, usersRoutes);
+    app.use(`${basePath}/events`, eventsRoutes);
+    app.use(`${basePath}/carpooling`, carpoolingRoutes);
+    app.use(`${basePath}/messages`, messagesRoutes);
+};
+
+// Mount both with and without /api prefix for maximum compatibility
+mountRoutes('/api');
+mountRoutes('');
+
+app.get('/health', (req, res) => {
+    res.json({ status: "ok", environment: process.env.NODE_ENV || "production" });
+});
 
 app.get('/', (req, res) => {
     res.json({ message: "API Football Manager Running" });

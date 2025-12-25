@@ -5,16 +5,7 @@
             "destination": "/api/index.js"
         },
         {
-            "source": "/assets/(.*)",
-            "destination": "/frontend/dist/assets/$1"
-        },
-        {
-            "source": "/((?!api/).*)",
-            "destination": "/frontend/dist/$1",
-            "check": true
-        },
-        {
-            "source": "/((?!api/).*)",
+            "source": "/(.*)",
             "destination": "/frontend/dist/index.html"
         }
     ]

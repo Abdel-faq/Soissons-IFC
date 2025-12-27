@@ -29,9 +29,9 @@ router.get('/', requireAuth, async (req, res) => {
       throw error;
     }
 
-    // Filter events based on visibility and user role/convocation
     const filteredEvents = (events || []).filter(ev => {
-      if (req.user.role === 'COACH') return true;
+      const userRole = (req.user.role || '').toUpperCase();
+      if (userRole === 'COACH') return true;
       if (ev.visibility_type === 'PUBLIC') return true;
       const myAttendance = ev.attendance?.find(a => a.user_id === req.user.id);
       return myAttendance?.is_convoked === true;

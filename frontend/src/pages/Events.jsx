@@ -149,6 +149,11 @@ export default function Events() {
             });
 
             if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("text/html")) {
+                    throw new Error("Le serveur a renvoyé une erreur réseau (Vercel 404/500). Vérifiez que les routes API sont bien déployées.");
+                }
+
                 let errorMsg = "Erreur inconnue";
                 const responseClone = response.clone();
                 try {

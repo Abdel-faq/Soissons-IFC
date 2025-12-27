@@ -120,6 +120,13 @@ export default function Events() {
 
             console.log("Calling API URL:", url);
 
+            console.log("Payload sent to API:", {
+                team_id: team,
+                type: newEvent.type,
+                date: fullDate.toISOString(),
+                visibility_type: newEvent.visibility_type
+            });
+
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
                 headers: {

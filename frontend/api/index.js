@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const usersRoutes = require('../../backend/src/routes/users');
-const eventsRoutes = require('../../backend/src/routes/events');
-const carpoolingRoutes = require('../../backend/src/routes/carpooling');
-const messagesRoutes = require('../../backend/src/routes/messages');
+const usersRoutes = require('../backend/src/routes/users');
+const eventsRoutes = require('../backend/src/routes/events');
+const carpoolingRoutes = require('../backend/src/routes/carpooling');
+const messagesRoutes = require('../backend/src/routes/messages');
 
 const app = express();
 

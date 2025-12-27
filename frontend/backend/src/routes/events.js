@@ -29,14 +29,22 @@ router.get('/', requireAuth, async (req, res) => {
       throw error;
     }
 
+    // Filter events based on visibility and user role/convocation
+    console.log(`Backend filtering for user ${req.user.id}, email: ${req.user.email}, role: ${req.user.role}`);
+
     const filteredEvents = (events || []).filter(ev => {
       const userRole = (req.user.role || '').toUpperCase();
+      console.log(`Checking event ${ev.id}, visibility: ${ev.visibility_type}, userRole: ${userRole}`);
+
       if (userRole === 'COACH') return true;
       if (ev.visibility_type === 'PUBLIC') return true;
       const myAttendance = ev.attendance?.find(a => a.user_id === req.user.id);
-      return myAttendance?.is_convoked === true;
+      const isConvoked = myAttendance?.is_convoked === true;
+      console.log(`User convocation status for event ${ev.id}: ${isConvoked}`);
+      return isConvoked;
     });
 
+    console.log(`Returning ${filteredEvents.length} events out of ${events?.length || 0}`);
     res.json(filteredEvents);
   } catch (err) {
     res.status(500).json({ error: err.message });

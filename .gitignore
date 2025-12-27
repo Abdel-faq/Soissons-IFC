@@ -10,6 +10,7 @@ yarn-error.log*
 # Build
 dist/
 build/
+!frontend/dist/
 
 # OS
 .DS_Store

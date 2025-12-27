@@ -24,7 +24,12 @@ app.use('/api/carpooling', carpoolingRoutes);
 app.use('/api/messages', messagesRoutes);
 
 app.get('/api/health', (req, res) => {
-    res.json({ status: "ok", environment: "production" });
+    res.json({
+        status: "ok",
+        environment: "production",
+        supabase_configured: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY,
+        node_version: process.version
+    });
 });
 
 app.get('/api', (req, res) => {

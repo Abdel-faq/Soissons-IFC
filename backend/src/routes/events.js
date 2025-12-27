@@ -29,12 +29,26 @@ router.get('/', requireAuth, async (req, res) => {
       throw error;
     }
 
+    console.log(`[DEBUG] Utilisateur: ${req.user.email}, Role: ${req.user.role}, TeamID recherché: ${team_id}`);
+
     const filteredEvents = (events || []).filter(ev => {
       const userRole = (req.user.role || '').toUpperCase();
-      if (userRole === 'COACH') return true;
-      if (ev.visibility_type === 'PUBLIC') return true;
+
+      // LOGique de filtrage
+      if (userRole === 'COACH') {
+        console.log(`  - Event ${ev.id}: Autorisé (COACH)`);
+        return true;
+      }
+
+      if (ev.visibility_type === 'PUBLIC') {
+        console.log(`  - Event ${ev.id}: Autorisé (PUBLIC)`);
+        return true;
+      }
+
       const myAttendance = ev.attendance?.find(a => a.user_id === req.user.id);
-      return myAttendance?.is_convoked === true;
+      const isConvoked = myAttendance?.is_convoked === true;
+      console.log(`  - Event ${ev.id}: Visibilité restreinte, Convocation: ${isConvoked}`);
+      return isConvoked;
     });
 
     res.json(filteredEvents);

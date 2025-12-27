@@ -54,10 +54,15 @@ export default function Events() {
 
             if (myTeamId) {
                 // Fetch via our custom backend route to handle filtering
-                const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${myTeamId}`, {
+                const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${myTeamId}`;
+                console.log("Fetching events from:", apiUrl);
+                console.log("Current Team ID:", myTeamId, "User ID:", user.id);
+
+                const response = await fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` }
                 });
                 const eventsData = await response.json();
+                console.log("Events received from API:", eventsData);
                 setEvents(eventsData || []);
 
                 const { data: attData } = await supabase

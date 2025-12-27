@@ -118,6 +118,9 @@ export default function Events() {
                 ? `${import.meta.env.VITE_API_URL || '/api'}/events/${newEvent.id}`
                 : `${import.meta.env.VITE_API_URL || '/api'}/events`;
 
+            if (!team) {
+                throw new Error("ID de l'équipe manquant. Assurez-vous d'être bien propriétaire d'une équipe.");
+            }
             console.log("Calling API URL:", url);
 
             console.log("Payload sent to API:", {

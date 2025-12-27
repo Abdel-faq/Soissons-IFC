@@ -1,16 +1,7 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "frontend/package.json",
-            "use": "@vercel/static-build",
-            "config": {
-                "distDir": "frontend/dist"
-            },
-            "installCommand": "npm install --omit=optional"
-        }
-    ],
-    "routes": [
+    "cleanUrls": true,
+    "rewrites": [
         {
             "src": "/api/(.*)",
             "dest": "/api/index.js"

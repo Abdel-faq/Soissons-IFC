@@ -1,5 +1,7 @@
 {
     "version": 2,
+    "cleanUrls": true,
+    "trailingSlash": false,
     "rewrites": [
         {
             "source": "/api/(.*)",
@@ -8,10 +10,6 @@
         {
             "source": "/assets/(.*)",
             "destination": "/frontend/dist/assets/$1"
-        },
-        {
-            "source": "/((?!api/).*\\.[^/.]+)",
-            "destination": "/frontend/dist/$1"
         },
         {
             "source": "/((?!api/).*)",

@@ -63,7 +63,14 @@ export default function Events() {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Erreur serveur : ${response.status}`);
+                    let errorDetails = "";
+                    try {
+                        const errorData = await response.json();
+                        errorDetails = ` (${errorData.message || errorData.error || "Pas de message"})`;
+                    } catch (e) {
+                        errorDetails = ` - ${response.statusText}`;
+                    }
+                    throw new Error(`Erreur serveur : ${response.status}${errorDetails}`);
                 }
 
                 const contentType = response.headers.get("content-type");

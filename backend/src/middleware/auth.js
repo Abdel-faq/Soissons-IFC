@@ -5,6 +5,13 @@ const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is missing from environment variables!");
+} else {
+  console.log("Supabase variables present:", {
+    url: !!supabaseUrl,
+    key: !!supabaseKey,
+    url_len: supabaseUrl.length,
+    key_len: supabaseKey.length
+  });
 }
 
 const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');

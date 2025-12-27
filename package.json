@@ -2,7 +2,7 @@
     "name": "mon-projet-root",
     "private": true,
     "scripts": {
-        "build": "cd frontend && npm install && npm run build && cd ../backend && npm install"
+        "build": "npm ci --omit=optional && cd frontend && npm ci --omit=optional && npm run build && cd ../backend && npm ci --omit=optional"
     },
     "workspaces": [
         "frontend",
@@ -13,5 +13,11 @@
         "cors": "^2.8.5",
         "dotenv": "^16.6.1",
         "express": "^4.22.1"
+    },
+    "devDependencies": {
+        "vite": "^7.3.0",
+        "engines": {
+            "node": "20.x"
+        }
     }
 }

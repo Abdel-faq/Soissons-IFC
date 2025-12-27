@@ -61,6 +61,17 @@ export default function Events() {
                 const response = await fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` }
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur serveur : ${response.status}`);
+                }
+
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    console.error("Le serveur n'a pas renvoyé de JSON, mais :", await response.text());
+                    throw new Error("Le serveur a renvoyé une page d'erreur (Vercel 404) au lieu des données. Vérifiez la configuration du Root Directory.");
+                }
+
                 const eventsData = await response.json();
                 console.log("Events received from API:", eventsData);
                 setEvents(eventsData || []);

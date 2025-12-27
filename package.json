@@ -2,7 +2,7 @@
     "name": "mon-projet-root",
     "private": true,
     "scripts": {
-        "build": "npm run build --workspace=frontend"
+        "build": "npm run build -w frontend"
     },
     "workspaces": [
         "frontend",

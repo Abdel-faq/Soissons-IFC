@@ -2,8 +2,7 @@
     "name": "mon-projet-root",
     "private": true,
     "scripts": {
-        "build": "npm run build -w frontend",
-        "postinstall": "cd frontend && npm install --include=optional"
+        "build": "npm run build -w frontend"
     },
     "workspaces": [
         "frontend",

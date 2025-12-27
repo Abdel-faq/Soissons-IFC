@@ -3,12 +3,12 @@
     "cleanUrls": true,
     "rewrites": [
         {
-            "src": "/api/(.*)",
-            "dest": "/api/index.js"
+            "source": "/api/(.*)",
+            "destination": "/api/index.js"
         },
         {
-            "src": "/(.*)",
-            "dest": "/frontend/dist/index.html"
+            "source": "/(.*)",
+            "destination": "/frontend/dist/index.html"
         }
     ],
     "functions": {

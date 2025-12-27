@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "npx vite build",
+    "build": "npx vite build --debug",
     "preview": "vite preview"
   },
   "dependencies": {

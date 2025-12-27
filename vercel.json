@@ -1,34 +1,28 @@
 {
     "version": 2,
+    "builds": [
+        {
+            "src": "frontend/package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "frontend/dist"
+            },
+            "installCommand": "npm install --omit=optional"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/index.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/frontend/dist/index.html"
+        }
+    ],
     "functions": {
         "api/index.js": {
             "includeFiles": "backend/src/**"
         }
-    },
-    "rewrites": [
-        {
-            "source": "/api/(.*)",
-            "destination": "/api/index.js"
-        },
-        {
-            "source": "/assets/(.*)",
-            "destination": "/frontend/dist/assets/$1"
-        },
-        {
-            "source": "/favicon.ico",
-            "destination": "/frontend/dist/favicon.ico"
-        },
-        {
-            "source": "/logo_soissons.jpg",
-            "destination": "/frontend/dist/logo_soissons.jpg"
-        },
-        {
-            "source": "/manifest.json",
-            "destination": "/frontend/dist/manifest.json"
-        },
-        {
-            "source": "/((?!api/).*)",
-            "destination": "/frontend/dist/index.html"
-        }
-    ]
+    }
 }

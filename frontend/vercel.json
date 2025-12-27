@@ -1,0 +1,18 @@
+{
+    "version": 2,
+    "functions": {
+        "api/index.js": {
+            "includeFiles": "../backend/src/**"
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/((?!api/).*)",
+            "destination": "/dist/index.html"
+        }
+    ]
+}

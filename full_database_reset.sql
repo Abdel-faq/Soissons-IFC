@@ -27,6 +27,27 @@ CREATE TABLE profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Trigger pour créer un profil automatiquement lors de l'inscription
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, email, role)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email, 'PLAYER');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Synchronisation des profils pour les utilisateurs déjà inscrits
+INSERT INTO public.profiles (id, email, role)
+SELECT id, email, 'PLAYER'
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;
+
 -- Équipes
 CREATE TABLE teams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

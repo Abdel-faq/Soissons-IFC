@@ -12,7 +12,9 @@ export default function Dashboard() {
     const [profile, setProfile] = useState(null);
     const [isCoach, setIsCoach] = useState(false);
     const [showAdminPanel, setShowAdminPanel] = useState(false);
-    const [newCoach, setNewCoach] = useState({ email: '', password: '', full_name: '' });
+    const [newCoach, setNewCoach] = useState({ email: '', full_name: '' });
+    const [generatedPassword, setGeneratedPassword] = useState('');
+    const [lastCreatedCoach, setLastCreatedCoach] = useState(null);
 
     useEffect(() => {
         fetchDashboardData();
@@ -90,6 +92,8 @@ export default function Dashboard() {
 
     const handleCreateCoach = async (e) => {
         e.preventDefault();
+        const autoPassword = Math.random().toString(36).slice(-10) + "!";
+
         try {
             const { data: sessionData } = await supabase.auth.getSession();
             const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/coach`, {
@@ -98,7 +102,7 @@ export default function Dashboard() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${sessionData.session?.access_token}`
                 },
-                body: JSON.stringify(newCoach)
+                body: JSON.stringify({ ...newCoach, password: autoPassword })
             });
 
             if (!response.ok) {
@@ -106,8 +110,10 @@ export default function Dashboard() {
                 throw new Error(err.error || "Erreur lors de la création");
             }
 
+            const result = await response.json();
+            setLastCreatedCoach({ ...newCoach, password: autoPassword });
             alert("Coach créé avec succès !");
-            setNewCoach({ email: '', password: '', full_name: '' });
+            setNewCoach({ email: '', full_name: '' });
         } catch (err) {
             alert(err.message);
         }
@@ -166,19 +172,26 @@ export default function Dashboard() {
                                     value={newCoach.full_name} onChange={e => setNewCoach({ ...newCoach, full_name: e.target.value })}
                                 />
                                 <input
-                                    type="email" placeholder="Email" required
+                                    type="email" placeholder="Email du futur coach" required
                                     className="w-full p-2.5 rounded-lg border-0 ring-1 ring-white/20"
                                     value={newCoach.email} onChange={e => setNewCoach({ ...newCoach, email: e.target.value })}
                                 />
-                                <input
-                                    type="password" placeholder="Mot de passe temporaire" required
-                                    className="w-full p-2.5 rounded-lg border-0 ring-1 ring-white/20"
-                                    value={newCoach.password} onChange={e => setNewCoach({ ...newCoach, password: e.target.value })}
-                                />
                                 <button className="w-full bg-yellow-400 text-black font-bold py-3 rounded-lg hover:bg-yellow-500 transition-colors">
-                                    Enregistrer le Coach
+                                    Générer & Créer le compte
                                 </button>
                             </form>
+
+                            {lastCreatedCoach && (
+                                <div className="mt-6 p-4 bg-emerald-900/50 border border-emerald-500/30 rounded-lg animate-in fade-in zoom-in">
+                                    <p className="text-emerald-400 font-bold text-xs uppercase mb-2">Compte créé !</p>
+                                    <p className="text-sm">Envoyez ces accès au coach :</p>
+                                    <div className="mt-2 bg-black/40 p-3 rounded font-mono text-xs break-all">
+                                        Email: {lastCreatedCoach.email}<br />
+                                        Pass: {lastCreatedCoach.password}
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-2">Le coach peut maintenant se connecter.</p>
+                                </div>
+                            )}
                         </div>
                         <div className="flex flex-col justify-center text-center p-6 border-l border-white/10">
                             <p className="text-indigo-200 mb-4 font-medium italic">"En tant qu'administrateur, vous créez les comptes pour les éducateurs du club. Ils pourront ensuite créer leurs équipes respectives."</p>

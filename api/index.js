@@ -27,7 +27,9 @@ app.get('/api/health', (req, res) => {
     res.json({
         status: "ok",
         environment: "production",
-        supabase_configured: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY,
+        supabase_configured: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && !!(process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY),
+        has_standard_vars: !!process.env.SUPABASE_URL,
+        has_vite_vars: !!process.env.VITE_SUPABASE_URL,
         node_version: process.version
     });
 });

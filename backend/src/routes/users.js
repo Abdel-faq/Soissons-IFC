@@ -79,4 +79,51 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 });
 
+// CREATE COACH (Admin only)
+router.post('/coach', requireAuth, async (req, res) => {
+    try {
+        // 1. Check if requester is ADMIN
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Seul l\'administrateur peut créer des coachs' });
+        }
+
+        const { email, password, full_name } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email et mot de passe requis' });
+        }
+
+        // 2. Create user in Supabase Auth via Admin API
+        // Note: Using the service role client configured in the middleware
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name }
+        });
+
+        if (authError) throw authError;
+
+        // 3. Create/Update profile with COACH role
+        // The trigger might have already created a PLAYER profile, so we UPSERT
+        const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                id: authData.user.id,
+                email,
+                full_name,
+                role: 'COACH'
+            })
+            .select()
+            .single();
+
+        if (profileError) throw profileError;
+
+        res.status(201).json({ message: 'Compte coach créé avec succès', user: profileData });
+    } catch (err) {
+        console.error("Admin create coach error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

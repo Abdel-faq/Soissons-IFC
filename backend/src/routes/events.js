@@ -24,19 +24,21 @@ router.get('/', requireAuth, async (req, res) => {
 
     const { data: events, error } = await query;
 
+    console.log(`[DEBUG] GET /api/events - User: ${req.user.email}, TeamID: ${team_id}`);
+    console.log(`[DEBUG] Events trouvés en DB: ${events?.length || 0}`);
+
     if (error) {
-      console.error("GET Events error:", error);
+      console.error("GET Events database error:", error);
       throw error;
     }
 
-    console.log(`[DEBUG] Utilisateur: ${req.user.email}, Role: ${req.user.role}, TeamID recherché: ${team_id}`);
-
     const filteredEvents = (events || []).filter(ev => {
       const userRole = (req.user.role || '').toUpperCase();
+      const isOwner = ev.coach_id === req.user.id;
 
-      // LOGique de filtrage
-      if (userRole === 'COACH') {
-        console.log(`  - Event ${ev.id}: Autorisé (COACH)`);
+      // Logique de filtrage
+      if (userRole === 'COACH' || isOwner) {
+        console.log(`  - Event ${ev.id}: Autorisé (Role: ${userRole}, Owner: ${isOwner})`);
         return true;
       }
 

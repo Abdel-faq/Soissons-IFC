@@ -58,8 +58,16 @@ export default function Events() {
                 console.log("Fetching events from:", apiUrl);
                 console.log("Current Team ID:", myTeamId, "User ID:", user.id);
 
+                const { data: sessionData } = await supabase.auth.getSession();
+                const session = sessionData?.session;
+
+                if (!session) {
+                    console.error("No active session found");
+                    throw new Error("Session expirée. Veuillez vous reconnecter.");
+                }
+
                 const response = await fetch(apiUrl, {
-                    headers: { 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` }
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
                 });
 
                 if (!response.ok) {
@@ -137,11 +145,18 @@ export default function Events() {
                 visibility_type: newEvent.visibility_type
             });
 
+            const { data: sessionData } = await supabase.auth.getSession();
+            const session = sessionData?.session;
+
+            if (!session) {
+                throw new Error("Session expirée. Veuillez vous reconnecter.");
+            }
+
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                    'Authorization': `Bearer ${session.access_token}`
                 },
                 body: JSON.stringify({
                     team_id: team,
@@ -304,11 +319,18 @@ export default function Events() {
         }));
 
         try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const session = sessionData?.session;
+
+            if (!session) {
+                throw new Error("Session expirée. Veuillez vous reconnecter.");
+            }
+
             const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/convocations`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                    'Authorization': `Bearer ${session.access_token}`
                 },
                 body: JSON.stringify({ updates })
             });

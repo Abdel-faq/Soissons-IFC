@@ -1,20 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is missing from environment variables!");
-} else {
-  console.log("Supabase variables present:", {
+  console.error("CRITICAL ERROR: Supabase configuration is missing!", {
     url: !!supabaseUrl,
     key: !!supabaseKey,
-    url_len: supabaseUrl.length,
-    key_len: supabaseKey.length
+    env_keys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
   });
 }
 
-const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
+const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseKey || 'placeholder'
+);
 
 const requireAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -26,15 +26,25 @@ const requireAuth = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
+    if (!token) {
+      console.error("Auth middleware error: Token is null or undefined");
+      return res.status(401).json({ error: 'Missing token' });
+    }
+
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       console.error("Supabase auth error detail:", {
         message: error?.message,
         status: error?.status,
-        token_prefix: token ? `${token.substring(0, 10)}...` : 'none'
+        token_prefix: token.substring(0, 15) + '...',
+        token_length: token.length
       });
-      return res.status(401).json({ error: 'Invalid or expired token', message: error?.message });
+      return res.status(401).json({
+        error: 'Invalid or expired token',
+        message: error?.message,
+        hint: "Please try logging out and back in."
+      });
     }
 
     // Fetch role from profiles

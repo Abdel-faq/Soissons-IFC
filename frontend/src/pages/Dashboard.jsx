@@ -168,12 +168,12 @@ export default function Dashboard() {
                             <form onSubmit={handleCreateCoach} className="space-y-4 text-gray-900">
                                 <input
                                     type="text" placeholder="Nom complet" required
-                                    className="w-full p-2.5 rounded-lg border-0 ring-1 ring-white/20"
+                                    className="w-full p-2.5 rounded-lg border-0 ring-1 ring-indigo-200 bg-white text-gray-900 focus:ring-2 focus:ring-yellow-400 outline-none"
                                     value={newCoach.full_name} onChange={e => setNewCoach({ ...newCoach, full_name: e.target.value })}
                                 />
                                 <input
                                     type="email" placeholder="Email du futur coach" required
-                                    className="w-full p-2.5 rounded-lg border-0 ring-1 ring-white/20"
+                                    className="w-full p-2.5 rounded-lg border-0 ring-1 ring-indigo-200 bg-white text-gray-900 focus:ring-2 focus:ring-yellow-400 outline-none"
                                     value={newCoach.email} onChange={e => setNewCoach({ ...newCoach, email: e.target.value })}
                                 />
                                 <button className="w-full bg-yellow-400 text-black font-bold py-3 rounded-lg hover:bg-yellow-500 transition-colors">

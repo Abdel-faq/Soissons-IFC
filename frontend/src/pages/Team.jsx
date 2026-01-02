@@ -163,9 +163,10 @@ export default function Team() {
         </div>
     );
 
+    const isCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id;
+
     // VIEW: NO TEAMS
     if (!teams || teams.length === 0) {
-        const isCoach = profile?.role === 'COACH';
         return (
             <div className="max-w-2xl mx-auto mt-10 space-y-8">
                 {isCoach ? (
@@ -248,7 +249,7 @@ export default function Team() {
             </div>
 
             {/* Chat Lock Toggle (Coach Only) */}
-            {profile?.role === 'COACH' && (
+            {isCoach && (
                 <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
                     <div>
                         <h3 className="font-bold text-gray-800 flex items-center gap-2">

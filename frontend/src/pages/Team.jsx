@@ -10,6 +10,7 @@ export default function Team() {
     const [team, setTeam] = useState(null); // Currently selected team
     const [members, setMembers] = useState([]);
     const [category, setCategory] = useState('U10'); // Default category
+    const [profile, setProfile] = useState(null);
 
     // Form states
     const [newTeamName, setNewTeamName] = useState('');
@@ -30,6 +31,10 @@ export default function Team() {
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (!currentUser) throw new Error("No user found");
             setUser(currentUser);
+
+            // Fetch Profile
+            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+            setProfile(profileData);
 
             // Fetch Teams (Coach)
             let { data: myTeams, error: teamError } = await supabase
@@ -91,7 +96,7 @@ export default function Team() {
 
             const { data, error } = await supabase.from('teams').insert([{
                 name: finalName,
-                code_invite: code,
+                invite_code: code,
                 coach_id: user.id,
                 category: category
             }]).select().single();
@@ -124,7 +129,7 @@ export default function Team() {
                 if (createProfileError) throw new Error("Erreur création profil: " + createProfileError.message);
             }
 
-            const { data: teamToJoin, error: searchError } = await supabase.from('teams').select('id, name').eq('code_invite', joinCode.trim().toUpperCase()).single();
+            const { data: teamToJoin, error: searchError } = await supabase.from('teams').select('id, name').eq('invite_code', joinCode.trim().toUpperCase()).single();
             if (searchError || !teamToJoin) throw new Error("Équipe introuvable");
 
             const { error: joinError } = await supabase.from('team_members').insert([{ team_id: teamToJoin.id, user_id: user.id }]);
@@ -149,30 +154,41 @@ export default function Team() {
 
     // VIEW: NO TEAMS
     if (!teams || teams.length === 0) {
+        const isCoach = profile?.role === 'COACH';
         return (
             <div className="max-w-2xl mx-auto mt-10 space-y-8">
-                <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Users /> Créer mon équipe</h2>
-                    <p className="text-gray-500 mb-4 text-sm">Sélectionnez la catégorie que vous allez gérer. Une équipe sera automatiquement créée.</p>
-                    <form onSubmit={createTeam}>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                            <select
-                                value={category}
-                                onChange={e => setCategory(e.target.value)}
-                                className="w-full border p-2 rounded bg-indigo-50 border-indigo-200 text-indigo-800 font-bold"
-                            >
-                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        {/* Optional Name Input - Hidden by default or just labeled as "Suffixe (Optionnel)" */}
+                {isCoach ? (
+                    <div className="bg-white p-6 rounded-lg shadow-sm border">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Users /> Créer mon équipe</h2>
+                        <p className="text-gray-500 mb-4 text-sm">Sélectionnez la catégorie que vous allez gérer. Une équipe sera automatiquement créée.</p>
+                        <form onSubmit={createTeam}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                                <select
+                                    value={category}
+                                    onChange={e => setCategory(e.target.value)}
+                                    className="w-full border p-2 rounded bg-indigo-50 border-indigo-200 text-indigo-800 font-bold"
+                                >
+                                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            {/* Optional Name Input - Hidden by default or just labeled as "Suffixe (Optionnel)" */}
 
-                        <button className="w-full bg-indigo-600 text-white p-3 rounded font-bold hover:bg-indigo-700 transition">
-                            Valider et Gérer {category}
-                        </button>
-                    </form>
-                </div>
+                            <button className="w-full bg-indigo-600 text-white p-3 rounded font-bold hover:bg-indigo-700 transition">
+                                Valider et Gérer {category}
+                            </button>
+                        </form>
+                    </div>
+                ) : (
+                    <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
+                        <h2 className="text-2xl font-bold mb-4 text-gray-800">Vous n'avez pas encore d'équipe</h2>
+                        <p className="text-gray-500 mb-6">Demandez le code d'invitation à votre coach pour rejoindre votre équipe et accéder aux matches.</p>
+                        <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">⚽</div>
+                    </div>
+                )}
+
                 <div className="text-center font-bold text-gray-400">OU</div>
+
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                     <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><UserPlus /> Rejoindre une équipe</h2>
                     <form onSubmit={joinTeam}>
@@ -215,9 +231,9 @@ export default function Team() {
                         <span className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5 rounded uppercase">{team.category || 'Général'}</span>
                         <h1 className="text-2xl font-bold leading-none">{team.name}</h1>
                     </div>
-                    <p className="text-gray-500 text-sm">Code d'invitation: <span className="font-mono bg-gray-100 px-2 py-1 rounded select-all">{team.code_invite}</span></p>
+                    <p className="text-gray-500 text-sm">Code d'invitation: <span className="font-mono bg-gray-100 px-2 py-1 rounded select-all">{team.invite_code}</span></p>
                 </div>
-                <button onClick={() => { navigator.clipboard.writeText(team.code_invite); alert('Copié !') }} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded"><Copy /></button>
+                <button onClick={() => { navigator.clipboard.writeText(team.invite_code); alert('Copié !') }} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded"><Copy /></button>
             </div>
 
             <div className="bg-white rounded shadow-sm border overflow-hidden">

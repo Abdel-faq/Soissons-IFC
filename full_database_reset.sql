@@ -136,10 +136,26 @@ CREATE TABLE carpooling (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can join a team" ON team_members;
+CREATE POLICY "Users can join a team" ON team_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Members can view teammates" ON team_members;
+CREATE POLICY "Members can view teammates" ON team_members FOR SELECT USING (auth.role() = 'authenticated');
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE carpooling ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Members can see team messages" ON messages;
+CREATE POLICY "Members can see team messages" ON messages FOR SELECT USING (
+  EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+);
+
+DROP POLICY IF EXISTS "Members can post messages" ON messages;
+CREATE POLICY "Members can post messages" ON messages FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+  AND auth.uid() = sender_id
+);
 
 -- 4. Exemple de Politiques RLS Simplifiées (Tout le monde peut lire les données de son équipe)
 
@@ -156,6 +172,9 @@ CREATE POLICY "Coaches can manage events" ON events FOR ALL USING (
 );
 
 -- Politiques pour la table "teams"
+DROP POLICY IF EXISTS "Anyone authenticated can view teams" ON teams;
+CREATE POLICY "Anyone authenticated can view teams" ON teams FOR SELECT USING (auth.role() = 'authenticated');
+
 DROP POLICY IF EXISTS "Coach/Admin can manage teams" ON teams;
 CREATE POLICY "Coach/Admin can manage teams" ON teams FOR ALL USING (
   (coach_id = auth.uid()) OR

@@ -88,13 +88,8 @@ export default function Login() {
                 setError(error.message);
             }
         } else {
-            if (user) {
-                const { error: profileError } = await supabase.from('profiles').insert([
-                    { id: user.id, email: user.email, full_name: email.split('@')[0], role: targetRole }
-                ]);
-                if (profileError) console.error('Error creating profile:', profileError);
-            }
-            setMessage('Vérifiez votre email pour confirmer !');
+            // Success: navigate to dashboard assuming no email confirmation needed
+            navigate('/dashboard');
         }
         setLoading(false);
     };

@@ -33,10 +33,7 @@ FOR UPDATE USING (auth.uid() = coach_id);
 
 DROP POLICY IF EXISTS "Members can see their team" ON teams;
 CREATE POLICY "Members can see their team" ON teams 
-FOR SELECT USING (
-  auth.uid() = coach_id OR 
-  EXISTS (SELECT 1 FROM team_members WHERE team_id = teams.id AND user_id = auth.uid())
-);
+FOR SELECT USING (auth.role() = 'authenticated');
 
 -- 3. Politiques pour la table "profiles"
 DROP POLICY IF EXISTS "Authenticated users can see profiles" ON profiles;
@@ -50,7 +47,7 @@ FOR UPDATE USING (auth.uid() = id);
 -- 4. Politiques pour la table "team_members"
 DROP POLICY IF EXISTS "Users can join a team" ON team_members;
 CREATE POLICY "Users can join a team" ON team_members 
-FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Members can see teammates" ON team_members;
 CREATE POLICY "Members can see teammates" ON team_members 

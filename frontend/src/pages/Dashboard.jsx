@@ -37,10 +37,12 @@ export default function Dashboard() {
                 // Fetch Team based on role
                 let myTeam = null;
                 if (userRole === 'COACH') {
-                    const { data } = await supabase.from('teams').select('*').eq('coach_id', user.id).maybeSingle();
+                    const { data, error: coachTeamErr } = await supabase.from('teams').select('*').eq('coach_id', user.id).maybeSingle();
+                    if (coachTeamErr) console.error("Erreur team coach:", coachTeamErr);
                     myTeam = data;
                 } else if (userRole === 'PLAYER') {
-                    const { data: memberShip } = await supabase.from('team_members').select('team_id, teams(*)').eq('user_id', user.id).maybeSingle();
+                    const { data: memberShip, error: memberErr } = await supabase.from('team_members').select('team_id, teams(*)').eq('user_id', user.id).maybeSingle();
+                    if (memberErr) console.error("Erreur membership player:", memberErr);
                     if (memberShip) myTeam = memberShip.teams;
                 }
                 setTeam(myTeam);

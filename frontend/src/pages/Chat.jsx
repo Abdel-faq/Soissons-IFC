@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon } from 'lucide-react';
+import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 export default function Chat() {
     const [messages, setMessages] = useState([]);
@@ -10,6 +10,7 @@ export default function Chat() {
     const [user, setUser] = useState(null);
     const [team, setTeam] = useState(null);
     const [isCoach, setIsCoach] = useState(false);
+    const [isChatLocked, setIsChatLocked] = useState(false);
     const [uploading, setUploading] = useState(false);
     const messagesEndRef = useRef(null);
 
@@ -37,13 +38,17 @@ export default function Chat() {
             let myTeamId = null;
             let coachStatus = false;
 
-            const { data: ownedTeam } = await supabase.from('teams').select('id').eq('coach_id', currentUser.id).maybeSingle();
+            const { data: ownedTeam } = await supabase.from('teams').select('id, is_chat_locked').eq('coach_id', currentUser.id).maybeSingle();
             if (ownedTeam) {
                 myTeamId = ownedTeam.id;
                 coachStatus = true;
+                setIsChatLocked(ownedTeam.is_chat_locked);
             } else {
-                const { data: membership } = await supabase.from('team_members').select('team_id').eq('user_id', currentUser.id).maybeSingle();
-                if (membership) myTeamId = membership.team_id;
+                const { data: membership } = await supabase.from('team_members').select('team_id, teams(is_chat_locked)').eq('user_id', currentUser.id).maybeSingle();
+                if (membership) {
+                    myTeamId = membership.team_id;
+                    setIsChatLocked(membership.teams?.is_chat_locked);
+                }
 
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
                 coachStatus = profile?.role === 'COACH';
@@ -124,6 +129,17 @@ export default function Chat() {
         }
     };
 
+    const deleteMessage = async (id) => {
+        if (!confirm('Supprimer ce message ?')) return;
+        try {
+            const { error } = await supabase.from('messages').delete().eq('id', id);
+            if (error) throw error;
+            setMessages(prev => prev.filter(m => m.id !== id));
+        } catch (error) {
+            alert("Erreur suppression: " + error.message);
+        }
+    };
+
     const sendMessage = async (e) => {
         e.preventDefault();
         if (!newMessage.trim() || !team) return;
@@ -188,8 +204,8 @@ export default function Chat() {
                             )}
 
                             <div className={`group relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm transition-all ${isMe
-                                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                                    : `bg-white text-gray-800 border-2 rounded-tl-none ${isCoachMsg ? 'border-indigo-100 bg-indigo-50/30' : 'border-gray-100'}`
+                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                : `bg-white text-gray-800 border-2 rounded-tl-none ${isCoachMsg ? 'border-indigo-100 bg-indigo-50/30' : 'border-gray-100'}`
                                 }`}>
                                 {msg.file_url && (
                                     <div className="mb-2">
@@ -208,6 +224,14 @@ export default function Chat() {
                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     {isMe && <ShieldCheck size={10} className="text-indigo-300" />}
                                 </div>
+                                {isCoach && (
+                                    <button
+                                        onClick={() => deleteMessage(msg.id)}
+                                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                    >
+                                        <Trash2 size={10} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     );
@@ -217,26 +241,32 @@ export default function Chat() {
 
             {/* Input Area */}
             <div className="bg-white p-4 border-t sticky bottom-0">
-                <form onSubmit={sendMessage} className="flex items-center gap-2 bg-gray-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-indigo-300 focus-within:bg-white transition-all">
-                    <label className="cursor-pointer p-2 hover:bg-gray-200 rounded-full transition-colors relative">
-                        {uploading ? <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent animate-spin rounded-full" /> : <Paperclip size={20} className="text-gray-500" />}
-                        <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} accept="image/*,.pdf" />
-                    </label>
-                    <input
-                        type="text"
-                        className="flex-1 bg-transparent px-2 py-1.5 focus:outline-none text-sm font-medium"
-                        placeholder="Écrivez un message ou envoyez un fichier..."
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                    />
-                    <button
-                        type="submit"
-                        disabled={!newMessage.trim() || uploading}
-                        className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100 active:scale-90"
-                    >
-                        <Send size={18} />
-                    </button>
-                </form>
+                {isChatLocked && !isCoach ? (
+                    <div className="bg-gray-100 p-3 rounded-xl text-center text-gray-500 text-xs font-bold flex items-center justify-center gap-2">
+                        🔒 Chat verrouillé par le coach (Mode Diffusion)
+                    </div>
+                ) : (
+                    <form onSubmit={sendMessage} className="flex items-center gap-2 bg-gray-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-indigo-300 focus-within:bg-white transition-all">
+                        <label className="cursor-pointer p-2 hover:bg-gray-200 rounded-full transition-colors relative">
+                            {uploading ? <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent animate-spin rounded-full" /> : <Paperclip size={20} className="text-gray-500" />}
+                            <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} accept="image/*,.pdf" />
+                        </label>
+                        <input
+                            type="text"
+                            className="flex-1 bg-transparent px-2 py-1.5 focus:outline-none text-sm font-medium"
+                            placeholder={isChatLocked ? "Écrire en tant que coach..." : "Écrivez un message ou envoyez un fichier..."}
+                            value={newMessage}
+                            onChange={e => setNewMessage(e.target.value)}
+                        />
+                        <button
+                            type="submit"
+                            disabled={!newMessage.trim() || uploading}
+                            className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100 active:scale-90"
+                        >
+                            <Send size={18} />
+                        </button>
+                    </form>
+                )}
             </div>
         </div>
     );

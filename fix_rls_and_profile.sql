@@ -53,6 +53,22 @@ DROP POLICY IF EXISTS "Members can see teammates" ON team_members;
 CREATE POLICY "Members can see teammates" ON team_members 
 FOR SELECT USING (auth.role() = 'authenticated');
 
+-- 6. Politiques pour la table "messages" (Chat)
+DROP POLICY IF EXISTS "Members can see team messages" ON messages;
+CREATE POLICY "Members can see team messages" ON messages 
+FOR SELECT USING (
+  EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+  OR EXISTS (SELECT 1 FROM teams WHERE id = messages.team_id AND coach_id = auth.uid())
+);
+
+DROP POLICY IF EXISTS "Members can post messages" ON messages;
+CREATE POLICY "Members can post messages" ON messages 
+FOR INSERT WITH CHECK (
+  (EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+   OR EXISTS (SELECT 1 FROM teams WHERE id = messages.team_id AND coach_id = auth.uid()))
+  AND auth.uid() = sender_id
+);
+
 -- 5. Politiques pour la table "events" (Correction pour autoriser le Coach via backend)
 -- Puisque le backend utilise la SERVICE_ROLE, il contourne RLS. 
 -- Mais pour la lecture directe via frontend :

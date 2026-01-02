@@ -141,7 +141,18 @@ export default function Team() {
     };
 
     // RENDER LOGIC
-    if (loading) return <div className="p-10 text-center text-gray-500">Chargement des données...</div>;
+    const toggleChatLock = async () => {
+        try {
+            const newStatus = !team.is_chat_locked;
+            const { error } = await supabase.from('teams').update({ is_chat_locked: newStatus }).eq('id', team.id);
+            if (error) throw error;
+            setTeam({ ...team, is_chat_locked: newStatus });
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    if (loading) return <div className="p-10 text-center">Chargement...</div>;
 
     if (error) return (
         <div className="p-10 text-center text-red-600 bg-red-50 border border-red-200 m-4 rounded">
@@ -235,6 +246,26 @@ export default function Team() {
                 </div>
                 <button onClick={() => { navigator.clipboard.writeText(team.invite_code); alert('Copié !') }} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded"><Copy /></button>
             </div>
+
+            {/* Chat Lock Toggle (Coach Only) */}
+            {profile?.role === 'COACH' && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
+                    <div>
+                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                            {team.is_chat_locked ? '🔒 Chat Verrouillé' : '💬 Chat Ouvert'}
+                        </h3>
+                        <p className="text-[10px] text-gray-500 font-medium uppercase tracking-widest">
+                            {team.is_chat_locked ? "Seuls les coachs peuvent écrire" : 'Tout le monde peut écrire'}
+                        </p>
+                    </div>
+                    <button
+                        onClick={toggleChatLock}
+                        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${team.is_chat_locked ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                    >
+                        {team.is_chat_locked ? 'DÉVERROUILLER' : 'VERROUILLER'}
+                    </button>
+                </div>
+            )}
 
             <div className="bg-white rounded shadow-sm border overflow-hidden">
                 <div className="p-4 border-b bg-gray-50 font-semibold flex gap-2 items-center"><Users size={18} /> Membres ({members.length})</div>

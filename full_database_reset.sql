@@ -149,11 +149,13 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Members can see team messages" ON messages;
 CREATE POLICY "Members can see team messages" ON messages FOR SELECT USING (
   EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+  OR EXISTS (SELECT 1 FROM teams WHERE id = messages.team_id AND coach_id = auth.uid())
 );
 
 DROP POLICY IF EXISTS "Members can post messages" ON messages;
 CREATE POLICY "Members can post messages" ON messages FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+  (EXISTS (SELECT 1 FROM team_members WHERE team_id = messages.team_id AND user_id = auth.uid())
+   OR EXISTS (SELECT 1 FROM teams WHERE id = messages.team_id AND coach_id = auth.uid()))
   AND auth.uid() = sender_id
 );
 

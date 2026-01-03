@@ -202,7 +202,7 @@ export default function Dashboard() {
                                     className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                     {teams.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name} ({t.category || '?'})</option>
+                                        <option key={t.id} value={t.id}>{t.name} {t.category ? `(${t.category})` : ''}</option>
                                     ))}
                                 </select>
                             </>

@@ -78,6 +78,50 @@ export default function Team() {
             .select('user_id, profiles(full_name, role, position)')
             .eq('team_id', teamId);
         if (!error) setMembers(teamMembers || []);
+
+        // Also fetch history if we are in attendance view
+        fetchAttendanceHistory(teamId);
+    };
+
+    const fetchAttendanceHistory = async (teamId) => {
+        // Fetch all events including deleted ones
+        const { data: evs } = await supabase
+            .from('events')
+            .select('*')
+            .eq('team_id', teamId)
+            .order('date', { ascending: false });
+        setHistoryEvents(evs || []);
+
+        if (evs && evs.length > 0) {
+            const { data: att } = await supabase
+                .from('attendance')
+                .select('*')
+                .in('event_id', evs.map(e => e.id));
+
+            const matrix = {};
+            att?.forEach(row => {
+                if (!matrix[row.user_id]) matrix[row.user_id] = {};
+                matrix[row.user_id][row.event_id] = row.status;
+            });
+            setAttendanceMatrix(matrix);
+        }
+    };
+
+    const handleCoachOverride = async (userId, eventId, status) => {
+        if (!isCoach) return;
+        try {
+            const { error } = await supabase.from('attendance').upsert({
+                event_id: eventId,
+                user_id: userId,
+                status: status,
+                is_locked: true,
+                updated_at: new Date()
+            }, { onConflict: 'event_id, user_id' });
+            if (error) throw error;
+            fetchAttendanceHistory(team.id);
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
     const createTeam = async (e) => {
@@ -278,36 +322,126 @@ export default function Team() {
                 </div>
             )}
 
-            <div className="bg-white rounded shadow-sm border overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 font-semibold flex gap-2 items-center"><Users size={18} /> Membres ({members.length})</div>
-                <ul>
-                    {members.length === 0 && <li className="p-4 text-gray-400 italic">Aucun membre (à part vous)</li>}
-                    {members.map(m => (
-                        <li key={m.user_id} className="p-4 border-b last:border-0 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
-                                    {m.profiles?.full_name?.[0] || '?'}
-                                </div>
-                                <span>{m.profiles?.full_name || 'Utilisateur'} <span className="text-xs text-gray-400">({m.profiles?.role === 'PLAYER' ? 'Joueur' : (m.profiles?.role || 'Membre')}) {m.profiles?.position && `- ${m.profiles.position}`}</span></span>
-                            </div>
-                            {user?.id === team.coach_id && user?.id !== m.user_id && (
-                                <button
-                                    onClick={async () => {
-                                        if (confirm('Supprimer ce joueur de l\'équipe ?')) {
-                                            const { error } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('user_id', m.user_id);
-                                            if (!error) fetchMembers(team.id);
-                                        }
-                                    }}
-                                    className="text-gray-400 hover:text-red-600 p-2"
-                                    title="Supprimer du club"
-                                >
-                                    <AlertCircle size={16} />
-                                </button>
-                            )}
-                        </li>
-                    ))}
-                </ul>
+            {/* Tabs Switcher */}
+            <div className="flex border-b border-gray-200">
+                <button
+                    onClick={() => setView('members')}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'members' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                >
+                    Effectif
+                </button>
+                <button
+                    onClick={() => setView('attendance')}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'attendance' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                >
+                    Assiduité
+                </button>
             </div>
+
+            {view === 'members' ? (
+                /* Members List view */
+                <div className="bg-white rounded shadow-sm border overflow-hidden">
+                    <div className="p-4 border-b bg-gray-50 font-semibold flex gap-2 items-center"><Users size={18} /> Membres ({members.length})</div>
+                    <ul>
+                        {members.length === 0 && <li className="p-4 text-gray-400 italic">Aucun membre (à part vous)</li>}
+                        {members.map(m => (
+                            <li key={m.user_id} className="p-4 border-b last:border-0 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
+                                        {m.profiles?.full_name?.[0] || '?'}
+                                    </div>
+                                    <span>{m.profiles?.full_name || 'Utilisateur'} <span className="text-xs text-gray-400">({m.profiles?.role === 'PLAYER' ? 'Joueur' : (m.profiles?.role || 'Membre')}) {m.profiles?.position && `- ${m.profiles.position}`}</span></span>
+                                </div>
+                                {user?.id === team.coach_id && user?.id !== m.user_id && (
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm('Supprimer ce joueur de l\'équipe ?')) {
+                                                const { error } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('user_id', m.user_id);
+                                                if (!error) fetchMembers(team.id);
+                                            }
+                                        }}
+                                        className="text-gray-400 hover:text-red-600 p-2"
+                                        title="Supprimer du club"
+                                    >
+                                        <AlertCircle size={16} />
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : (
+                /* Attendance matrix view */
+                <div className="bg-white rounded shadow-sm border overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                        <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
+                            <tr>
+                                <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
+                                {historyEvents.map(ev => (
+                                    <th key={ev.id} className={`p-2 min-w-[60px] text-center border-r ${ev.is_deleted ? 'bg-red-50 text-red-400 line-through' : ''}`} title={`${ev.type} - ${ev.location}`}>
+                                        {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                                        <div className="text-[8px] opacity-70">{ev.type === 'MATCH' ? 'Match' : 'Entr.'}</div>
+                                    </th>
+                                ))}
+                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Assiduité</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {members.map(m => {
+                                const playerAtt = attendanceMatrix[m.user_id] || {};
+                                const presentCount = historyEvents.filter(ev => playerAtt[ev.id] === 'PRESENT' || playerAtt[ev.id] === 'RETARD').length;
+                                const ratio = historyEvents.length > 0 ? Math.round((presentCount / historyEvents.length) * 100) : 0;
+
+                                return (
+                                    <tr key={m.user_id} className="border-b hover:bg-gray-50">
+                                        <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.profiles?.full_name || 'Joueur'}</td>
+                                        {historyEvents.map(ev => {
+                                            const status = playerAtt[ev.id];
+                                            let color = "text-gray-300";
+                                            let label = "-";
+
+                                            if (status === 'PRESENT') { color = "text-green-600 font-black"; label = "P"; }
+                                            if (status === 'ABSENT') { color = "text-red-500 font-black"; label = "A"; }
+                                            if (status === 'MALADE') { color = "text-purple-500"; label = "M"; }
+                                            if (status === 'BLESSE') { color = "text-orange-500"; label = "B"; }
+                                            if (status === 'RETARD') { color = "text-yellow-600 font-bold"; label = "R"; }
+
+                                            return (
+                                                <td key={ev.id} className="p-2 border-r text-center">
+                                                    {isCoach ? (
+                                                        <select
+                                                            className={`bg-transparent outline-none ${color}`}
+                                                            value={status || ''}
+                                                            onChange={(e) => handleCoachOverride(m.user_id, ev.id, e.target.value)}
+                                                        >
+                                                            <option value="">-</option>
+                                                            <option value="PRESENT">P</option>
+                                                            <option value="ABSENT">A</option>
+                                                            <option value="MALADE">M</option>
+                                                            <option value="BLESSE">B</option>
+                                                            <option value="RETARD">R</option>
+                                                        </select>
+                                                    ) : (
+                                                        <span className={color}>{label}</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="p-4 text-center font-black bg-indigo-50/50">
+                                            <div className={`
+                                                px-2 py-1 rounded text-[10px]
+                                                ${ratio >= 80 ? 'bg-green-100 text-green-700' : ratio >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
+                                            `}>
+                                                {ratio}%
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }

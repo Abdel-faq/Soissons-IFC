@@ -102,17 +102,19 @@ export default function Events() {
                 }
 
                 const eventsData = await response.json();
-                console.log("Events received from API:", eventsData);
-                setEvents(eventsData || []);
+                // Filter only non-deleted events for the main list
+                const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+                console.log("Active Events received from API:", activeEvents);
+                setEvents(activeEvents);
 
                 const { data: attData } = await supabase
                     .from('attendance')
-                    .select('event_id, status')
+                    .select('event_id, status, is_locked')
                     .eq('user_id', user.id)
-                    .in('event_id', (eventsData ?? []).map(e => e.id));
+                    .in('event_id', activeEvents.map(e => e.id));
 
                 const attMap = {};
-                attData?.forEach(a => attMap[a.event_id] = a.status);
+                attData?.forEach(a => attMap[a.event_id] = { status: a.status, is_locked: a.is_locked });
                 setMyAttendance(attMap);
             }
         } catch (error) {
@@ -123,7 +125,13 @@ export default function Events() {
     };
 
     const updateAttendance = async (eventId, status) => {
-        setMyAttendance(prev => ({ ...prev, [eventId]: status }));
+        const current = myAttendance[eventId];
+        if (current?.is_locked) {
+            alert("Votre présence a été verrouillée par l'entraîneur.");
+            return;
+        }
+
+        setMyAttendance(prev => ({ ...prev, [eventId]: { ...prev[eventId], status } }));
         try {
             const { error } = await supabase.from('attendance').upsert({
                 event_id: eventId,
@@ -228,8 +236,9 @@ export default function Events() {
     };
 
     const deleteEvent = async (id) => {
-        if (!confirm('Supprimer cet événement ?')) return;
-        const { error } = await supabase.from('events').delete().eq('id', id);
+        if (!confirm('Voulez-vous supprimer cet événement ? (L\'historique sera conservé)')) return;
+        // Soft Deletion: update is_deleted = true
+        const { error } = await supabase.from('events').update({ is_deleted: true }).eq('id', id);
         if (!error) fetchEvents();
     };
 
@@ -330,7 +339,8 @@ export default function Events() {
         // Or we just send what we have in state.
         const updates = members.map(m => ({
             user_id: m.id,
-            is_convoked: !!eventConvs[m.id]
+            is_convoked: !!eventConvs[m.id],
+            is_locked: true // Lock the status once managed by coach
         }));
 
         try {

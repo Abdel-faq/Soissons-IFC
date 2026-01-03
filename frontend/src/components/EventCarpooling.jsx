@@ -19,14 +19,18 @@ export default function EventCarpooling({ eventId, currentUser }) {
 
     const fetchRides = async () => {
         try {
-            // SIMPLIFIED DEBUG FETCH
-            // We just fetch rides for now to see if they appear.
+            // Fetch rides with driver info
+            // Retry fetching with relationships now that we know data exists.
             const { data: ridesData, error } = await supabase
                 .from('rides')
-                .select('*')
+                .select(`
+                    *,
+                    driver:profiles!rides_driver_id_fkey ( id, email, full_name, role ),
+                    passengers:ride_passengers (
+                        passenger:profiles!ride_passengers_passenger_id_fkey ( id, email, full_name, role )
+                    )
+                `)
                 .eq('event_id', eventId);
-
-            // Note: passagers won't be shown temporarily
 
 
             if (error) {

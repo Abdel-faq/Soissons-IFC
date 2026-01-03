@@ -19,31 +19,64 @@ export default function EventCarpooling({ eventId, currentUser }) {
 
     const fetchRides = async () => {
         try {
-            // Fetch rides with driver info
-            // Retry fetching with relationships now that we know data exists.
-            const { data: ridesData, error } = await supabase
+            setLoading(true);
+            // 1. Fetch Rides and Passengers (raw IDs)
+            // We fetch passengers table first
+            const { data: ridesData, error: ridesError } = await supabase
                 .from('rides')
-                .select(`
-                    *,
-                    driver:profiles!rides_driver_id_fkey ( id, email, full_name, role ),
-                    passengers:ride_passengers (
-                        passenger:profiles!ride_passengers_passenger_id_fkey ( id, email, full_name, role )
-                    )
-                `)
+                .select('*')
                 .eq('event_id', eventId);
 
+            if (ridesError) throw ridesError;
+            if (!ridesData) { setRides([]); return; }
 
-            if (error) {
-                console.error("Error query rides:", error);
-                alert("Erreur chargement covoiturage: " + error.message); // Added alert
-                throw error;
-            }
+            const rideIds = ridesData.map(r => r.id);
 
-            console.log("Rides fetched for event", eventId, ridesData); // Added log
-            setRides(ridesData || []);
+            // 2. Fetch Passengers for these rides
+            const { data: passengersData, error: passError } = await supabase
+                .from('ride_passengers')
+                .select('*')
+                .in('ride_id', rideIds);
+
+            if (passError) throw passError;
+
+            // 3. Collect all User IDs to fetch profiles (Drivers + Passengers)
+            const driverIds = ridesData.map(r => r.driver_id);
+            const passengerUserIds = (passengersData || []).map(p => p.passenger_id);
+            const allUserIds = [...new Set([...driverIds, ...passengerUserIds])];
+
+            // 4. Fetch Profiles
+            const { data: profiles, error: profError } = await supabase
+                .from('profiles')
+                .select('id, email, full_name, role')
+                .in('id', allUserIds);
+
+            if (profError) throw profError;
+
+            // 5. Map data together
+            const profileMap = {};
+            profiles?.forEach(p => profileMap[p.id] = p);
+
+            const ridesWithData = ridesData.map(ride => {
+                const ridePassengers = (passengersData || [])
+                    .filter(p => p.ride_id === ride.id)
+                    .map(p => ({
+                        ...p,
+                        passenger: profileMap[p.passenger_id] || { email: 'Inconnu' }
+                    }));
+
+                return {
+                    ...ride,
+                    driver: profileMap[ride.driver_id] || { email: 'Chauffeur inconnu' },
+                    passengers: ridePassengers
+                };
+            });
+
+            console.log("Rides assembled:", ridesWithData);
+            setRides(ridesWithData);
         } catch (err) {
             console.error("Error fetching rides:", err);
-            // alert("Erreur fetch: " + err.message); // Optional
+            // alert("Erreur chargement: " + err.message);
         } finally {
             setLoading(false);
         }

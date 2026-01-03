@@ -38,20 +38,36 @@ export default function Chat() {
             let myTeamId = null;
             let coachStatus = false;
 
-            const { data: ownedTeam } = await supabase.from('teams').select('id, is_chat_locked').eq('coach_id', currentUser.id).maybeSingle();
-            if (ownedTeam) {
-                myTeamId = ownedTeam.id;
-                coachStatus = true;
-                setIsChatLocked(ownedTeam.is_chat_locked);
+            // Check Profile
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
+            coachStatus = profile?.role === 'COACH';
+
+            // Check LocalStorage
+            const activeTeamId = localStorage.getItem('active_team_id');
+
+            if (coachStatus) {
+                if (activeTeamId) {
+                    // Fetch specific team logic
+                    const { data: team } = await supabase.from('teams').select('id, is_chat_locked').eq('id', activeTeamId).single();
+                    if (team) {
+                        myTeamId = team.id;
+                        setIsChatLocked(team.is_chat_locked);
+                    }
+                } else {
+                    // Fallback
+                    const { data: ownedTeam } = await supabase.from('teams').select('id, is_chat_locked').eq('coach_id', currentUser.id).limit(1).maybeSingle();
+                    if (ownedTeam) {
+                        myTeamId = ownedTeam.id;
+                        setIsChatLocked(ownedTeam.is_chat_locked);
+                    }
+                }
             } else {
+                // Player
                 const { data: membership } = await supabase.from('team_members').select('team_id, teams(is_chat_locked)').eq('user_id', currentUser.id).maybeSingle();
                 if (membership) {
                     myTeamId = membership.team_id;
                     setIsChatLocked(membership.teams?.is_chat_locked);
                 }
-
-                const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
-                coachStatus = profile?.role === 'COACH';
             }
 
             setTeam(myTeamId);

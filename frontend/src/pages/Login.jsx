@@ -73,6 +73,12 @@ export default function Login() {
         // Default role based on entry point, fallback to Player if unknown
         const targetRole = role || 'PLAYER';
 
+        if (targetRole === 'COACH') {
+            alert("Si vous êtes coach au Soissons IFC, merci de contacter votre Admin pour qu'il vous crée un compte.");
+            setLoading(false);
+            return;
+        }
+
         const { data: { user }, error } = await supabase.auth.signUp({
             email,
             password,

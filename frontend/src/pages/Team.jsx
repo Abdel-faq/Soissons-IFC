@@ -59,8 +59,10 @@ export default function Team() {
 
             setTeams(myTeams || []);
             if (myTeams && myTeams.length > 0) {
-                setTeam(myTeams[0]); // Select first by default
-                fetchMembers(myTeams[0].id);
+                const savedId = localStorage.getItem('active_team_id');
+                const active = myTeams.find(t => t.id === savedId) || myTeams[0];
+                setTeam(active);
+                fetchMembers(active.id);
             }
         } catch (err) {
             console.error("TeamPage: Error", err);
@@ -222,7 +224,11 @@ export default function Team() {
                     {teams.map(t => (
                         <button
                             key={t.id}
-                            onClick={() => { setTeam(t); fetchMembers(t.id); }}
+                            onClick={() => {
+                                setTeam(t);
+                                fetchMembers(t.id);
+                                localStorage.setItem('active_team_id', t.id);
+                            }}
                             className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold ${team.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border'}`}
                         >
                             {t.category ? `${t.category} - ${t.name}` : t.name}
@@ -243,9 +249,13 @@ export default function Team() {
                         <span className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5 rounded uppercase">{team.category || 'Général'}</span>
                         <h1 className="text-2xl font-bold leading-none">{team.name}</h1>
                     </div>
-                    <p className="text-gray-500 text-sm">Code d'invitation: <span className="font-mono bg-gray-100 px-2 py-1 rounded select-all">{team.invite_code}</span></p>
+                    {isCoach && (
+                        <p className="text-gray-500 text-sm">Code d'invitation: <span className="font-mono bg-gray-100 px-2 py-1 rounded select-all">{team.invite_code}</span></p>
+                    )}
                 </div>
-                <button onClick={() => { navigator.clipboard.writeText(team.invite_code); alert('Copié !') }} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded"><Copy /></button>
+                {isCoach && (
+                    <button onClick={() => { navigator.clipboard.writeText(team.invite_code); alert('Copié !') }} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded"><Copy /></button>
+                )}
             </div>
 
             {/* Chat Lock Toggle (Coach Only) */}
@@ -278,7 +288,7 @@ export default function Team() {
                                 <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
                                     {m.profiles?.full_name?.[0] || '?'}
                                 </div>
-                                <span>{m.profiles?.full_name || 'Utilisateur'} <span className="text-xs text-gray-400">({m.profiles?.role || 'Membre'}) {m.profiles?.position && `- ${m.profiles.position}`}</span></span>
+                                <span>{m.profiles?.full_name || 'Utilisateur'} <span className="text-xs text-gray-400">({m.profiles?.role === 'PLAYER' ? 'Joueur' : (m.profiles?.role || 'Membre')}) {m.profiles?.position && `- ${m.profiles.position}`}</span></span>
                             </div>
                             {user?.id === team.coach_id && user?.id !== m.user_id && (
                                 <button

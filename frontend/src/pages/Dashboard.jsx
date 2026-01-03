@@ -16,6 +16,8 @@ export default function Dashboard() {
     const [generatedPassword, setGeneratedPassword] = useState('');
     const [lastCreatedCoach, setLastCreatedCoach] = useState(null);
 
+    const [teams, setTeams] = useState([]); // Add teams state
+
     useEffect(() => {
         fetchDashboardData();
     }, []);
@@ -34,25 +36,41 @@ export default function Dashboard() {
                 const userRole = profileData?.role || 'PLAYER';
                 setIsCoach(userRole === 'COACH');
 
-                // Fetch Team based on role
-                let myTeam = null;
+                // Fetch Team(s)
+                let activeTeam = null;
+
                 if (userRole === 'COACH') {
-                    const { data, error: coachTeamErr } = await supabase.from('teams').select('*').eq('coach_id', user.id).maybeSingle();
+                    // Fetch ALL teams for master coach
+                    const { data: coachTeams, error: coachTeamErr } = await supabase.from('teams').select('*').eq('coach_id', user.id);
                     if (coachTeamErr) console.error("Erreur team coach:", coachTeamErr);
-                    myTeam = data;
+
+                    setTeams(coachTeams || []);
+
+                    // Determine Active Team
+                    if (coachTeams && coachTeams.length > 0) {
+                        const savedTeamId = localStorage.getItem('active_team_id');
+                        activeTeam = coachTeams.find(t => t.id === savedTeamId) || coachTeams[0];
+
+                        // Persist default if none saved
+                        if (activeTeam) localStorage.setItem('active_team_id', activeTeam.id);
+                    }
+
                 } else if (userRole === 'PLAYER') {
                     const { data: memberShip, error: memberErr } = await supabase.from('team_members').select('team_id, teams(*)').eq('user_id', user.id).maybeSingle();
                     if (memberErr) console.error("Erreur membership player:", memberErr);
-                    if (memberShip) myTeam = memberShip.teams;
+                    if (memberShip) {
+                        activeTeam = memberShip.teams;
+                        localStorage.setItem('active_team_id', activeTeam.id); // Also save for players for consistency
+                    }
                 }
-                setTeam(myTeam);
+                setTeam(activeTeam);
 
-                // Fetch Next Event
-                if (myTeam) {
+                // Fetch Next Event (Dependent on Active Team)
+                if (activeTeam) {
                     const { data: event } = await supabase
                         .from('events')
                         .select('*')
-                        .eq('team_id', myTeam.id)
+                        .eq('team_id', activeTeam.id)
                         .gte('date', new Date().toISOString())
                         .order('date', { ascending: true })
                         .limit(1)
@@ -64,6 +82,18 @@ export default function Dashboard() {
             console.error("Dashboard error:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleTeamSwitch = (teamId) => {
+        const selected = teams.find(t => t.id === teamId);
+        if (selected) {
+            setTeam(selected);
+            localStorage.setItem('active_team_id', selected.id);
+            // Refresh dependent data (Next match etc)
+            // Ideally we split fetch into fetchUser/Teams and fetchTeamData, but full reload is safer for now or just recall fetchDashboardData? 
+            // Better: update state and minimal refetch.
+            window.location.reload(); // Simple and robust for now to ensure all children components update if they were mounted
         }
     };
 
@@ -158,6 +188,21 @@ export default function Dashboard() {
                     </h1>
                     <p className="text-gray-500 font-medium">SOISSONS IFC — Espace {isAdmin ? 'Administration' : 'Sportif'}</p>
                 </div>
+
+                {isCoach && teams.length > 1 && (
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Équipe :</label>
+                        <select
+                            value={team?.id || ''}
+                            onChange={(e) => handleTeamSwitch(e.target.value)}
+                            className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                            {teams.map(t => (
+                                <option key={t.id} value={t.id}>{t.name} ({t.category || '?'})</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             {/* View: ADMIN */}

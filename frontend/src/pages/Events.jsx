@@ -41,11 +41,24 @@ export default function Events() {
             let myTeamId = null;
             let isUserCoach = false;
 
-            const { data: ownedTeam } = await supabase.from('teams').select('id, coach_id').eq('coach_id', user.id).maybeSingle();
-            if (ownedTeam) {
-                myTeamId = ownedTeam.id;
-                isUserCoach = true;
+            // Check LocalStorage first (for multi-team coaches)
+            const activeTeamId = localStorage.getItem('active_team_id');
+
+            // Check Profile to see if coach
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+            const userRole = profile?.role || 'PLAYER';
+            if (userRole === 'COACH') isUserCoach = true;
+
+            if (userRole === 'COACH') {
+                if (activeTeamId) {
+                    myTeamId = activeTeamId;
+                } else {
+                    // Fallback to first team
+                    const { data: ownedTeam } = await supabase.from('teams').select('id').eq('coach_id', user.id).limit(1).maybeSingle();
+                    if (ownedTeam) myTeamId = ownedTeam.id;
+                }
             } else {
+                // Player: fetch membership
                 const { data: membership } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).maybeSingle();
                 if (membership) myTeamId = membership.team_id;
             }

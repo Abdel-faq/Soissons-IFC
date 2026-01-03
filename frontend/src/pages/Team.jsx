@@ -11,6 +11,9 @@ export default function Team() {
     const [members, setMembers] = useState([]);
     const [category, setCategory] = useState('U10'); // Default category
     const [profile, setProfile] = useState(null);
+    const [view, setView] = useState('members'); // 'members' or 'attendance'
+    const [historyEvents, setHistoryEvents] = useState([]);
+    const [attendanceMatrix, setAttendanceMatrix] = useState({}); // { user_id: { event_id: status } }
 
     // Form states
     const [newTeamName, setNewTeamName] = useState('');
@@ -108,7 +111,8 @@ export default function Team() {
     };
 
     const handleCoachOverride = async (userId, eventId, status) => {
-        if (!isCoach) return;
+        const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id;
+        if (!isUserCoach) return;
         try {
             const { error } = await supabase.from('attendance').upsert({
                 event_id: eventId,
@@ -188,6 +192,7 @@ export default function Team() {
 
     // RENDER LOGIC
     const toggleChatLock = async () => {
+        if (!team) return;
         try {
             const newStatus = !team.is_chat_locked;
             const { error } = await supabase.from('teams').update({ is_chat_locked: newStatus }).eq('id', team.id);

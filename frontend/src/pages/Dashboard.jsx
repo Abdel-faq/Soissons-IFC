@@ -4,6 +4,7 @@ import Stats from '../components/Stats';
 
 export default function Dashboard() {
     const [newTeamName, setNewTeamName] = useState('');
+    const [showForm, setShowForm] = useState(false); // New state for toggling form
     const [loadingTeam, setLoadingTeam] = useState(false);
     const [nextEvent, setNextEvent] = useState(null);
     const [team, setTeam] = useState(null);
@@ -189,18 +190,29 @@ export default function Dashboard() {
                     <p className="text-gray-500 font-medium">SOISSONS IFC — Espace {isAdmin ? 'Administration' : 'Sportif'}</p>
                 </div>
 
-                {isCoach && teams.length > 1 && (
+                {isCoach && (
                     <div className="flex items-center gap-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase">Équipe :</label>
-                        <select
-                            value={team?.id || ''}
-                            onChange={(e) => handleTeamSwitch(e.target.value)}
-                            className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                        {teams.length > 0 && (
+                            <>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Équipe :</label>
+                                <select
+                                    value={team?.id || ''}
+                                    onChange={(e) => handleTeamSwitch(e.target.value)}
+                                    className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    {teams.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} ({t.category || '?'})</option>
+                                    ))}
+                                </select>
+                            </>
+                        )}
+                        <button
+                            onClick={() => setShowForm(!showForm)}
+                            className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                            title="Créer une nouvelle équipe"
                         >
-                            {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({t.category || '?'})</option>
-                            ))}
-                        </select>
+                            <Plus size={20} />
+                        </button>
                     </div>
                 )}
             </div>
@@ -247,11 +259,20 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* View: COACH (Sans équipe) */}
-            {isCoach && !team && (
-                <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 p-10 rounded-2xl text-center">
-                    <h2 className="text-2xl font-bold text-indigo-900 mb-4">Initialisez votre équipe éducateur</h2>
-                    <p className="text-indigo-700/70 mb-8 max-w-lg mx-auto font-medium">Vous êtes enregistré comme coach. Créez votre équipe pour commencer à organiser vos matches et convocations.</p>
+            {/* View: COACH (Création d'équipe) */}
+            {isCoach && (!team || showForm) && (
+                <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 p-10 rounded-2xl text-center relative">
+                    {team && (
+                        <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                            <X size={24} />
+                        </button>
+                    )}
+                    <h2 className="text-2xl font-bold text-indigo-900 mb-4">
+                        {team ? "Ajouter une nouvelle équipe" : "Initialisez votre équipe éducateur"}
+                    </h2>
+                    <p className="text-indigo-700/70 mb-8 max-w-lg mx-auto font-medium">
+                        Créez une équipe pour une catégorie spécifique (U10, U12, Seniors, etc.).
+                    </p>
                     <form onSubmit={createTeam} className="max-w-md mx-auto flex gap-3">
                         <input
                             type="text"

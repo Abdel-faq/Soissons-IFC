@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Stats from '../components/Stats';
+import { Plus, X } from 'lucide-react';
 
 export default function Dashboard() {
     const [newTeamName, setNewTeamName] = useState('');

@@ -22,7 +22,8 @@ export default function Events() {
         notes: '',
         visibility_type: 'PUBLIC',
         is_recurring: false,
-        selected_players: [] // Array of IDs
+        selected_players: [], // Array of IDs
+        match_location: 'DOMICILE'
     });
 
     useEffect(() => {
@@ -166,7 +167,8 @@ export default function Events() {
                     notes: newEvent.notes,
                     visibility_type: newEvent.visibility_type,
                     is_recurring: newEvent.is_recurring,
-                    selected_players: newEvent.selected_players
+                    selected_players: newEvent.selected_players,
+                    match_location: newEvent.type === 'MATCH' ? newEvent.match_location : null
                 })
             });
 
@@ -188,7 +190,7 @@ export default function Events() {
             }
 
             setShowForm(false);
-            setNewEvent({ type: 'MATCH', date: '', time: '', location: '', notes: '', visibility_type: 'PUBLIC', is_recurring: false, selected_players: [] });
+            setNewEvent({ type: 'MATCH', date: '', time: '', location: '', notes: '', visibility_type: 'PUBLIC', is_recurring: false, selected_players: [], match_location: 'DOMICILE' });
             fetchEvents();
         } catch (err) {
             console.error("Debug Event error:", err);
@@ -493,7 +495,7 @@ export default function Events() {
                         <div className="flex justify-end gap-3 pt-4 border-t">
                             <button type="button" onClick={() => {
                                 setShowForm(false);
-                                setNewEvent({ type: 'MATCH', date: '', time: '', location: '', notes: '', visibility_type: 'PUBLIC', is_recurring: false, selected_players: [] });
+                                setNewEvent({ type: 'MATCH', date: '', time: '', location: '', notes: '', visibility_type: 'PUBLIC', is_recurring: false, selected_players: [], match_location: 'DOMICILE' });
                             }} className="px-6 py-2.5 text-gray-500 font-bold hover:bg-gray-100 rounded-lg transition-colors">Annuler</button>
                             <button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95 transition-all">
                                 {newEvent.id ? 'Sauvegarder les modifications' : 'Publier l\'événement'}
@@ -582,7 +584,15 @@ export default function Events() {
                                     </div>
 
                                     <div className="flex flex-col gap-1 text-gray-600">
-                                        <span className="flex items-center gap-1.5 font-medium"><MapPin size={16} className="text-gray-400" /> {ev.location}</span>
+                                        <span className="flex items-center gap-1.5 font-medium">
+                                            <MapPin size={16} className="text-gray-400" />
+                                            {ev.location}
+                                            {isMatch && (
+                                                <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded ${ev.match_location === 'EXTERIEUR' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                    {ev.match_location === 'EXTERIEUR' ? 'EXTÉRIEUR' : 'DOMICILE'}
+                                                </span>
+                                            )}
+                                        </span>
                                         {ev.notes && <p className="text-sm text-gray-500 italic bg-gray-50 p-2 rounded border border-dashed mt-1">{ev.notes}</p>}
                                     </div>
                                 </div>
@@ -629,7 +639,8 @@ export default function Events() {
                                                         notes: ev.notes,
                                                         visibility_type: ev.visibility_type,
                                                         is_recurring: ev.is_recurring,
-                                                        selected_players: ev.attendance?.filter(a => a.is_convoked).map(a => a.user_id) || []
+                                                        selected_players: ev.attendance?.filter(a => a.is_convoked).map(a => a.user_id) || [],
+                                                        match_location: ev.match_location || 'DOMICILE'
                                                     });
                                                     setShowForm(true);
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -692,9 +703,11 @@ export default function Events() {
                             )}
 
                             {/* Integrated Carpooling Section */}
-                            <div className="bg-gray-50/30 px-4 pb-4">
-                                <EventCarpooling eventId={ev.id} currentUser={user} />
-                            </div>
+                            {isMatch && ev.match_location === 'EXTERIEUR' && (
+                                <div className="bg-gray-50/30 px-4 pb-4">
+                                    <EventCarpooling eventId={ev.id} currentUser={user} />
+                                </div>
+                            )}
                         </div>
                     );
                 })}

@@ -66,7 +66,7 @@ router.post('/', requireAuth, async (req, res) => {
     const {
       team_id, type, date, location, notes,
       visibility_type, is_recurring, recurrence_pattern,
-      selected_players
+      selected_players, match_location
     } = req.body;
 
     const insertData = {
@@ -74,7 +74,8 @@ router.post('/', requireAuth, async (req, res) => {
       visibility_type: visibility_type || 'PUBLIC',
       is_recurring: is_recurring || false,
       recurrence_pattern: recurrence_pattern || (is_recurring ? 'WEEKLY' : null),
-      coach_id: req.user.id
+      coach_id: req.user.id,
+      match_location: type === 'MATCH' ? (match_location || 'DOMICILE') : null
     };
 
     console.log("Attempting insert into events with:", insertData);
@@ -135,6 +136,7 @@ router.post('/generate-recurring', requireAuth, async (req, res) => {
           date: nextWeekDate.toISOString(),
           location: event.location,
           notes: event.notes,
+          match_location: event.match_location,
           visibility_type: event.visibility_type,
           group_id: event.group_id,
           coach_id: event.coach_id,
@@ -220,11 +222,21 @@ router.put('/:id', requireAuth, async (req, res) => {
   try {
     if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
     const { id } = req.params;
-    const { type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, selected_players } = req.body;
+    const { type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, selected_players, match_location } = req.body;
 
     const { data: event, error } = await supabase
       .from('events')
-      .update({ type, date, location, notes, visibility_type, is_recurring, recurrence_pattern, updated_at: new Date() })
+      .update({
+        type,
+        date,
+        location,
+        notes,
+        visibility_type,
+        is_recurring,
+        recurrence_pattern,
+        match_location: type === 'MATCH' ? (match_location || 'DOMICILE') : null,
+        updated_at: new Date()
+      })
       .eq('id', id)
       .select()
       .single();

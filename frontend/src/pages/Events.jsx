@@ -403,6 +403,27 @@ export default function Events() {
                                     </div>
                                 </div>
 
+                                {newEvent.type === 'MATCH' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Lieu du match</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { id: 'DOMICILE', label: '🏠 Domicile' },
+                                                { id: 'EXTERIEUR', label: '🚌 Extérieur' }
+                                            ].map(loc => (
+                                                <button
+                                                    key={loc.id} type="button"
+                                                    onClick={() => setNewEvent({ ...newEvent, match_location: loc.id })}
+                                                    className={`py-2 rounded-lg border-2 font-bold text-sm transition-all ${newEvent.match_location === loc.id ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-100 bg-white text-gray-400'
+                                                        }`}
+                                                >
+                                                    {loc.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>

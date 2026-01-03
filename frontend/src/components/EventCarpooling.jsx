@@ -33,12 +33,15 @@ export default function EventCarpooling({ eventId, currentUser }) {
 
             if (error) {
                 console.error("Error query rides:", error);
+                alert("Erreur chargement covoiturage: " + error.message); // Added alert
                 throw error;
             }
 
+            console.log("Rides fetched for event", eventId, ridesData); // Added log
             setRides(ridesData || []);
         } catch (err) {
             console.error("Error fetching rides:", err);
+            // alert("Erreur fetch: " + err.message); // Optional
         } finally {
             setLoading(false);
         }

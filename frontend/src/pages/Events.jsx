@@ -41,6 +41,7 @@ export default function Events() {
 
             // Fetch All Children for this parent
             const { data: allChildren } = await supabase.from('players').select('*').eq('parent_id', user.id);
+            console.log("[DEBUG] All children of parent:", allChildren?.map(c => c.full_name));
 
             // Read Context
             const savedCtx = localStorage.getItem('sb-active-context');
@@ -50,6 +51,7 @@ export default function Events() {
                     context = JSON.parse(savedCtx);
                 } catch (e) { console.error("Stale context", e); }
             }
+            console.log("[DEBUG] Current context:", context);
 
             if (!context) {
                 setChildren(allChildren || []);
@@ -61,18 +63,21 @@ export default function Events() {
             setIsCoach(context.role === 'COACH');
 
             // Filter children to only those in the current team
+            let filteredChildren = allChildren || [];
             if (context.teamId) {
                 const { data: teamMemberships } = await supabase
                     .from('team_members')
                     .select('player_id')
                     .eq('team_id', context.teamId);
 
-                const teamPlayerIds = teamMemberships?.map(m => m.player_id) || [];
-                const filtered = (allChildren || []).filter(c => teamPlayerIds.includes(c.id));
-                setChildren(filtered);
+                console.log("[DEBUG] Team memberships for team:", context.teamId, teamMemberships);
+                const teamPlayerIds = (teamMemberships || []).map(m => m.player_id).filter(Boolean);
+                filteredChildren = (allChildren || []).filter(c => teamPlayerIds.includes(c.id));
+                setChildren(filteredChildren);
             } else {
                 setChildren(allChildren || []);
             }
+            console.log("[DEBUG] Filtered children for team:", filteredChildren.map(c => c.full_name));
 
             if (context.teamId) {
                 const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${context.teamId}`;
@@ -91,7 +96,9 @@ export default function Events() {
                     setEvents(activeEvents);
 
                     // Fetch Attendance for context child (or all children if coach/missing)
-                    const relevantPlayerIds = context.playerId ? [context.playerId] : (childrenData?.map(c => c.id) || []);
+                    const relevantPlayerIds = (context.playerId && context.role !== 'COACH')
+                        ? [context.playerId]
+                        : filteredChildren.map(c => c.id);
 
                     if (relevantPlayerIds.length > 0) {
                         const { data: attData } = await supabase

@@ -15,7 +15,6 @@ export default function Layout() {
     const navItems = [
         { path: '/dashboard', label: 'Accueil', icon: Home },
         { path: '/dashboard/team', label: 'Équipe', icon: Users },
-        { path: '/dashboard/groups', label: 'Groupes', icon: Layers },
         { path: '/dashboard/events', label: 'Events', icon: Calendar },
         { path: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
         { path: '/dashboard/profile', label: 'Profil', icon: User },

@@ -58,9 +58,16 @@ export default function Events() {
                     if (ownedTeam) myTeamId = ownedTeam.id;
                 }
             } else {
-                // Player: fetch membership
-                const { data: membership } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).maybeSingle();
-                if (membership) myTeamId = membership.team_id;
+                // Player: fetch memberships
+                const { data: memberships } = await supabase.from('team_members').select('team_id').eq('user_id', user.id);
+                if (memberships && memberships.length > 0) {
+                    const availableIds = memberships.map(m => m.team_id);
+                    if (activeTeamId && availableIds.includes(activeTeamId)) {
+                        myTeamId = activeTeamId;
+                    } else {
+                        myTeamId = availableIds[0];
+                    }
+                }
             }
 
             setTeam(myTeamId);

@@ -47,16 +47,15 @@ export default function Team() {
 
             if (teamError) throw teamError;
 
-            // If no owned teams, check membership
+            // If no owned teams, check membership (for players)
             if (!myTeams || myTeams.length === 0) {
-                const { data: membership } = await supabase
+                const { data: memberships } = await supabase
                     .from('team_members')
                     .select('team_id, teams(*)')
-                    .eq('user_id', currentUser.id)
-                    .maybeSingle();
+                    .eq('user_id', currentUser.id);
 
-                if (membership && membership.teams) {
-                    myTeams = [membership.teams];
+                if (memberships && memberships.length > 0) {
+                    myTeams = memberships.map(m => m.teams).filter(Boolean);
                 }
             }
 

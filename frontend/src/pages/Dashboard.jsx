@@ -46,23 +46,32 @@ export default function Dashboard() {
                     const { data: coachTeams, error: coachTeamErr } = await supabase.from('teams').select('*').eq('coach_id', user.id);
                     if (coachTeamErr) console.error("Erreur team coach:", coachTeamErr);
 
-                    setTeams(coachTeams || []);
+                    const allTeams = coachTeams || [];
+                    setTeams(allTeams);
 
                     // Determine Active Team
-                    if (coachTeams && coachTeams.length > 0) {
+                    if (allTeams.length > 0) {
                         const savedTeamId = localStorage.getItem('active_team_id');
-                        activeTeam = coachTeams.find(t => t.id === savedTeamId) || coachTeams[0];
-
-                        // Persist default if none saved
+                        activeTeam = allTeams.find(t => t.id === savedTeamId) || allTeams[0];
                         if (activeTeam) localStorage.setItem('active_team_id', activeTeam.id);
                     }
 
                 } else if (userRole === 'PLAYER') {
-                    const { data: memberShip, error: memberErr } = await supabase.from('team_members').select('team_id, teams(*)').eq('user_id', user.id).maybeSingle();
-                    if (memberErr) console.error("Erreur membership player:", memberErr);
-                    if (memberShip) {
-                        activeTeam = memberShip.teams;
-                        localStorage.setItem('active_team_id', activeTeam.id); // Also save for players for consistency
+                    // Fetch ALL teams where player is a member
+                    const { data: memberships, error: memberErr } = await supabase
+                        .from('team_members')
+                        .select('team_id, teams(*)')
+                        .eq('user_id', user.id);
+
+                    if (memberErr) console.error("Erreur memberships player:", memberErr);
+
+                    const playerTeams = memberships?.map(m => m.teams).filter(Boolean) || [];
+                    setTeams(playerTeams);
+
+                    if (playerTeams.length > 0) {
+                        const savedTeamId = localStorage.getItem('active_team_id');
+                        activeTeam = playerTeams.find(t => t.id === savedTeamId) || playerTeams[0];
+                        if (activeTeam) localStorage.setItem('active_team_id', activeTeam.id);
                     }
                 }
                 setTeam(activeTeam);
@@ -191,9 +200,9 @@ export default function Dashboard() {
                     <p className="text-gray-500 font-medium">SOISSONS IFC — Espace {isAdmin ? 'Administration' : 'Sportif'}</p>
                 </div>
 
-                {isCoach && (
+                {!isAdmin && (
                     <div className="flex items-center gap-2">
-                        {teams.length > 0 && (
+                        {teams.length > 1 && (
                             <>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Équipe :</label>
                                 <select
@@ -207,13 +216,15 @@ export default function Dashboard() {
                                 </select>
                             </>
                         )}
-                        <button
-                            onClick={() => setShowForm(!showForm)}
-                            className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
-                            title="Créer une nouvelle équipe"
-                        >
-                            <Plus size={20} />
-                        </button>
+                        {isCoach && (
+                            <button
+                                onClick={() => setShowForm(!showForm)}
+                                className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                                title="Créer une nouvelle équipe"
+                            >
+                                <Plus size={20} />
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

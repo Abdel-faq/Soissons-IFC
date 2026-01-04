@@ -49,21 +49,37 @@ export default function Team() {
                 const activeRole = context.role || 'PLAYER';
                 setIsCoach(activeRole === 'COACH');
 
-                // Set dummy team object for initial view if we have context
-                const teamObj = context.teamId ? {
-                    id: context.teamId,
-                    name: context.teamName,
-                    category: context.category,
-                    coach_id: activeRole === 'COACH' ? currentUser.id : null
-                } : null;
+                // 1. Fetch ALL teams where user is coach (to allow switching)
+                if (activeRole === 'COACH') {
+                    const { data: ownedTeams } = await supabase
+                        .from('teams')
+                        .select('*')
+                        .eq('coach_id', currentUser.id);
+                    setTeams(ownedTeams || []);
 
-                if (teamObj) {
-                    setTeam(teamObj);
-                    setTeams([teamObj]); // Crucial to avoid "No Team" view
-                    fetchMembers(context.teamId);
+                    // Use context team if present, else first owned team
+                    const targetTeamId = context.teamId || ownedTeams?.[0]?.id;
+                    if (targetTeamId) {
+                        const current = (ownedTeams || []).find(t => t.id === targetTeamId);
+                        if (current) {
+                            setTeam(current);
+                            fetchMembers(current.id);
+                        }
+                    }
                 } else {
-                    setTeam(null);
-                    setTeams([]);
+                    // 2. PLAYER case
+                    if (context.teamId) {
+                        const { data: teamData } = await supabase
+                            .from('teams')
+                            .select('*')
+                            .eq('id', context.teamId)
+                            .single();
+                        if (teamData) {
+                            setTeam(teamData);
+                            setTeams([teamData]);
+                            fetchMembers(teamData.id);
+                        }
+                    }
                 }
             }
         } catch (err) {

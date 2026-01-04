@@ -79,6 +79,7 @@ export default function Dashboard() {
                             teamName: t.name,
                             category: t.category,
                             role: 'COACH',
+                            inviteCode: t.invite_code,
                             label: `👨‍🏫 Coach - ${t.name} (${t.category || ''})`
                         });
                     });
@@ -204,8 +205,9 @@ export default function Dashboard() {
         setLoadingTeam(true);
 
         try {
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             const { data, error } = await supabase.from('teams').insert([
-                { name: newTeamName, coach_id: user.id }
+                { name: newTeamName, coach_id: user.id, invite_code: code }
             ]).select().single();
 
             if (error) throw error;

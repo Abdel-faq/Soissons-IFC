@@ -21,8 +21,10 @@ export default function Dashboard() {
     const [teams, setTeams] = useState([]); // Add teams state
 
     const [children, setChildren] = useState([]);
-    const [showChildForm, setShowChildForm] = useState(false);
-    const [newChild, setNewChild] = useState({ first_name: '', last_name: '', position: '' });
+    const [newChild, setNewChild] = useState({ first_name: '', last_name: '', position: 'Attaquant' });
+    const [joiningTeam, setJoiningTeam] = useState(null); // { childId, inviteCode }
+    const [showJoinModal, setShowJoinModal] = useState(false);
+    const [joinData, setJoinData] = useState({ childId: '', code: '' });
 
     useEffect(() => {
         fetchDashboardData();
@@ -116,7 +118,7 @@ export default function Dashboard() {
             if (error) throw error;
 
             setChildren([...children, data]);
-            setNewChild({ first_name: '', last_name: '', position: '' });
+            setNewChild({ first_name: '', last_name: '', position: 'Attaquant' });
             setShowChildForm(false);
             alert("Enfant ajouté !");
         } catch (err) {
@@ -187,37 +189,22 @@ export default function Dashboard() {
         }
     };
 
-    const joinTeam = async (e) => {
+    const handleJoinTeam = async (e) => {
         e.preventDefault();
-
-        if (children.length === 0) {
-            alert("Veuillez d'abord ajouter un enfant à votre profil.");
-            setShowChildForm(true);
-            return;
-        }
-
-        const code = prompt("Entrez le code d'invitation de l'équipe :");
-        if (!code) return;
-
-        // Ask which child to join if multiple
-        let selectedChildId = children[0].id;
-        if (children.length > 1) {
-            const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
-            const choice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
-            const index = parseInt(choice) - 1;
-            if (children[index]) selectedChildId = children[index].id;
-        }
+        if (!joinData.childId || !joinData.code) return;
 
         try {
-            const { data: teamToJoin, error: fetchErr } = await supabase.from('teams').select('id').eq('invite_code', code).single();
+            const { data: teamToJoin, error: fetchErr } = await supabase.from('teams').select('id').eq('invite_code', joinData.code.trim()).single();
             if (fetchErr) throw new Error("Code invalide ou équipe introuvable");
 
             const { error: joinErr } = await supabase.from('team_members').insert([
-                { team_id: teamToJoin.id, player_id: selectedChildId }
+                { team_id: teamToJoin.id, player_id: joinData.childId }
             ]);
             if (joinErr) throw joinErr;
 
             alert("L'enfant a rejoint l'équipe !");
+            setShowJoinModal(false);
+            setJoinData({ childId: '', code: '' });
             fetchDashboardData();
         } catch (err) {
             alert(err.message);
@@ -269,7 +256,15 @@ export default function Dashboard() {
                                 </button>
                             )}
                             <button
-                                onClick={joinTeam}
+                                onClick={() => {
+                                    if (children.length === 0) {
+                                        alert("Veuillez d'abord ajouter un enfant.");
+                                        setShowChildForm(true);
+                                    } else {
+                                        setShowJoinModal(true);
+                                        setJoinData({ ...joinData, childId: children[0].id });
+                                    }
+                                }}
                                 className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors"
                                 title="Rejoindre une équipe (Code)"
                             >
@@ -348,10 +343,17 @@ export default function Dashboard() {
                                 value={newChild.last_name} onChange={e => setNewChild({ ...newChild, last_name: e.target.value })}
                             />
                             <div className="flex gap-2">
-                                <input
-                                    placeholder="Poste (ex: Gardien)" className="flex-1 p-2 rounded border"
-                                    value={newChild.position} onChange={e => setNewChild({ ...newChild, position: e.target.value })}
-                                />
+                                <select
+                                    className="flex-1 p-2 rounded border font-medium"
+                                    value={newChild.position}
+                                    onChange={e => setNewChild({ ...newChild, position: e.target.value })}
+                                >
+                                    <option value="Gardien">Gardien</option>
+                                    <option value="Défenseur">Défenseur</option>
+                                    <option value="Milieu">Milieu</option>
+                                    <option value="Attaquant">Attaquant</option>
+                                    <option value="Remplaçant">Remplaçant</option>
+                                </select>
                                 <button className="bg-indigo-600 text-white px-4 rounded font-bold">OK</button>
                             </div>
                         </form>
@@ -465,6 +467,50 @@ export default function Dashboard() {
                                 Ouvrir le Vestiaire 🏟️
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal: Rejoindre une équipe */}
+            {showJoinModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
+                        <div className="bg-emerald-600 p-4 text-white flex justify-between items-center">
+                            <h2 className="font-bold flex items-center gap-2 underline underline-offset-4 decoration-emerald-200"><Users size={18} /> Rejoindre une Équipe</h2>
+                            <button onClick={() => setShowJoinModal(false)} className="hover:bg-white/10 p-1 rounded-lg"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleJoinTeam} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Choisir l'enfant</label>
+                                <select
+                                    className="w-full border-2 border-gray-100 rounded-lg p-3 focus:border-emerald-500 focus:outline-none bg-gray-50 font-bold"
+                                    value={joinData.childId}
+                                    onChange={e => setJoinData({ ...joinData, childId: e.target.value })}
+                                    required
+                                >
+                                    {children.map(c => (
+                                        <option key={c.id} value={c.id}>{c.full_name} ({c.position})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Code d'invitation</label>
+                                <input
+                                    type="text" required
+                                    className="w-full border-2 border-gray-100 rounded-lg p-3 focus:border-emerald-500 focus:outline-none bg-gray-50 font-mono font-bold text-lg text-emerald-700"
+                                    placeholder="Ex: AB1234"
+                                    value={joinData.code}
+                                    onChange={e => setJoinData({ ...joinData, code: e.target.value.toUpperCase() })}
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-100 active:scale-95 transition-all mt-4"
+                            >
+                                Valider l'inscription
+                            </button>
+                        </form>
                     </div>
                 </div>
             )}

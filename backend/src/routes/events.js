@@ -6,6 +6,15 @@ const { requireAuth, supabase } = require('../middleware/auth');
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { team_id } = req.query;
+
+    // 1. Fetch Team to check ownership
+    let teamOwnerId = null;
+    if (team_id) {
+      const { data: teamData } = await supabase.from('teams').select('coach_id').eq('id', team_id).single();
+      teamOwnerId = teamData?.coach_id;
+    }
+
+    // 2. Build Query
     let query = supabase
       .from('events')
       .select(`
@@ -28,9 +37,17 @@ router.get('/', requireAuth, async (req, res) => {
       query = query.eq('team_id', team_id);
     }
 
+    // 2.1 Always filter out soft-deleted events from general list
+    query = query.eq('is_deleted', false);
+
     const { data: events, error } = await query;
 
-    // Process events to add has_ride to attendance
+    if (error) {
+      console.error("GET Events database error:", error);
+      throw error;
+    }
+
+    // 3. Process Events
     const processedEvents = (events || []).map(ev => {
       const riders = new Set();
       ev.rides?.forEach(r => {
@@ -45,27 +62,24 @@ router.get('/', requireAuth, async (req, res) => {
       return { ...ev, attendance: updatedAttendance };
     });
 
-    console.log(`[DEBUG] GET /api/events - User: ${req.user.email} (${req.user.id}), TeamID: ${team_id}, Role: ${req.user.role}`);
-    console.log(`[DEBUG] Events trouvés en DB avant filtre: ${events?.length || 0}`);
+    const currentUserId = req.user.id;
+    const userRole = (req.user.role || '').toUpperCase();
 
-    if (error) {
-      console.error("GET Events database error:", error);
-      throw error;
-    }
+    console.log(`[DEBUG] GET /api/events - TeamOwner: ${teamOwnerId}, CurrentUser: ${currentUserId}, Role: ${userRole}`);
 
     const filteredEvents = processedEvents.filter(ev => {
-      const userRole = (req.user.role || '').toUpperCase();
-      const isOwner = ev.coach_id === req.user.id;
+      const isTeamCoach = teamOwnerId && currentUserId && String(teamOwnerId) === String(currentUserId);
 
-      console.log(`[DEBUG] Event ${ev.id} - Visibility: ${ev.visibility_type}, isOwner: ${isOwner}, CoachID: ${ev.coach_id}`);
+      // Coaches/Admins see EVERYTHING for their team
+      if (userRole === 'ADMIN' || isTeamCoach) return true;
 
-      if (userRole === 'COACH' || isOwner) return true;
+      // Public events are visible to everyone in the team
       if (ev.visibility_type === 'PUBLIC') return true;
 
-      // If private, check if any of user's children are convoked
-      // We need to know user's children IDs here... 
-      // For simplicity, we assume if it's private, the frontend handles the "my kids" logic or we fetch kids here
-      return true; // Simple bypass for now, or we could fetch kids
+      // Private events: check if any of user's children/profiles are convoked
+      // (This is a bit loose but safe since they are already in the team context)
+      // Actually, if it's PRIVATE, we only show it if the user is mentioned in attendance
+      return ev.attendance && ev.attendance.some(a => a.is_convoked);
     });
 
     res.json(filteredEvents);

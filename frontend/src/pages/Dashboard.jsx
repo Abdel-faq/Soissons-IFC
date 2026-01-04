@@ -147,6 +147,7 @@ export default function Dashboard() {
                             .from('events')
                             .select('*')
                             .eq('team_id', activeContext.teamId)
+                            .eq('is_deleted', false)
                             .gte('date', new Date().toISOString())
                             .order('date', { ascending: true })
                             .limit(1)

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon, Trash2, Plus, Users, Radio, Lock, X } from 'lucide-react';
 
 export default function Chat() {
     const [messages, setMessages] = useState([]);
@@ -12,6 +12,11 @@ export default function Chat() {
     const [isCoach, setIsCoach] = useState(false);
     const [isChatLocked, setIsChatLocked] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [rooms, setRooms] = useState([]); // [{id, name, is_broadcast}]
+    const [activeRoom, setActiveRoom] = useState(null); // null means Global Team Chat
+    const [showRoomForm, setShowRoomForm] = useState(false);
+    const [newRoomData, setNewRoomData] = useState({ name: '', is_broadcast: false, members: [] });
+    const [teamMembers, setTeamMembers] = useState([]);
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
@@ -20,14 +25,19 @@ export default function Chat() {
         const channel = supabase
             .channel('public:messages')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-                fetchOneMessage(payload.new.id);
+                // Only push if message belongs to current room
+                if (!activeRoom) {
+                    if (!payload.new.group_id) fetchOneMessage(payload.new.id);
+                } else {
+                    if (payload.new.group_id === activeRoom.id) fetchOneMessage(payload.new.id);
+                }
             })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [activeRoom]); // Re-subscribe when filtered room changes
 
     const fetchChatData = async () => {
         try {
@@ -74,17 +84,41 @@ export default function Chat() {
             setIsCoach(coachStatus);
 
             if (myTeamId) {
-                const { data: msgs, error } = await supabase
+                // Fetch Messages
+                const query = supabase
                     .from('messages')
                     .select(`
-                        id, content, created_at, file_url, file_type,
+                        id, content, created_at, file_url, file_type, group_id,
                         user:sender_id ( id, full_name, role )
                     `)
                     .eq('team_id', myTeamId)
                     .order('created_at', { ascending: true });
 
+                if (activeRoom) {
+                    query.eq('group_id', activeRoom.id);
+                } else {
+                    query.is('group_id', null);
+                }
+
+                const { data: msgs, error } = await query;
                 if (error) throw error;
                 setMessages(msgs || []);
+
+                // Fetch Rooms (Salons)
+                const { data: myRooms } = await supabase
+                    .from('custom_groups')
+                    .select('*')
+                    .eq('team_id', myTeamId);
+                setRooms(myRooms || []);
+
+                // Fetch Team Members (for room creation)
+                if (coachStatus) {
+                    const { data: members } = await supabase
+                        .from('team_members')
+                        .select('user_id, profiles(id, full_name)')
+                        .eq('team_id', myTeamId);
+                    setTeamMembers(members?.map(m => m.profiles).filter(Boolean) || []);
+                }
             }
         } catch (error) {
             console.error("Chat Error:", error);
@@ -135,7 +169,8 @@ export default function Chat() {
                 sender_id: user.id,
                 content: `Fichier : ${file.name}`,
                 file_url: publicUrl,
-                file_type: file.type.includes('image') ? 'IMAGE' : 'PDF'
+                file_type: file.type.includes('image') ? 'IMAGE' : 'PDF',
+                group_id: activeRoom?.id || null
             });
 
         } catch (error) {
@@ -164,7 +199,8 @@ export default function Chat() {
             const { data, error } = await supabase.from('messages').insert({
                 team_id: team,
                 sender_id: user.id,
-                content: newMessage.trim()
+                content: newMessage.trim(),
+                group_id: activeRoom?.id || null
             }).select().single();
 
             if (error) throw error;
@@ -172,6 +208,41 @@ export default function Chat() {
             if (data) fetchOneMessage(data.id);
         } catch (error) {
             alert("Erreur envoi: " + error.message);
+        }
+    };
+
+    const handleCreateRoom = async (e) => {
+        e.preventDefault();
+        try {
+            const { data: newRoom, error: roomError } = await supabase
+                .from('custom_groups')
+                .insert({
+                    team_id: team,
+                    name: newRoomData.name,
+                    is_broadcast: newRoomData.is_broadcast
+                })
+                .select()
+                .single();
+
+            if (roomError) throw roomError;
+
+            if (newRoom && newRoomData.members.length > 0) {
+                const memberInserts = newRoomData.members.map(mid => ({
+                    group_id: newRoom.id,
+                    user_id: mid
+                }));
+                const { error: memberError } = await supabase
+                    .from('group_members')
+                    .insert(memberInserts);
+                if (memberError) throw memberError;
+            }
+
+            setShowRoomForm(false);
+            setNewRoomData({ name: '', is_broadcast: false, members: [] });
+            fetchChatData();
+            alert("Salon créé avec succès !");
+        } catch (err) {
+            alert("Erreur création salon: " + err.message);
         }
     };
 
@@ -194,6 +265,34 @@ export default function Chat() {
                 {isCoach && <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm"><ShieldCheck size={12} /> MODÉRATEUR</span>}
             </div>
 
+            {/* Room Selector */}
+            <div className="flex bg-gray-50 border-b overflow-x-auto no-scrollbar p-2 gap-2">
+                <button
+                    onClick={() => setActiveRoom(null)}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${!activeRoom ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                >
+                    # Général
+                </button>
+                {rooms.map(room => (
+                    <button
+                        key={room.id}
+                        onClick={() => setActiveRoom(room)}
+                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${activeRoom?.id === room.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        {room.is_broadcast ? <Radio size={12} /> : <span>#</span>} {room.name}
+                    </button>
+                ))}
+                {isCoach && (
+                    <button
+                        onClick={() => setShowRoomForm(true)}
+                        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-all"
+                        title="Créer un salon"
+                    >
+                        <Plus size={16} />
+                    </button>
+                )}
+            </div>
+
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
                 {messages.length === 0 && (
@@ -201,7 +300,7 @@ export default function Chat() {
                         <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border shadow-sm">
                             <MessageSquare className="text-gray-200" size={32} />
                         </div>
-                        <p className="text-gray-400 font-medium">Lancez la conversation !</p>
+                        <p className="text-gray-400 font-medium">{activeRoom ? `Bienvenue dans le salon ${activeRoom.name} !` : 'Lancez la conversation !'}</p>
                     </div>
                 )}
                 {messages.map((msg, index) => {
@@ -257,9 +356,9 @@ export default function Chat() {
 
             {/* Input Area */}
             <div className="bg-white p-4 border-t sticky bottom-0">
-                {isChatLocked && !isCoach ? (
+                {(isChatLocked || (activeRoom?.is_broadcast)) && !isCoach ? (
                     <div className="bg-gray-100 p-3 rounded-xl text-center text-gray-500 text-xs font-bold flex items-center justify-center gap-2">
-                        🔒 Chat verrouillé par le coach (Mode Diffusion)
+                        <Lock size={14} /> Salon en mode diffusion seule (Lecture seule)
                     </div>
                 ) : (
                     <form onSubmit={sendMessage} className="flex items-center gap-2 bg-gray-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-indigo-300 focus-within:bg-white transition-all">
@@ -270,7 +369,7 @@ export default function Chat() {
                         <input
                             type="text"
                             className="flex-1 bg-transparent px-2 py-1.5 focus:outline-none text-sm font-medium"
-                            placeholder={isChatLocked ? "Écrire en tant que coach..." : "Écrivez un message ou envoyez un fichier..."}
+                            placeholder={activeRoom ? `Message dans #${activeRoom.name}...` : "Écrivez un message..."}
                             value={newMessage}
                             onChange={e => setNewMessage(e.target.value)}
                         />
@@ -284,6 +383,74 @@ export default function Chat() {
                     </form>
                 )}
             </div>
+
+            {/* Room Creation Modal */}
+            {showRoomForm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
+                        <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
+                            <h2 className="font-bold flex items-center gap-2"><Plus size={18} /> Nouveau Salon</h2>
+                            <button onClick={() => setShowRoomForm(false)} className="hover:bg-white/10 p-1 rounded-lg"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleCreateRoom} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nom du salon</label>
+                                <input
+                                    type="text" required
+                                    className="w-full border-2 border-gray-100 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none bg-gray-50 font-medium"
+                                    placeholder="Ex: Entraînement Gardiens"
+                                    value={newRoomData.name}
+                                    onChange={e => setNewRoomData({ ...newRoomData, name: e.target.value })}
+                                />
+                            </div>
+
+                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border group">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 text-indigo-600 rounded"
+                                    checked={newRoomData.is_broadcast}
+                                    onChange={e => setNewRoomData({ ...newRoomData, is_broadcast: e.target.checked })}
+                                />
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-indigo-600 flex items-center gap-1">
+                                    <Radio size={14} className="text-indigo-600" /> Mode Diffusion (Seul le coach peut écrire)
+                                </span>
+                            </label>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Inviter des membres</label>
+                                <div className="max-h-40 overflow-y-auto border-2 border-gray-50 rounded-lg p-2 grid grid-cols-1 gap-1 bg-gray-50/50">
+                                    {teamMembers.map(m => (
+                                        <button
+                                            key={m.id} type="button"
+                                            onClick={() => {
+                                                const isSelected = newRoomData.members.includes(m.id);
+                                                setNewRoomData({
+                                                    ...newRoomData,
+                                                    members: isSelected ? newRoomData.members.filter(id => id !== m.id) : [...newRoomData.members, m.id]
+                                                });
+                                            }}
+                                            className={`p-2 rounded-lg text-left text-xs transition-all flex items-center gap-2 border ${newRoomData.members.includes(m.id)
+                                                ? 'bg-indigo-600 text-white border-indigo-700'
+                                                : 'bg-white text-gray-600 border-gray-100 hover:border-indigo-200'
+                                                }`}
+                                        >
+                                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-[8px]">{m.full_name?.[0]}</div>
+                                            <span className="truncate">{m.full_name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all mt-4"
+                            >
+                                Créer le Salon
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

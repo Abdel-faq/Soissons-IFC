@@ -537,7 +537,7 @@ export default function Dashboard() {
                                 <h2 className="font-black text-xs uppercase tracking-widest text-gray-400 mb-4">Équipe Active</h2>
                                 <p className="text-2xl font-bold text-indigo-900">{team.teamName}</p>
                                 {team.playerName && <p className="text-sm font-bold text-emerald-600 mt-1">Profil: {team.playerName}</p>}
-                                <p className="text-xs font-bold text-gray-500 mt-2 bg-gray-100 inline-block px-2 py-1 rounded">Code: {team.teamId}</p>
+                                {team.inviteCode && <p className="text-xs font-bold text-gray-500 mt-2 bg-gray-100 inline-block px-2 py-1 rounded">Code: {team.inviteCode}</p>}
                             </div>
                             <button onClick={() => window.location.href = '/dashboard/team'} className="text-indigo-600 font-bold text-sm hover:underline mt-6 flex items-center gap-1">
                                 {isCoach ? 'Gérer l\'effectif' : 'Voir les coéquipiers'} &rarr;

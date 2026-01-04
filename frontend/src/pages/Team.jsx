@@ -191,6 +191,7 @@ export default function Team() {
         e.preventDefault();
         const sanitizedCode = joinCode.replace(/\s/g, '');
         if (!sanitizedCode) return;
+        console.log("[DEBUG] Joining team with code:", sanitizedCode);
         try {
             // Ensure Profile Exists
             const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
@@ -201,13 +202,17 @@ export default function Team() {
                 if (createProfileError) throw new Error("Erreur création profil: " + createProfileError.message);
             }
 
-            const { data: teamToJoin, error: searchError } = await supabase
-                .from('teams')
-                .select('id, name')
-                .or(`invite_code.ilike.${sanitizedCode},id.eq.${sanitizedCode}`)
-                .maybeSingle();
+            let query = supabase.from('teams').select('id, name');
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sanitizedCode);
 
-            if (searchError || !teamToJoin) throw new Error("Équipe introuvable");
+            if (isUUID) {
+                query = query.or(`invite_code.ilike.${sanitizedCode},id.eq.${sanitizedCode}`);
+            } else {
+                query = query.ilike('invite_code', sanitizedCode);
+            }
+
+            const { data: teamToJoin, error: searchError } = await query.maybeSingle();
+            if (searchError || !teamToJoin) throw new Error("Équipe introuvable avec ce code");
 
             // Fetch context again for join
             const savedCtx = localStorage.getItem('sb-active-context');

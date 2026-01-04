@@ -256,8 +256,15 @@ export default function Dashboard() {
 
         try {
             const sanitizedCode = joinData.code.replace(/\s/g, '');
-            const { data: teamToJoin, error: fetchErr } = await supabase.from('teams').select('id').ilike('invite_code', sanitizedCode).single();
-            if (fetchErr) throw new Error("Code invalide ou équipe introuvable");
+
+            // Search by invite_code OR by team id (if they pasted the UUID)
+            const { data: teamToJoin, error: fetchErr } = await supabase
+                .from('teams')
+                .select('id')
+                .or(`invite_code.ilike.${sanitizedCode},id.eq.${sanitizedCode}`)
+                .maybeSingle();
+
+            if (fetchErr || !teamToJoin) throw new Error("Code invalide ou équipe introuvable");
 
             const { error: joinErr } = await supabase.from('team_members').insert([
                 { team_id: teamToJoin.id, player_id: joinData.childId, user_id: user.id }

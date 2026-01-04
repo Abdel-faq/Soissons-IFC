@@ -201,7 +201,12 @@ export default function Team() {
                 if (createProfileError) throw new Error("Erreur création profil: " + createProfileError.message);
             }
 
-            const { data: teamToJoin, error: searchError } = await supabase.from('teams').select('id, name').ilike('invite_code', sanitizedCode).single();
+            const { data: teamToJoin, error: searchError } = await supabase
+                .from('teams')
+                .select('id, name')
+                .or(`invite_code.ilike.${sanitizedCode},id.eq.${sanitizedCode}`)
+                .maybeSingle();
+
             if (searchError || !teamToJoin) throw new Error("Équipe introuvable");
 
             // Fetch context again for join

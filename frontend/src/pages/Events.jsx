@@ -43,30 +43,22 @@ export default function Events() {
             const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', user.id);
             setChildren(childrenData || []);
 
-            let myTeamId = null;
-            let isUserCoach = false;
-
-            const activeTeamId = localStorage.getItem('active_team_id');
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-            const userRole = profile?.role || 'PLAYER';
-            if (userRole === 'COACH') isUserCoach = true;
-
-            if (userRole === 'COACH') {
-                myTeamId = activeTeamId || (await supabase.from('teams').select('id').eq('coach_id', user.id).limit(1).maybeSingle())?.data?.id;
-            } else {
-                const childIds = childrenData?.map(c => c.id) || [];
-                const { data: memberships } = await supabase.from('team_members').select('team_id').in('player_id', childIds);
-                if (memberships && memberships.length > 0) {
-                    const availableIds = memberships.map(m => m.team_id);
-                    myTeamId = (activeTeamId && availableIds.includes(activeTeamId)) ? activeTeamId : availableIds[0];
-                }
+            // Read Context
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { console.error("Stale context", e); }
             }
 
-            setTeam(myTeamId);
-            setIsCoach(isUserCoach);
+            if (!context) return;
 
-            if (myTeamId) {
-                const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${myTeamId}`;
+            setTeam(context.teamId);
+            setIsCoach(context.role === 'COACH');
+
+            if (context.teamId) {
+                const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${context.teamId}`;
                 const { data: sessionData } = await supabase.auth.getSession();
                 const session = sessionData?.session;
 
@@ -79,20 +71,23 @@ export default function Events() {
                     const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
                     setEvents(activeEvents);
 
-                    // Fetch Attendance for all my children
-                    const childIds = childrenData?.map(c => c.id) || [];
-                    const { data: attData } = await supabase
-                        .from('attendance')
-                        .select('event_id, player_id, status, is_locked')
-                        .in('player_id', childIds)
-                        .in('event_id', activeEvents.map(e => e.id));
+                    // Fetch Attendance for context child (or all children if coach/missing)
+                    const relevantPlayerIds = context.playerId ? [context.playerId] : (childrenData?.map(c => c.id) || []);
 
-                    const attMap = {};
-                    attData?.forEach(a => {
-                        if (!attMap[a.player_id]) attMap[a.player_id] = {};
-                        attMap[a.player_id][a.event_id] = { status: a.status, is_locked: a.is_locked };
-                    });
-                    setMyAttendance(attMap);
+                    if (relevantPlayerIds.length > 0) {
+                        const { data: attData } = await supabase
+                            .from('attendance')
+                            .select('event_id, player_id, status, is_locked')
+                            .in('player_id', relevantPlayerIds)
+                            .in('event_id', activeEvents.map(e => e.id));
+
+                        const attMap = {};
+                        attData?.forEach(a => {
+                            if (!attMap[a.player_id]) attMap[a.player_id] = {};
+                            attMap[a.player_id][a.event_id] = { status: a.status, is_locked: a.is_locked };
+                        });
+                        setMyAttendance(attMap);
+                    }
                 }
             }
         } catch (error) {

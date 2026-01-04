@@ -57,47 +57,82 @@ export default function Dashboard() {
                 if (ownedTeams) allMyTeams = [...ownedTeams];
 
                 // 2. Fetch teams for each child
+                let memberships = [];
                 if (childrenData && childrenData.length > 0) {
                     const childIds = childrenData.map(c => c.id);
-                    const { data: memberships } = await supabase
+                    const { data: mData } = await supabase
                         .from('team_members')
-                        .select('team_id, teams(*)')
+                        .select('team_id, player_id, teams(*)')
                         .in('player_id', childIds);
+                    memberships = mData || [];
+                }
 
-                    if (memberships) {
-                        const joinedTeams = memberships.map(m => m.teams).filter(Boolean);
-                        joinedTeams.forEach(jt => {
-                            if (!allMyTeams.find(t => t.id === jt.id)) allMyTeams.push(jt);
+                // 3. Build Contexts
+                const availableContexts = [];
+
+                // Coach Contexts
+                if (ownedTeams) {
+                    ownedTeams.forEach(t => {
+                        availableContexts.push({
+                            id: `coach-${t.id}`,
+                            teamId: t.id,
+                            teamName: t.name,
+                            category: t.category,
+                            role: 'COACH',
+                            label: `👨‍🏫 Coach - ${t.name} (${t.category || ''})`
+                        });
+                    });
+                }
+
+                // Player Contexts (Children)
+                memberships.forEach(m => {
+                    const child = childrenData.find(c => c.id === m.player_id);
+                    if (m.teams && child) {
+                        availableContexts.push({
+                            id: `player-${m.player_id}-${m.team_id}`,
+                            teamId: m.team_id,
+                            teamName: m.teams.name,
+                            category: m.teams.category,
+                            playerId: m.player_id,
+                            playerName: child.first_name,
+                            role: 'PLAYER',
+                            label: `🧒 ${child.first_name} - ${m.teams.name}`
                         });
                     }
+                });
+
+                setTeams(availableContexts);
+
+                // Determine Active Context
+                const savedCtx = localStorage.getItem('sb-active-context');
+                let activeContext = null;
+                if (savedCtx) {
+                    try {
+                        const parsed = JSON.parse(savedCtx);
+                        activeContext = availableContexts.find(c => c.id === parsed.id);
+                    } catch (e) { console.error("Stale context", e); }
                 }
 
-                setTeams(allMyTeams);
-
-                // Determine Active Team
-                if (allMyTeams.length > 0) {
-                    const savedTeamId = localStorage.getItem('active_team_id');
-                    const activeTeam = allMyTeams.find(t => t.id === savedTeamId) || allMyTeams[0];
-                    if (activeTeam) {
-                        localStorage.setItem('active_team_id', activeTeam.id);
-                        setTeam(activeTeam);
-                    }
+                if (!activeContext && availableContexts.length > 0) {
+                    activeContext = availableContexts[0];
                 }
 
-                // Fetch Next Event (Dependent on Active Team)
-                if (allMyTeams.length > 0) {
-                    const currentActive = allMyTeams.find(t => t.id === localStorage.getItem('active_team_id')) || allMyTeams[0];
-                    if (currentActive) {
-                        const { data: event } = await supabase
-                            .from('events')
-                            .select('*')
-                            .eq('team_id', currentActive.id)
-                            .gte('date', new Date().toISOString())
-                            .order('date', { ascending: true })
-                            .limit(1)
-                            .maybeSingle();
-                        setNextEvent(event);
-                    }
+                if (activeContext) {
+                    localStorage.setItem('sb-active-context', JSON.stringify(activeContext));
+                    localStorage.setItem('active_team_id', activeContext.teamId);
+                    setTeam(activeContext);
+                    setIsCoach(activeContext.role === 'COACH');
+
+                    // Fetch Next Event
+                    const { data: event } = await supabase
+                        .from('events')
+                        .select('*')
+                        .eq('team_id', activeContext.teamId)
+                        .gte('date', new Date().toISOString())
+                        .order('date', { ascending: true })
+                        .limit(1)
+                        .maybeSingle();
+                    setNextEvent(event);
                 }
             }
         } catch (error) {
@@ -127,11 +162,11 @@ export default function Dashboard() {
         }
     };
 
-    const handleTeamSwitch = (teamId) => {
-        const selected = teams.find(t => t.id === teamId);
+    const handleTeamSwitch = (contextId) => {
+        const selected = teams.find(c => c.id === contextId);
         if (selected) {
-            setTeam(selected);
-            localStorage.setItem('active_team_id', selected.id);
+            localStorage.setItem('sb-active-context', JSON.stringify(selected));
+            localStorage.setItem('active_team_id', selected.teamId);
             window.location.reload();
         }
     };
@@ -241,7 +276,7 @@ export default function Dashboard() {
                                     className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                     {teams.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name} {t.category ? `(${t.category})` : ''}</option>
+                                        <option key={t.id} value={t.id}>{t.label}</option>
                                     ))}
                                 </select>
                             </>
@@ -435,7 +470,7 @@ export default function Dashboard() {
             {/* Stats & Next Match (Coach & Players with team) */}
             {team && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                    {isCoach && <Stats teamId={team.id} />}
+                    {isCoach && <Stats teamId={team.teamId} />}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-24 md:pb-0">
                         {/* Next Match Card */}
@@ -462,8 +497,9 @@ export default function Dashboard() {
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
                             <div>
                                 <h2 className="font-black text-xs uppercase tracking-widest text-gray-400 mb-4">Équipe Active</h2>
-                                <p className="text-2xl font-bold text-indigo-900">{team.name}</p>
-                                <p className="text-xs font-bold text-gray-500 mt-2 bg-gray-100 inline-block px-2 py-1 rounded">Code: {team.invite_code}</p>
+                                <p className="text-2xl font-bold text-indigo-900">{team.teamName}</p>
+                                {team.playerName && <p className="text-sm font-bold text-emerald-600 mt-1">Profil: {team.playerName}</p>}
+                                <p className="text-xs font-bold text-gray-500 mt-2 bg-gray-100 inline-block px-2 py-1 rounded">Code: {team.teamId}</p>
                             </div>
                             <button onClick={() => window.location.href = '/dashboard/team'} className="text-indigo-600 font-bold text-sm hover:underline mt-6 flex items-center gap-1">
                                 {isCoach ? 'Gérer l\'effectif' : 'Voir les coéquipiers'} &rarr;

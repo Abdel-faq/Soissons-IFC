@@ -35,40 +35,18 @@ export default function Team() {
             if (!currentUser) throw new Error("No user found");
             setUser(currentUser);
 
-            // Fetch Profile
-            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-            setProfile(profileData);
-
-            // Fetch Teams (Coach)
-            let { data: myTeams, error: teamError } = await supabase
-                .from('teams')
-                .select('*')
-                .eq('coach_id', currentUser.id);
-
-            if (teamError) throw teamError;
-
-            // If no owned teams, check membership (for players)
-            if (!myTeams || myTeams.length === 0) {
-                const { data: memberships } = await supabase
-                    .from('team_members')
-                    .select('team_id, teams(*)')
-                    .eq('user_id', currentUser.id);
-
-                if (memberships && memberships.length > 0) {
-                    const joinedTeams = memberships.map(m => m.teams).filter(Boolean);
-                    // Filter duplicates
-                    myTeams = joinedTeams.filter((t, index, self) =>
-                        index === self.findIndex((temp) => temp.id === t.id)
-                    );
-                }
+            // Read Context
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { console.error("Stale context", e); }
             }
 
-            setTeams(myTeams || []);
-            if (myTeams && myTeams.length > 0) {
-                const savedId = localStorage.getItem('active_team_id');
-                const active = myTeams.find(t => t.id === savedId) || myTeams[0];
-                setTeam(active);
-                fetchMembers(active.id);
+            if (context) {
+                setTeam({ id: context.teamId, coach_id: context.role === 'COACH' ? user.id : null });
+                fetchMembers(context.teamId);
             }
         } catch (err) {
             console.error("TeamPage: Error", err);

@@ -45,39 +45,26 @@ export default function Chat() {
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             setUser(currentUser);
 
-            let myTeamId = null;
-            let coachStatus = false;
-
-            // Fetch Children
-            const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', currentUser.id);
-
-            // Check Profile
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
-            coachStatus = profile?.role === 'COACH';
-
-            // Check LocalStorage
-            const activeTeamId = localStorage.getItem('active_team_id');
-
-            if (coachStatus) {
-                myTeamId = activeTeamId || (await supabase.from('teams').select('id, is_chat_locked').eq('coach_id', currentUser.id).limit(1).maybeSingle())?.data?.id;
-                if (myTeamId) {
-                    const { data: t } = await supabase.from('teams').select('is_chat_locked').eq('id', myTeamId).single();
-                    setIsChatLocked(t?.is_chat_locked);
-                }
-            } else {
-                const childIds = childrenData?.map(c => c.id) || [];
-                const { data: memberships } = await supabase.from('team_members').select('team_id, teams(is_chat_locked)').in('player_id', childIds);
-                if (memberships && memberships.length > 0) {
-                    const availableIds = memberships.map(m => m.team_id);
-                    myTeamId = (activeTeamId && availableIds.includes(activeTeamId)) ? activeTeamId : availableIds[0];
-                    setIsChatLocked(memberships.find(m => m.team_id === myTeamId)?.teams?.is_chat_locked);
-                }
+            // Read Context
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { console.error("Stale context", e); }
             }
 
-            setTeam(myTeamId);
-            setIsCoach(coachStatus);
+            if (!context) return;
 
-            if (myTeamId) {
+            setTeam(context.teamId);
+            setIsCoach(context.role === 'COACH');
+
+            if (context.teamId) {
+                const { data: t } = await supabase.from('teams').select('is_chat_locked').eq('id', context.teamId).single();
+                setIsChatLocked(t?.is_chat_locked);
+            }
+
+            if (context.teamId) {
                 // Fetch Messages
                 const query = supabase
                     .from('messages')
@@ -85,7 +72,7 @@ export default function Chat() {
                         id, content, created_at, file_url, file_type, group_id,
                         user:sender_id ( id, full_name, role )
                     `)
-                    .eq('team_id', myTeamId)
+                    .eq('team_id', context.teamId)
                     .order('created_at', { ascending: true });
 
                 if (activeRoom) {

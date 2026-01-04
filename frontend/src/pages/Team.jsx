@@ -55,7 +55,11 @@ export default function Team() {
                     .eq('user_id', currentUser.id);
 
                 if (memberships && memberships.length > 0) {
-                    myTeams = memberships.map(m => m.teams).filter(Boolean);
+                    const joinedTeams = memberships.map(m => m.teams).filter(Boolean);
+                    // Filter duplicates
+                    myTeams = joinedTeams.filter((t, index, self) =>
+                        index === self.findIndex((temp) => temp.id === t.id)
+                    );
                 }
             }
 

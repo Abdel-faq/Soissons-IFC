@@ -200,7 +200,7 @@ export default function Dashboard() {
             if (fetchErr) throw new Error("Code invalide ou équipe introuvable");
 
             const { error: joinErr } = await supabase.from('team_members').insert([
-                { team_id: teamToJoin.id, player_id: joinData.childId }
+                { team_id: teamToJoin.id, player_id: joinData.childId, user_id: user.id }
             ]);
             if (joinErr) throw joinErr;
 

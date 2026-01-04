@@ -414,7 +414,18 @@ export default function Dashboard() {
                 <div className="bg-emerald-50 border-2 border-dashed border-emerald-200 p-10 rounded-2xl text-center mb-6">
                     <h2 className="text-2xl font-bold text-emerald-900 mb-4">Rejoignez votre équipe</h2>
                     <p className="text-emerald-700/70 mb-8 max-w-lg mx-auto font-medium">Demandez le code d'invitation à votre coach pour rejoindre l'équipe et recevoir vos convocations.</p>
-                    <button onClick={joinTeam} className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-black hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all active:scale-95">
+                    <button
+                        onClick={() => {
+                            if (children.length === 0) {
+                                alert("Veuillez d'abord ajouter un enfant.");
+                                setShowChildForm(true);
+                            } else {
+                                setShowJoinModal(true);
+                                setJoinData({ ...joinData, childId: children[0].id, code: '' });
+                            }
+                        }}
+                        className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-black hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all active:scale-95"
+                    >
                         ENTRER LE CODE ÉQUIPE
                     </button>
                 </div>

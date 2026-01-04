@@ -14,6 +14,7 @@ export default function Team() {
     const [view, setView] = useState('members'); // 'members' or 'attendance'
     const [historyEvents, setHistoryEvents] = useState([]);
     const [attendanceMatrix, setAttendanceMatrix] = useState({}); // { user_id: { event_id: status } }
+    const [isCoach, setIsCoach] = useState(false);
 
     // Form states
     const [newTeamName, setNewTeamName] = useState('');
@@ -227,7 +228,6 @@ export default function Team() {
         </div>
     );
 
-    const isCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id;
 
     // VIEW: NO TEAMS
     if (!teams || teams.length === 0) {

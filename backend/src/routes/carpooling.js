@@ -6,12 +6,12 @@ const { requireAuth, supabase } = require('../middleware/auth');
 router.get('/:eventId', requireAuth, async (req, res) => {
     try {
         const { data, error } = await supabase
-            .from('carpooling_rides')
+            .from('rides')
             .select(`
                 *,
-                driver:users(full_name),
-                passengers:carpooling_passengers(
-                    user:users(full_name)
+                driver:profiles(full_name),
+                passengers:ride_passengers(
+                    player:players(full_name)
                 )
             `)
             .eq('event_id', req.params.eventId);
@@ -26,15 +26,17 @@ router.get('/:eventId', requireAuth, async (req, res) => {
 // Offer a ride
 router.post('/:eventId/ride', requireAuth, async (req, res) => {
     try {
-        const { seats_available, departure_time, departure_location } = req.body;
+        const { seats_available, departure_time, departure_location, driver_relation, restrictions } = req.body;
         const { data, error } = await supabase
-            .from('carpooling_rides')
+            .from('rides')
             .insert([{
                 event_id: req.params.eventId,
                 driver_id: req.user.id,
-                seats_available,
+                seats_available: seats_available || 4,
                 departure_time,
-                departure_location
+                departure_location,
+                driver_relation: driver_relation || 'PAPA',
+                restrictions: restrictions || 'NONE'
             }])
             .select();
 
@@ -48,11 +50,13 @@ router.post('/:eventId/ride', requireAuth, async (req, res) => {
 // Join a ride
 router.post('/ride/:rideId/join', requireAuth, async (req, res) => {
     try {
+        const { player_id, seat_count } = req.body;
         const { data, error } = await supabase
-            .from('carpooling_passengers')
+            .from('ride_passengers')
             .insert([{
                 ride_id: req.params.rideId,
-                user_id: req.user.id
+                player_id: player_id,
+                seat_count: seat_count || 1
             }])
             .select();
 

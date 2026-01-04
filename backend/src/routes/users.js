@@ -65,10 +65,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
         const { id } = req.params;
 
         // 1. Remove from team_members
-        await supabase.from('team_members').delete().eq('user_id', id);
+        await supabase.from('team_members').delete().eq('player_id', id);
 
-        // 2. Remove from profiles
-        const { error } = await supabase.from('profiles').delete().eq('id', id);
+        // 2. Remove from players (if it's a child being deleted)
+        const { error: playerError } = await supabase.from('players').delete().eq('id', id);
 
         // Note: Cannot delete from auth.users via client easily without service role
 

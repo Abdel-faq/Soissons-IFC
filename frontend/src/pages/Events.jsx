@@ -10,7 +10,8 @@ export default function Events() {
     const [user, setUser] = useState(null);
     const [team, setTeam] = useState(null);
     const [isCoach, setIsCoach] = useState(false);
-    const [myAttendance, setMyAttendance] = useState({}); // event_id -> status
+    const [children, setChildren] = useState([]);
+    const [myAttendance, setMyAttendance] = useState({}); // player_id -> { event_id -> status }
 
     // New Event Form
     const [showForm, setShowForm] = useState(false);
@@ -38,35 +39,26 @@ export default function Events() {
 
             if (!user) return;
 
+            // Fetch Children
+            const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', user.id);
+            setChildren(childrenData || []);
+
             let myTeamId = null;
             let isUserCoach = false;
 
-            // Check LocalStorage first (for multi-team coaches)
             const activeTeamId = localStorage.getItem('active_team_id');
-
-            // Check Profile to see if coach
             const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
             const userRole = profile?.role || 'PLAYER';
             if (userRole === 'COACH') isUserCoach = true;
 
             if (userRole === 'COACH') {
-                if (activeTeamId) {
-                    myTeamId = activeTeamId;
-                } else {
-                    // Fallback to first team
-                    const { data: ownedTeam } = await supabase.from('teams').select('id').eq('coach_id', user.id).limit(1).maybeSingle();
-                    if (ownedTeam) myTeamId = ownedTeam.id;
-                }
+                myTeamId = activeTeamId || (await supabase.from('teams').select('id').eq('coach_id', user.id).limit(1).maybeSingle())?.data?.id;
             } else {
-                // Player: fetch memberships
-                const { data: memberships } = await supabase.from('team_members').select('team_id').eq('user_id', user.id);
+                const childIds = childrenData?.map(c => c.id) || [];
+                const { data: memberships } = await supabase.from('team_members').select('team_id').in('player_id', childIds);
                 if (memberships && memberships.length > 0) {
                     const availableIds = memberships.map(m => m.team_id);
-                    if (activeTeamId && availableIds.includes(activeTeamId)) {
-                        myTeamId = activeTeamId;
-                    } else {
-                        myTeamId = availableIds[0];
-                    }
+                    myTeamId = (activeTeamId && availableIds.includes(activeTeamId)) ? activeTeamId : availableIds[0];
                 }
             }
 
@@ -74,55 +66,34 @@ export default function Events() {
             setIsCoach(isUserCoach);
 
             if (myTeamId) {
-                // Fetch via our custom backend route to handle filtering
                 const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${myTeamId}`;
-                console.log("Fetching events from:", apiUrl);
-                console.log("Current Team ID:", myTeamId, "User ID:", user.id);
-
                 const { data: sessionData } = await supabase.auth.getSession();
                 const session = sessionData?.session;
-
-                if (!session) {
-                    console.error("No active session found");
-                    throw new Error("Session expirée. Veuillez vous reconnecter.");
-                }
 
                 const response = await fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
                 });
 
-                if (!response.ok) {
-                    let errorDetails = "";
-                    try {
-                        const errorData = await response.json();
-                        errorDetails = ` (${errorData.message || errorData.error || "Pas de message"})`;
-                    } catch (e) {
-                        errorDetails = ` - ${response.statusText}`;
-                    }
-                    throw new Error(`Erreur serveur : ${response.status}${errorDetails}`);
+                if (response.ok) {
+                    const eventsData = await response.json();
+                    const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+                    setEvents(activeEvents);
+
+                    // Fetch Attendance for all my children
+                    const childIds = childrenData?.map(c => c.id) || [];
+                    const { data: attData } = await supabase
+                        .from('attendance')
+                        .select('event_id, player_id, status, is_locked')
+                        .in('player_id', childIds)
+                        .in('event_id', activeEvents.map(e => e.id));
+
+                    const attMap = {};
+                    attData?.forEach(a => {
+                        if (!attMap[a.player_id]) attMap[a.player_id] = {};
+                        attMap[a.player_id][a.event_id] = { status: a.status, is_locked: a.is_locked };
+                    });
+                    setMyAttendance(attMap);
                 }
-
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    console.error("Le serveur n'a pas renvoyé de JSON, mais :", await response.text());
-                    throw new Error("Le serveur a renvoyé une page d'erreur (Vercel 404) au lieu des données. Vérifiez la configuration du Root Directory.");
-                }
-
-                const eventsData = await response.json();
-                // Filter only non-deleted events for the main list
-                const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
-                console.log("Active Events received from API:", activeEvents);
-                setEvents(activeEvents);
-
-                const { data: attData } = await supabase
-                    .from('attendance')
-                    .select('event_id, status, is_locked')
-                    .eq('user_id', user.id)
-                    .in('event_id', activeEvents.map(e => e.id));
-
-                const attMap = {};
-                attData?.forEach(a => attMap[a.event_id] = { status: a.status, is_locked: a.is_locked });
-                setMyAttendance(attMap);
             }
         } catch (error) {
             console.error("Error fetching events:", error);
@@ -131,22 +102,29 @@ export default function Events() {
         }
     };
 
-    const updateAttendance = async (eventId, status) => {
-        const current = myAttendance[eventId];
+    const updateAttendance = async (eventId, playerId, status) => {
+        const current = myAttendance[playerId]?.[eventId];
         if (current?.is_locked) {
-            alert("Votre présence a été verrouillée par l'entraîneur.");
+            alert("Cette présence a été verrouillée par l'entraîneur.");
             return;
         }
 
-        setMyAttendance(prev => ({ ...prev, [eventId]: { ...prev[eventId], status } }));
+        setMyAttendance(prev => ({
+            ...prev,
+            [playerId]: {
+                ...(prev[playerId] || {}),
+                [eventId]: { ...(prev[playerId]?.[eventId] || {}), status }
+            }
+        }));
+
         try {
             const { error } = await supabase.from('attendance').upsert({
                 event_id: eventId,
-                user_id: user.id,
+                player_id: playerId,
                 status: status,
                 updated_at: new Date(),
-                is_locked: false // Ensure it's not locked if player updates it (if policy allows)
-            }, { onConflict: 'event_id, user_id' });
+                is_locked: false
+            }, { onConflict: 'event_id, player_id' });
             if (error) throw error;
         } catch (err) {
             fetchEvents();
@@ -591,13 +569,22 @@ export default function Events() {
                     const isMatch = ev.type === 'MATCH';
                     const hasResponded = status?.status && status.status !== 'UNKNOWN' && status.status !== 'INCONNU';
 
+                    // New: Team Riders Stats
+                    const ridersCount = ev.attendance?.filter(a => a.has_ride).length || 0; // Assuming we add has_ride or similar
+                    const convokedCount = ev.attendance?.filter(a => a.is_convoked).length || 0;
+
                     const getFrameColor = () => {
-                        // 100% Response Rule for Coach
                         if (isCoach && stats && stats.total > 0 && stats.responded === stats.total) {
                             return 'border-blue-400 bg-blue-50/20 shadow-blue-100';
                         }
 
-                        if (!hasResponded) return 'border-orange-300 bg-orange-50/30'; // Warning: not responded
+                        // Check if ANY child hasn't responded
+                        const anyNotResponded = children.some(c => {
+                            const s = myAttendance[c.id]?.[ev.id]?.status;
+                            return !s || s === 'UNKNOWN' || s === 'INCONNU';
+                        });
+
+                        if (anyNotResponded && children.length > 0) return 'border-orange-300 bg-orange-50/30';
                         if (isMatch) return 'border-red-200 bg-white';
                         return 'border-green-200 bg-white';
                     };
@@ -622,6 +609,14 @@ export default function Events() {
                                         <span className="text-indigo-600 font-semibold flex items-center gap-1">
                                             <Clock size={14} /> {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
+
+                                        {/* Team Ride Stats */}
+                                        {isMatch && convokedCount > 0 && (
+                                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1" title="Joueurs ayant un trajet">
+                                                🚗 {ridersCount} / {convokedCount} ont une voiture
+                                            </span>
+                                        )}
+
                                         {/* Coach Stats Badge */}
                                         {isCoach && stats && (
                                             <div className="flex items-center gap-2 ml-2">
@@ -649,34 +644,48 @@ export default function Events() {
                                     </div>
                                 </div>
 
-                                {/* Attendance Controls */}
-                                <div className="flex flex-col items-center md:items-end gap-3">
-                                    {!hasResponded && (
-                                        <div className="text-[10px] bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded animate-pulse">
-                                            RÉPONSE ATTENDUE ⚠️
-                                        </div>
-                                    )}
-                                    <div className="flex gap-1.5 p-1 bg-gray-100 rounded-full border shadow-inner">
-                                        {[
-                                            { id: 'PRESENT', label: 'P', color: 'bg-green-600', icon: null, title: 'Présent' },
-                                            { id: 'ABSENT', label: 'A', color: 'bg-red-600', icon: null, title: 'Absent' },
-                                            { id: 'MALADE', label: '🤒', color: 'bg-purple-600', icon: null, title: 'Malade' },
-                                            { id: 'BLESSE', label: '🤕', color: 'bg-orange-600', icon: null, title: 'Blessé' },
-                                            { id: 'RETARD', label: '⏱️', color: 'bg-yellow-500', icon: null, title: 'En retard' }
-                                        ].map(btn => (
-                                            <button
-                                                key={btn.id}
-                                                onClick={() => updateAttendance(ev.id, btn.id)}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all transform active:scale-90 ${status?.status === btn.id
-                                                    ? `${btn.color} text-white shadow-md ring-2 ring-offset-1 ring-gray-200`
-                                                    : 'bg-white text-gray-400 hover:bg-gray-50'
-                                                    }`}
-                                                title={btn.title}
-                                            >
-                                                <span className={btn.label.length > 2 ? 'text-lg' : 'text-sm font-bold'}>{btn.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                                {/* Attendance Controls per Child */}
+                                <div className="flex flex-col items-center md:items-end gap-4">
+                                    {children.map(child => {
+                                        const cStatus = myAttendance[child.id]?.[ev.id];
+                                        const isCConvoked = ev.attendance?.some(a => a.player_id === child.id && a.is_convoked);
+                                        const hasCResponded = cStatus?.status && cStatus.status !== 'UNKNOWN' && cStatus.status !== 'INCONNU';
+
+                                        return (
+                                            <div key={child.id} className="flex flex-col items-end gap-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {isCConvoked && <span className="text-[10px] bg-red-600 text-white px-1.5 rounded font-black">CONVOQUÉ</span>}
+                                                    <span className="text-xs font-bold text-gray-700">{child.first_name}</span>
+                                                    {!hasCResponded && (
+                                                        <div className="text-[9px] bg-orange-100 text-orange-700 font-bold px-1.5 py-0.5 rounded animate-pulse">
+                                                            RÉPONSE ?
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1 p-1 bg-gray-100 rounded-full border shadow-inner">
+                                                    {[
+                                                        { id: 'PRESENT', label: 'P', color: 'bg-green-600', title: 'Présent' },
+                                                        { id: 'ABSENT', label: 'A', color: 'bg-red-600', title: 'Absent' },
+                                                        { id: 'MALADE', label: '🤒', color: 'bg-purple-600', title: 'Malade' },
+                                                        { id: 'BLESSE', label: '🤕', color: 'bg-orange-600', title: 'Blessé' },
+                                                        { id: 'RETARD', label: '⏱️', color: 'bg-yellow-500', title: 'En retard' }
+                                                    ].map(btn => (
+                                                        <button
+                                                            key={btn.id}
+                                                            onClick={() => updateAttendance(ev.id, child.id, btn.id)}
+                                                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all transform active:scale-90 ${cStatus?.status === btn.id
+                                                                ? `${btn.color} text-white shadow-md ring-2 ring-offset-1 ring-gray-200`
+                                                                : 'bg-white text-gray-400 hover:bg-gray-50'
+                                                                }`}
+                                                            title={btn.title}
+                                                        >
+                                                            <span className={btn.label.length > 2 ? 'text-base' : 'text-xs font-bold'}>{btn.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
 
                                     {isCoach && (
                                         <div className="flex gap-2">

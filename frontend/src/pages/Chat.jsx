@@ -48,6 +48,9 @@ export default function Chat() {
             let myTeamId = null;
             let coachStatus = false;
 
+            // Fetch Children
+            const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', currentUser.id);
+
             // Check Profile
             const { data: profile } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
             coachStatus = profile?.role === 'COACH';
@@ -56,27 +59,18 @@ export default function Chat() {
             const activeTeamId = localStorage.getItem('active_team_id');
 
             if (coachStatus) {
-                if (activeTeamId) {
-                    // Fetch specific team logic
-                    const { data: team } = await supabase.from('teams').select('id, is_chat_locked').eq('id', activeTeamId).single();
-                    if (team) {
-                        myTeamId = team.id;
-                        setIsChatLocked(team.is_chat_locked);
-                    }
-                } else {
-                    // Fallback
-                    const { data: ownedTeam } = await supabase.from('teams').select('id, is_chat_locked').eq('coach_id', currentUser.id).limit(1).maybeSingle();
-                    if (ownedTeam) {
-                        myTeamId = ownedTeam.id;
-                        setIsChatLocked(ownedTeam.is_chat_locked);
-                    }
+                myTeamId = activeTeamId || (await supabase.from('teams').select('id, is_chat_locked').eq('coach_id', currentUser.id).limit(1).maybeSingle())?.data?.id;
+                if (myTeamId) {
+                    const { data: t } = await supabase.from('teams').select('is_chat_locked').eq('id', myTeamId).single();
+                    setIsChatLocked(t?.is_chat_locked);
                 }
             } else {
-                // Player
-                const { data: membership } = await supabase.from('team_members').select('team_id, teams(is_chat_locked)').eq('user_id', currentUser.id).maybeSingle();
-                if (membership) {
-                    myTeamId = membership.team_id;
-                    setIsChatLocked(membership.teams?.is_chat_locked);
+                const childIds = childrenData?.map(c => c.id) || [];
+                const { data: memberships } = await supabase.from('team_members').select('team_id, teams(is_chat_locked)').in('player_id', childIds);
+                if (memberships && memberships.length > 0) {
+                    const availableIds = memberships.map(m => m.team_id);
+                    myTeamId = (activeTeamId && availableIds.includes(activeTeamId)) ? activeTeamId : availableIds[0];
+                    setIsChatLocked(memberships.find(m => m.team_id === myTeamId)?.teams?.is_chat_locked);
                 }
             }
 
@@ -111,13 +105,13 @@ export default function Chat() {
                     .eq('team_id', myTeamId);
                 setRooms(myRooms || []);
 
-                // Fetch Team Members (for room creation)
+                // Fetch Team Members (Players + Coaches)
                 if (coachStatus) {
                     const { data: members } = await supabase
                         .from('team_members')
-                        .select('user_id, profiles(id, full_name)')
+                        .select('player_id, players(id, full_name)')
                         .eq('team_id', myTeamId);
-                    setTeamMembers(members?.map(m => m.profiles).filter(Boolean) || []);
+                    setTeamMembers(members?.map(m => m.players).filter(Boolean) || []);
                 }
             }
         } catch (error) {

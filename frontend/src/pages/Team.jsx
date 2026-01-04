@@ -77,16 +77,15 @@ export default function Team() {
     const fetchMembers = async (teamId) => {
         const { data: teamMembers, error } = await supabase
             .from('team_members')
-            .select('user_id, profiles(full_name, role, position)')
+            .select('player_id, players(id, full_name, position, parent_id)')
             .eq('team_id', teamId);
+
         if (!error) setMembers(teamMembers || []);
 
-        // Also fetch history if we are in attendance view
         fetchAttendanceHistory(teamId);
     };
 
     const fetchAttendanceHistory = async (teamId) => {
-        // Fetch all events including deleted ones
         const { data: evs } = await supabase
             .from('events')
             .select('*')
@@ -102,28 +101,31 @@ export default function Team() {
 
             const matrix = {};
             att?.forEach(row => {
-                if (!matrix[row.user_id]) matrix[row.user_id] = {};
-                matrix[row.user_id][row.event_id] = row.status;
+                if (!matrix[row.player_id]) matrix[row.player_id] = {};
+                matrix[row.player_id][row.event_id] = row.status;
             });
             setAttendanceMatrix(matrix);
         }
     };
 
-    const handleAttendanceUpdate = async (userId, eventId, status) => {
+    const handleAttendanceUpdate = async (playerId, eventId, status) => {
         const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id;
         const targetEvent = historyEvents.find(e => e.id === eventId);
         const isFuture = targetEvent && new Date(targetEvent.date) > new Date();
 
-        if (!isUserCoach && (userId !== user?.id || !isFuture)) return;
+        // Check if I am the parent of this player
+        const isParent = members.find(m => m.player_id === playerId)?.players?.parent_id === user?.id;
+
+        if (!isUserCoach && (!isParent || !isFuture)) return;
 
         try {
             const { error } = await supabase.from('attendance').upsert({
                 event_id: eventId,
-                user_id: userId,
+                player_id: playerId,
                 status: status,
-                is_locked: isUserCoach, // Lock if coach is overriding
+                is_locked: isUserCoach,
                 updated_at: new Date()
-            }, { onConflict: 'event_id, user_id' });
+            }, { onConflict: 'event_id, player_id' });
             if (error) throw error;
             fetchAttendanceHistory(team.id);
         } catch (err) {
@@ -351,20 +353,20 @@ export default function Team() {
                 <div className="bg-white rounded shadow-sm border overflow-hidden">
                     <div className="p-4 border-b bg-gray-50 font-semibold flex gap-2 items-center"><Users size={18} /> Membres ({members.length})</div>
                     <ul>
-                        {members.length === 0 && <li className="p-4 text-gray-400 italic">Aucun membre (à part vous)</li>}
+                        {members.length === 0 && <li className="p-4 text-gray-400 italic">Aucun membre</li>}
                         {members.map(m => (
-                            <li key={m.user_id} className="p-4 border-b last:border-0 flex justify-between items-center">
+                            <li key={m.player_id} className="p-4 border-b last:border-0 flex justify-between items-center">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
-                                        {m.profiles?.full_name?.[0] || '?'}
+                                        {m.players?.full_name?.[0] || '?'}
                                     </div>
-                                    <span>{m.profiles?.full_name || 'Utilisateur'} <span className="text-xs text-gray-400">({m.profiles?.role === 'PLAYER' ? 'Joueur' : (m.profiles?.role || 'Membre')}) {m.profiles?.position && `- ${m.profiles.position}`}</span></span>
+                                    <span>{m.players?.full_name || 'Joueur'} <span className="text-xs text-gray-400">({m.players?.position || 'Joueur'})</span></span>
                                 </div>
-                                {user?.id === team.coach_id && user?.id !== m.user_id && (
+                                {isCoach && (
                                     <button
                                         onClick={async () => {
                                             if (confirm('Supprimer ce joueur de l\'équipe ?')) {
-                                                const { error: deleteError } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('user_id', m.user_id);
+                                                const { error: deleteError } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('player_id', m.player_id);
                                                 if (deleteError) {
                                                     alert("Erreur lors de la suppression : " + deleteError.message);
                                                 } else {
@@ -399,14 +401,14 @@ export default function Team() {
                             </tr>
                         </thead>
                         <tbody>
-                            {members.filter(m => isCoach || m.user_id === user?.id).map(m => {
-                                const playerAtt = attendanceMatrix[m.user_id] || {};
+                            {members.filter(m => isCoach || m.players?.parent_id === user?.id).map(m => {
+                                const playerAtt = attendanceMatrix[m.player_id] || {};
                                 const presentCount = historyEvents.filter(ev => playerAtt[ev.id] === 'PRESENT' || playerAtt[ev.id] === 'RETARD').length;
                                 const ratio = historyEvents.length > 0 ? Math.round((presentCount / historyEvents.length) * 100) : 0;
 
                                 return (
-                                    <tr key={m.user_id} className="border-b hover:bg-gray-50">
-                                        <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.profiles?.full_name || 'Joueur'}</td>
+                                    <tr key={m.player_id} className="border-b hover:bg-gray-50">
+                                        <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || 'Joueur'}</td>
                                         {historyEvents.map(ev => {
                                             const status = playerAtt[ev.id];
                                             let color = "text-gray-300";
@@ -420,11 +422,11 @@ export default function Team() {
 
                                             return (
                                                 <td key={ev.id} className="p-2 border-r text-center">
-                                                    {(isCoach || (m.user_id === user?.id && new Date(ev.date) > new Date())) ? (
+                                                    {(isCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date())) ? (
                                                         <select
                                                             className={`bg-transparent outline-none ${color}`}
                                                             value={status || ''}
-                                                            onChange={(e) => handleAttendanceUpdate(m.user_id, ev.id, e.target.value)}
+                                                            onChange={(e) => handleAttendanceUpdate(m.player_id, ev.id, e.target.value)}
                                                         >
                                                             <option value="">-</option>
                                                             <option value="PRESENT">P</option>

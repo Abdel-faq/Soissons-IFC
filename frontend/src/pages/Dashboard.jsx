@@ -20,6 +20,10 @@ export default function Dashboard() {
 
     const [teams, setTeams] = useState([]); // Add teams state
 
+    const [children, setChildren] = useState([]);
+    const [showChildForm, setShowChildForm] = useState(false);
+    const [newChild, setNewChild] = useState({ first_name: '', last_name: '', position: '' });
+
     useEffect(() => {
         fetchDashboardData();
     }, []);
@@ -38,28 +42,31 @@ export default function Dashboard() {
                 const userRole = profileData?.role || 'PLAYER';
                 setIsCoach(userRole === 'COACH');
 
-                // Fetch Team(s)
-                let activeTeam = null;
+                // Fetch Children (Players managed by this account)
+                const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', user.id);
+                setChildren(childrenData || []);
 
-                // Fetch Teams (Owned and Joined)
+                // Fetch Team(s) for all children (and self if coach)
                 let allMyTeams = [];
 
                 // 1. Fetch teams where I am the coach
                 const { data: ownedTeams } = await supabase.from('teams').select('*').eq('coach_id', user.id);
                 if (ownedTeams) allMyTeams = [...ownedTeams];
 
-                // 2. Fetch teams where I am a member (can be a coach join another team or a player)
-                const { data: memberships } = await supabase
-                    .from('team_members')
-                    .select('team_id, teams(*)')
-                    .eq('user_id', user.id);
+                // 2. Fetch teams for each child
+                if (childrenData && childrenData.length > 0) {
+                    const childIds = childrenData.map(c => c.id);
+                    const { data: memberships } = await supabase
+                        .from('team_members')
+                        .select('team_id, teams(*)')
+                        .in('player_id', childIds);
 
-                if (memberships) {
-                    const joinedTeams = memberships.map(m => m.teams).filter(Boolean);
-                    // Avoid duplicates (if a coach is also in team_members of their own team, though unlikely by default)
-                    joinedTeams.forEach(jt => {
-                        if (!allMyTeams.find(t => t.id === jt.id)) allMyTeams.push(jt);
-                    });
+                    if (memberships) {
+                        const joinedTeams = memberships.map(m => m.teams).filter(Boolean);
+                        joinedTeams.forEach(jt => {
+                            if (!allMyTeams.find(t => t.id === jt.id)) allMyTeams.push(jt);
+                        });
+                    }
                 }
 
                 setTeams(allMyTeams);
@@ -67,7 +74,7 @@ export default function Dashboard() {
                 // Determine Active Team
                 if (allMyTeams.length > 0) {
                     const savedTeamId = localStorage.getItem('active_team_id');
-                    activeTeam = allMyTeams.find(t => t.id === savedTeamId) || allMyTeams[0];
+                    const activeTeam = allMyTeams.find(t => t.id === savedTeamId) || allMyTeams[0];
                     if (activeTeam) {
                         localStorage.setItem('active_team_id', activeTeam.id);
                         setTeam(activeTeam);
@@ -75,16 +82,19 @@ export default function Dashboard() {
                 }
 
                 // Fetch Next Event (Dependent on Active Team)
-                if (activeTeam) {
-                    const { data: event } = await supabase
-                        .from('events')
-                        .select('*')
-                        .eq('team_id', activeTeam.id)
-                        .gte('date', new Date().toISOString())
-                        .order('date', { ascending: true })
-                        .limit(1)
-                        .maybeSingle();
-                    setNextEvent(event);
+                if (allMyTeams.length > 0) {
+                    const currentActive = allMyTeams.find(t => t.id === localStorage.getItem('active_team_id')) || allMyTeams[0];
+                    if (currentActive) {
+                        const { data: event } = await supabase
+                            .from('events')
+                            .select('*')
+                            .eq('team_id', currentActive.id)
+                            .gte('date', new Date().toISOString())
+                            .order('date', { ascending: true })
+                            .limit(1)
+                            .maybeSingle();
+                        setNextEvent(event);
+                    }
                 }
             }
         } catch (error) {
@@ -94,15 +104,32 @@ export default function Dashboard() {
         }
     };
 
+    const handleAddChild = async (e) => {
+        e.preventDefault();
+        if (!newChild.first_name || !newChild.last_name) return;
+
+        try {
+            const { data, error } = await supabase.from('players').insert([
+                { ...newChild, parent_id: user.id }
+            ]).select().single();
+
+            if (error) throw error;
+
+            setChildren([...children, data]);
+            setNewChild({ first_name: '', last_name: '', position: '' });
+            setShowChildForm(false);
+            alert("Enfant ajouté !");
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        }
+    };
+
     const handleTeamSwitch = (teamId) => {
         const selected = teams.find(t => t.id === teamId);
         if (selected) {
             setTeam(selected);
             localStorage.setItem('active_team_id', selected.id);
-            // Refresh dependent data (Next match etc)
-            // Ideally we split fetch into fetchUser/Teams and fetchTeamData, but full reload is safer for now or just recall fetchDashboardData? 
-            // Better: update state and minimal refetch.
-            window.location.reload(); // Simple and robust for now to ensure all children components update if they were mounted
+            window.location.reload();
         }
     };
 
@@ -162,19 +189,35 @@ export default function Dashboard() {
 
     const joinTeam = async (e) => {
         e.preventDefault();
+
+        if (children.length === 0) {
+            alert("Veuillez d'abord ajouter un enfant à votre profil.");
+            setShowChildForm(true);
+            return;
+        }
+
         const code = prompt("Entrez le code d'invitation de l'équipe :");
         if (!code) return;
+
+        // Ask which child to join if multiple
+        let selectedChildId = children[0].id;
+        if (children.length > 1) {
+            const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+            const choice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
+            const index = parseInt(choice) - 1;
+            if (children[index]) selectedChildId = children[index].id;
+        }
 
         try {
             const { data: teamToJoin, error: fetchErr } = await supabase.from('teams').select('id').eq('invite_code', code).single();
             if (fetchErr) throw new Error("Code invalide ou équipe introuvable");
 
             const { error: joinErr } = await supabase.from('team_members').insert([
-                { team_id: teamToJoin.id, user_id: user.id }
+                { team_id: teamToJoin.id, player_id: selectedChildId }
             ]);
             if (joinErr) throw joinErr;
 
-            alert("Vous avez rejoint l'équipe !");
+            alert("L'enfant a rejoint l'équipe !");
             fetchDashboardData();
         } catch (err) {
             alert(err.message);
@@ -279,9 +322,64 @@ export default function Dashboard() {
                 </div>
             )}
 
+            {/* Mes Enfants Section */}
+            {!isAdmin && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            👨‍👩‍👧‍👦 Mes Enfants
+                        </h2>
+                        <button
+                            onClick={() => setShowChildForm(!showChildForm)}
+                            className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                        >
+                            <Plus size={14} /> Ajouter un enfant
+                        </button>
+                    </div>
+
+                    {showChildForm && (
+                        <form onSubmit={handleAddChild} className="bg-indigo-50 p-4 rounded-xl mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input
+                                placeholder="Prénom" className="p-2 rounded border" required
+                                value={newChild.first_name} onChange={e => setNewChild({ ...newChild, first_name: e.target.value })}
+                            />
+                            <input
+                                placeholder="Nom" className="p-2 rounded border" required
+                                value={newChild.last_name} onChange={e => setNewChild({ ...newChild, last_name: e.target.value })}
+                            />
+                            <div className="flex gap-2">
+                                <input
+                                    placeholder="Poste (ex: Gardien)" className="flex-1 p-2 rounded border"
+                                    value={newChild.position} onChange={e => setNewChild({ ...newChild, position: e.target.value })}
+                                />
+                                <button className="bg-indigo-600 text-white px-4 rounded font-bold">OK</button>
+                            </div>
+                        </form>
+                    )}
+
+                    {children.length === 0 ? (
+                        <p className="text-gray-400 italic text-sm">Aucun profil d'enfant configuré.</p>
+                    ) : (
+                        <div className="flex flex-wrap gap-3">
+                            {children.map(child => (
+                                <div key={child.id} className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
+                                        {child.first_name?.[0]}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-800">{child.full_name}</p>
+                                        <p className="text-[10px] text-gray-500 uppercase font-bold">{child.position || 'Joueur'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* View: COACH (Création d'équipe) */}
             {isCoach && (!team || showForm) && (
-                <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 p-10 rounded-2xl text-center relative">
+                <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 p-10 rounded-2xl text-center relative mb-6">
                     {team && (
                         <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                             <X size={24} />
@@ -310,7 +408,7 @@ export default function Dashboard() {
 
             {/* View: PLAYER (Sans équipe) */}
             {!isAdmin && !isCoach && !team && (
-                <div className="bg-emerald-50 border-2 border-dashed border-emerald-200 p-10 rounded-2xl text-center">
+                <div className="bg-emerald-50 border-2 border-dashed border-emerald-200 p-10 rounded-2xl text-center mb-6">
                     <h2 className="text-2xl font-bold text-emerald-900 mb-4">Rejoignez votre équipe</h2>
                     <p className="text-emerald-700/70 mb-8 max-w-lg mx-auto font-medium">Demandez le code d'invitation à votre coach pour rejoindre l'équipe et recevoir vos convocations.</p>
                     <button onClick={joinTeam} className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-black hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all active:scale-95">

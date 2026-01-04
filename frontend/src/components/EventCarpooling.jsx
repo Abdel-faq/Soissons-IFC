@@ -8,111 +8,65 @@ export default function EventCarpooling({ eventId, currentUser }) {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
 
+    const [children, setChildren] = useState([]);
+
     // New Ride Form
     const [seats, setSeats] = useState(3);
     const [location, setLocation] = useState('');
     const [depTime, setDepTime] = useState('');
+    const [relation, setRelation] = useState('PAPA');
+    const [restriction, setRestriction] = useState('NONE');
 
     useEffect(() => {
         fetchRides();
+        fetchChildren();
     }, [eventId]);
+
+    const fetchChildren = async () => {
+        const { data } = await supabase.from('players').select('*').eq('parent_id', currentUser.id);
+        setChildren(data || []);
+    };
 
     const fetchRides = async () => {
         try {
             setLoading(true);
-            // 1. Fetch Rides and Passengers (raw IDs)
-            // We fetch passengers table first
             const { data: ridesData, error: ridesError } = await supabase
                 .from('rides')
-                .select('*')
+                .select('*, driver:profiles(full_name, email)')
                 .eq('event_id', eventId);
 
             if (ridesError) throw ridesError;
-            if (!ridesData) { setRides([]); return; }
 
             const rideIds = ridesData.map(r => r.id);
-
-            // 2. Fetch Passengers for these rides
-            const { data: passengersData, error: passError } = await supabase
+            const { data: passengersData } = await supabase
                 .from('ride_passengers')
-                .select('*')
+                .select('*, player:players(full_name)')
                 .in('ride_id', rideIds);
 
-            if (passError) throw passError;
+            const ridesWithData = ridesData.map(ride => ({
+                ...ride,
+                passengers: passengersData?.filter(p => p.ride_id === ride.id) || []
+            }));
 
-            // 3. Collect all User IDs to fetch profiles (Drivers + Passengers)
-            const driverIds = ridesData.map(r => r.driver_id);
-            const passengerUserIds = (passengersData || []).map(p => p.passenger_id);
-            const allUserIds = [...new Set([...driverIds, ...passengerUserIds])];
-
-            // 4. Fetch Profiles
-            const { data: profiles, error: profError } = await supabase
-                .from('profiles')
-                .select('id, email, full_name, role')
-                .in('id', allUserIds);
-
-            if (profError) throw profError;
-
-            // 5. Map data together
-            const profileMap = {};
-            profiles?.forEach(p => profileMap[p.id] = p);
-
-            const ridesWithData = ridesData.map(ride => {
-                const ridePassengers = (passengersData || [])
-                    .filter(p => p.ride_id === ride.id)
-                    .map(p => ({
-                        ...p,
-                        passenger: profileMap[p.passenger_id] || { email: 'Inconnu' }
-                    }));
-
-                return {
-                    ...ride,
-                    driver: profileMap[ride.driver_id] || { email: 'Chauffeur inconnu' },
-                    passengers: ridePassengers
-                };
-            });
-
-            console.log("Rides assembled:", ridesWithData);
             setRides(ridesWithData);
         } catch (err) {
             console.error("Error fetching rides:", err);
-            // alert("Erreur chargement: " + err.message);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const ensureProfileExists = async () => {
-        // Check if profile exists
-        const { data: profile } = await supabase.from('profiles').select('id').eq('id', currentUser.id).maybeSingle();
-        if (!profile) {
-            console.log("Creating missing profile for", currentUser.email);
-            const { error: createProfileError } = await supabase.from('profiles').insert([
-                {
-                    id: currentUser.id,
-                    email: currentUser.email,
-                    full_name: currentUser.email?.split('@')[0] || 'User',
-                    role: 'PLAYER' // Default
-                }
-            ]);
-            if (createProfileError) {
-                console.error("Profile creation failed", createProfileError);
-                throw new Error("Impossible de créer le profil utilisateur : " + createProfileError.message);
-            }
         }
     };
 
     const createRide = async (e) => {
         e.preventDefault();
         try {
-            await ensureProfileExists();
-
             const { error } = await supabase.from('rides').insert({
                 event_id: eventId,
                 driver_id: currentUser.id,
                 seats_available: seats,
                 departure_location: location,
-                departure_time: depTime
+                departure_time: depTime,
+                driver_relation: relation,
+                restrictions: restriction
             });
 
             if (error) throw error;
@@ -127,12 +81,28 @@ export default function EventCarpooling({ eventId, currentUser }) {
     };
 
     const joinRide = async (rideId) => {
-        try {
-            await ensureProfileExists();
+        if (children.length === 0) {
+            alert("Veuillez d'abord ajouter un enfant à votre profil.");
+            return;
+        }
 
+        let selectedChildId = children[0].id;
+        if (children.length > 1) {
+            const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+            const choice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
+            const index = parseInt(choice) - 1;
+            if (children[index]) selectedChildId = children[index].id;
+            else return;
+        }
+
+        const seatChoice = prompt("Combien de places ?\n1. Enfant seul\n2. Enfant + Parent");
+        const seatCount = seatChoice === '2' ? 2 : 1;
+
+        try {
             const { error } = await supabase.from('ride_passengers').insert({
                 ride_id: rideId,
-                passenger_id: currentUser.id
+                player_id: selectedChildId,
+                seat_count: seatCount
             });
             if (error) throw error;
             fetchRides();
@@ -175,31 +145,52 @@ export default function EventCarpooling({ eventId, currentUser }) {
             </div>
 
             {showForm && (
-                <form onSubmit={createRide} className="bg-indigo-50 p-3 rounded mb-3 text-sm">
+                <form onSubmit={createRide} className="bg-indigo-50 p-3 rounded-xl mb-3 text-sm shadow-sm border border-indigo-100">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                        <select
+                            className="border p-1.5 rounded-lg bg-white font-bold text-xs"
+                            value={relation} onChange={e => setRelation(e.target.value)}
+                        >
+                            <option value="PAPA">🧔 PAPA</option>
+                            <option value="MAMAN">👩 MAMAN</option>
+                            <option value="COACH">👔 COACH</option>
+                            <option value="AUTRE">👤 AUTRE</option>
+                        </select>
+                        <select
+                            className="border p-1.5 rounded-lg bg-white font-bold text-xs"
+                            value={restriction} onChange={e => setRestriction(e.target.value)}
+                        >
+                            <option value="NONE">✅ Aucune restriction</option>
+                            <option value="ONLY_CHILD">👪 Propre enfant uniquement</option>
+                            <option value="NO_ADULTS">🚫 Pas d'adultes</option>
+                        </select>
+                    </div>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                         <input
                             placeholder="Lieu départ"
-                            className="border p-1 rounded"
+                            className="border p-1.5 rounded-lg"
                             value={location} onChange={e => setLocation(e.target.value)}
                             required
                         />
                         <input
                             type="time"
-                            className="border p-1 rounded"
+                            className="border p-1.5 rounded-lg"
                             value={depTime} onChange={e => setDepTime(e.target.value)}
                             required
                         />
                     </div>
                     <div className="flex justify-between items-center">
-                        <label className="flex items-center gap-1 text-xs text-gray-600">
-                            Places:
+                        <label className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                            Places totales:
                             <input
                                 type="number" min="1" max="9"
-                                className="w-10 border rounded p-1"
+                                className="w-12 border rounded-lg p-1 text-center"
                                 value={seats} onChange={e => setSeats(e.target.value)}
                             />
                         </label>
-                        <button className="bg-indigo-600 text-white px-3 py-1 rounded text-xs">Publier</button>
+                        <button className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-md hover:bg-indigo-700 transition-all">
+                            Publier le trajet
+                        </button>
                     </div>
                 </form>
             )}
@@ -210,62 +201,86 @@ export default function EventCarpooling({ eventId, currentUser }) {
                 )}
 
                 {rides.map(ride => {
-                    // Check if current user is passenger
                     const passengers = ride.passengers || [];
-                    const isPassenger = passengers.some(p => p.passenger.id === currentUser.id);
                     const isDriver = ride.driver_id === currentUser.id;
-                    const seatsLeft = ride.seats_available - passengers.length;
+                    const seatsOccupied = passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0);
+                    const seatsLeft = ride.seats_available - seatsOccupied;
 
-                    // Safe access to driver info
-                    const driverName = ride.driver?.full_name || ride.driver?.email?.split('@')[0] || 'Chauffeur Inconnu';
+                    // Driver Display Info
+                    const driverBaseName = ride.driver?.full_name || 'Inconnu';
+                    const driverDisplay = `${ride.driver_relation || ''} ${driverBaseName}`.trim();
 
                     return (
-                        <div key={ride.id} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm">
+                        <div key={ride.id} className={`bg-white border rounded-xl p-3 text-sm shadow-sm transition-all ${isDriver ? 'border-indigo-300 ring-1 ring-indigo-50' : 'border-gray-200'}`}>
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <div className="font-medium text-gray-900 flex items-center gap-1">
-                                        <Car size={14} className="text-red-600" />
-                                        {driverName}
-                                        <span className="text-gray-400 text-xs font-normal ml-1">
-                                            ({ride.departure_location || '?'} à {ride.departure_time?.slice(0, 5)})
-                                        </span>
+                                    <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                                        <div className="bg-indigo-100 text-indigo-700 p-1 rounded">
+                                            <Car size={14} />
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p>{driverDisplay}</p>
+                                            <p className="text-[10px] text-gray-400 font-normal">
+                                                {ride.departure_location || '?'} • {ride.departure_time?.slice(0, 5)}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                        <Users size={12} />
-                                        Places: {passengers.length} / {ride.seats_available}
+
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${seatsLeft > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                            {seatsLeft > 0 ? `🏃 ${seatsLeft} PLACES LIBRES` : 'FULL 🛑'}
+                                        </span>
+                                        {ride.restrictions !== 'NONE' && (
+                                            <span className="text-[9px] font-black bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200 uppercase">
+                                                ⚠️ {ride.restrictions === 'ONLY_CHILD' ? 'Propre enfant' : 'Pas d\'adultes'}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
-                                {isDriver ? (
-                                    <button onClick={() => deleteRide(ride.id)} className="text-red-500 hover:text-red-700">
-                                        <Trash2 size={16} />
-                                    </button>
-                                ) : (
-                                    isPassenger ? (
-                                        <button onClick={() => leaveRide(ride.id)} className="text-red-500 border border-red-200 bg-white px-2 py-1 rounded text-xs hover:bg-red-50">
-                                            Quitter
+                                <div className="flex items-center gap-2">
+                                    {isDriver ? (
+                                        <button onClick={() => deleteRide(ride.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                                            <Trash2 size={16} />
                                         </button>
                                     ) : (
                                         seatsLeft > 0 && (
-                                            <button onClick={() => joinRide(ride.id)} className="text-green-600 border border-green-200 bg-white px-2 py-1 rounded text-xs hover:bg-green-50">
-                                                Rejoindre
+                                            <button
+                                                onClick={() => joinRide(ride.id)}
+                                                className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm transition-all active:scale-95"
+                                            >
+                                                Réserver
                                             </button>
                                         )
-                                    )
-                                )}
+                                    )}
+                                </div>
                             </div>
 
-                            {/* Passenger List */}
+                            {/* Detailed Passenger List */}
                             {passengers.length > 0 && (
-                                <div className="mt-2 pl-2 border-l-2 border-indigo-100">
-                                    {passengers.map(p => {
-                                        const pName = p.passenger?.full_name || p.passenger?.email?.split('@')[0] || 'Passager';
-                                        return (
-                                            <div key={p.passenger.id} className="text-xs text-gray-600">
-                                                - {pName}
+                                <div className="mt-3 pt-3 border-t border-gray-50 space-y-1.5">
+                                    {passengers.map(p => (
+                                        <div key={p.id} className="flex justify-between items-center text-xs group">
+                                            <div className="flex items-center gap-2 text-gray-600">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
+                                                <span className="font-medium">{p.player?.full_name || 'Joueur'}</span>
                                             </div>
-                                        );
-                                    })}
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
+                                                    {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
+                                                </span>
+                                                {(p.player?.parent_id === currentUser.id || isDriver) && (
+                                                    <button
+                                                        onClick={() => leaveRide(ride.id)}
+                                                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                        title="Annuler"
+                                                    >
+                                                        <XCircle size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

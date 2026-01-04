@@ -10,7 +10,6 @@ import Events from './pages/Events';
 import Chat from './pages/Chat';
 import LandingPage from './pages/LandingPage';
 import Profile from './pages/Profile';
-import Groups from './pages/Groups';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -55,7 +54,6 @@ export default function App() {
           <Route path="team" element={<Team />} />
           <Route path="events" element={<Events />} />
           <Route path="chat" element={<Chat />} />
-          <Route path="groups" element={<Groups />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 

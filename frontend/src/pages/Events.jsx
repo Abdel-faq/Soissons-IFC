@@ -137,7 +137,8 @@ export default function Events() {
                 event_id: eventId,
                 user_id: user.id,
                 status: status,
-                updated_at: new Date()
+                updated_at: new Date(),
+                is_locked: false // Ensure it's not locked if player updates it (if policy allows)
             }, { onConflict: 'event_id, user_id' });
             if (error) throw error;
         } catch (err) {
@@ -581,7 +582,7 @@ export default function Events() {
 
                     // Dynamic styling based on event type and response
                     const isMatch = ev.type === 'MATCH';
-                    const hasResponded = status && status !== 'UNKNOWN';
+                    const hasResponded = status?.status && status.status !== 'UNKNOWN' && status.status !== 'INCONNU';
 
                     const getFrameColor = () => {
                         // 100% Response Rule for Coach
@@ -659,7 +660,7 @@ export default function Events() {
                                             <button
                                                 key={btn.id}
                                                 onClick={() => updateAttendance(ev.id, btn.id)}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all transform active:scale-90 ${status === btn.id
+                                                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all transform active:scale-90 ${status?.status === btn.id
                                                     ? `${btn.color} text-white shadow-md ring-2 ring-offset-1 ring-gray-200`
                                                     : 'bg-white text-gray-400 hover:bg-gray-50'
                                                     }`}

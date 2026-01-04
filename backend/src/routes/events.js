@@ -9,12 +9,15 @@ router.get('/', requireAuth, async (req, res) => {
 
     // 1. Fetch Team to check ownership
     let teamOwnerId = null;
-    if (team_id) {
-      const { data: teamData } = await supabase.from('teams').select('coach_id').eq('id', team_id).single();
-      teamOwnerId = teamData?.coach_id;
-    }
+    try {
+      if (team_id && team_id !== 'null') {
+        const { data: teamData } = await supabase.from('teams').select('coach_id').eq('id', team_id).single();
+        teamOwnerId = teamData?.coach_id;
+      }
+    } catch (e) { console.error("Error fetching team owner:", e); }
 
     // 2. Build Query
+    // Using a more basic select first if joined tables fail
     let query = supabase
       .from('events')
       .select(`
@@ -33,18 +36,20 @@ router.get('/', requireAuth, async (req, res) => {
       `)
       .order('date', { ascending: true });
 
-    if (team_id) {
+    if (team_id && team_id !== 'null') {
       query = query.eq('team_id', team_id);
     }
 
-    // 2.1 Always filter out soft-deleted events from general list
     query = query.eq('is_deleted', false);
 
     const { data: events, error } = await query;
 
     if (error) {
       console.error("GET Events database error:", error);
-      throw error;
+      // If full select fails, try a fallback select without complex joins
+      const fallback = await supabase.from('events').select('*').eq('team_id', team_id).eq('is_deleted', false).order('date', { ascending: true });
+      if (fallback.error) throw fallback.error;
+      return res.json(fallback.data || []);
     }
 
     // 3. Process Events
@@ -65,28 +70,19 @@ router.get('/', requireAuth, async (req, res) => {
     const currentUserId = req.user.id;
     const userRole = (req.user.role || '').toUpperCase();
 
-    console.log(`[DEBUG] Events processing - TeamOwner: ${teamOwnerId}, CurrentUser: ${currentUserId}, Role: ${userRole}`);
-    console.log(`[DEBUG] Raw events count from DB: ${processedEvents.length}`);
-
-    if (processedEvents.length > 0) {
-      console.log(`[DEBUG] First event sample:`, { id: processedEvents[0].id, type: processedEvents[0].type, visibility: processedEvents[0].visibility_type });
-    }
-
     const filteredEvents = processedEvents.filter(ev => {
       const isTeamCoach = teamOwnerId && currentUserId && String(teamOwnerId) === String(currentUserId);
-
-      // For debugging: return TRUE if user is either Coach, Admin, or it is a public event
       if (userRole === 'ADMIN' || isTeamCoach || ev.visibility_type === 'PUBLIC' || !ev.visibility_type) return true;
-
-      // For Private events, show if there is any attendance record (meaning it's initialized)
-      // or if it's the coach of the team.
-      return true;
+      return ev.attendance && ev.attendance.some(a => a.is_convoked);
     });
 
-    console.log(`[DEBUG] Final filtered events count: ${filteredEvents.length}`);
     res.json(filteredEvents);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("CRITICAL API ERROR:", err);
+    res.status(500).json({
+      error: err.message,
+      hint: "Ce problème peut venir d'une colonne manquante comme player_id. Assurez-vous d'avoir exécuté tous les scripts SQL."
+    });
   }
 });
 

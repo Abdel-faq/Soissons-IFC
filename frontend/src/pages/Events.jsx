@@ -663,7 +663,7 @@ export default function Events() {
 
                                 {/* Attendance Controls per Child/Member */}
                                 <div className="flex flex-col items-center md:items-end gap-4">
-                                    {(isCoach ? members.map(m => m.players) : children).filter(Boolean).map(child => {
+                                    {(isCoach ? members : children).filter(Boolean).map(child => {
                                         const cStatus = myAttendance[child.id]?.[ev.id];
                                         const isCConvoked = ev.attendance?.some(a => a.player_id === child.id && a.is_convoked);
                                         const hasCResponded = cStatus?.status && cStatus.status !== 'UNKNOWN' && cStatus.status !== 'INCONNU';

@@ -21,6 +21,7 @@ export default function Dashboard() {
     const [teams, setTeams] = useState([]); // Add teams state
 
     const [children, setChildren] = useState([]);
+    const [showChildForm, setShowChildForm] = useState(false);
     const [newChild, setNewChild] = useState({ first_name: '', last_name: '', position: 'Attaquant' });
     const [joiningTeam, setJoiningTeam] = useState(null); // { childId, inviteCode }
     const [showJoinModal, setShowJoinModal] = useState(false);

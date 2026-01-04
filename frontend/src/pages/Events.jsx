@@ -264,10 +264,10 @@ export default function Events() {
     const fetchMembers = async () => {
         const { data, error } = await supabase
             .from('team_members')
-            .select('user_id, profiles(id, full_name, position, avatar_url)')
+            .select('player_id, players(id, full_name, first_name, position, avatar_url)')
             .eq('team_id', team);
 
-        if (data) setMembers(data.map(d => d.profiles).filter(Boolean));
+        if (data) setMembers(data.map(d => d.players).filter(Boolean));
     };
 
     // Fetch Availability for specific Event (Lazy load when opening accordion?)
@@ -661,9 +661,9 @@ export default function Events() {
                                     </div>
                                 </div>
 
-                                {/* Attendance Controls per Child */}
+                                {/* Attendance Controls per Child/Member */}
                                 <div className="flex flex-col items-center md:items-end gap-4">
-                                    {children.map(child => {
+                                    {(isCoach ? members.map(m => m.players) : children).filter(Boolean).map(child => {
                                         const cStatus = myAttendance[child.id]?.[ev.id];
                                         const isCConvoked = ev.attendance?.some(a => a.player_id === child.id && a.is_convoked);
                                         const hasCResponded = cStatus?.status && cStatus.status !== 'UNKNOWN' && cStatus.status !== 'INCONNU';

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Car, UserPlus, Users, XCircle, Trash2 } from 'lucide-react';
 
-export default function EventCarpooling({ eventId, currentUser }) {
+export default function EventCarpooling({ eventId, currentUser, teamId }) {
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -18,13 +18,28 @@ export default function EventCarpooling({ eventId, currentUser }) {
     const [restriction, setRestriction] = useState('NONE');
 
     useEffect(() => {
-        fetchRides();
-        fetchChildren();
-    }, [eventId]);
+        if (eventId) fetchRides();
+        if (currentUser?.id && teamId) fetchChildren();
+    }, [eventId, teamId, currentUser?.id]);
 
     const fetchChildren = async () => {
-        const { data } = await supabase.from('players').select('*').eq('parent_id', currentUser.id);
-        setChildren(data || []);
+        if (!currentUser?.id || !teamId) return;
+
+        // Find which of my kids are in this team
+        const { data: myTeamKids } = await supabase
+            .from('team_members')
+            .select(`
+                player_id,
+                player:players(*)
+            `)
+            .eq('team_id', teamId);
+
+        // Filter those where player.parent_id === currentUser.id
+        const myKids = myTeamKids
+            ?.filter(m => m.player?.parent_id === currentUser.id)
+            .map(m => m.player) || [];
+
+        setChildren(myKids);
     };
 
     const fetchRides = async () => {

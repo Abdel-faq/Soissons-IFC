@@ -39,9 +39,8 @@ export default function Events() {
 
             if (!user) return;
 
-            // Fetch Children
-            const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', user.id);
-            setChildren(childrenData || []);
+            // Fetch All Children for this parent
+            const { data: allChildren } = await supabase.from('players').select('*').eq('parent_id', user.id);
 
             // Read Context
             const savedCtx = localStorage.getItem('sb-active-context');
@@ -53,12 +52,27 @@ export default function Events() {
             }
 
             if (!context) {
+                setChildren(allChildren || []);
                 setLoading(false);
                 return;
             }
 
             setTeam(context.teamId);
             setIsCoach(context.role === 'COACH');
+
+            // Filter children to only those in the current team
+            if (context.teamId) {
+                const { data: teamMemberships } = await supabase
+                    .from('team_members')
+                    .select('player_id')
+                    .eq('team_id', context.teamId);
+
+                const teamPlayerIds = teamMemberships?.map(m => m.player_id) || [];
+                const filtered = (allChildren || []).filter(c => teamPlayerIds.includes(c.id));
+                setChildren(filtered);
+            } else {
+                setChildren(allChildren || []);
+            }
 
             if (context.teamId) {
                 const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${context.teamId}`;
@@ -766,7 +780,7 @@ export default function Events() {
                             {/* Integrated Carpooling Section */}
                             {isMatch && ev.match_location === 'EXTERIEUR' && (
                                 <div className="bg-gray-50/30 px-4 pb-4">
-                                    <EventCarpooling eventId={ev.id} currentUser={user} />
+                                    <EventCarpooling eventId={ev.id} currentUser={user} teamId={team} />
                                 </div>
                             )}
                         </div>

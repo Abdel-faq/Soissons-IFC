@@ -71,7 +71,9 @@ export default function Events() {
 
                 if (response.ok) {
                     const eventsData = await response.json();
+                    console.log("DEBUG: Events API response:", eventsData);
                     const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+                    console.log("DEBUG: Active events after is_deleted filter:", activeEvents.length);
                     setEvents(activeEvents);
 
                     // Fetch Attendance for context child (or all children if coach/missing)

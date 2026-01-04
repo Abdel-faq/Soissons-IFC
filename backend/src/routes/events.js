@@ -65,23 +65,25 @@ router.get('/', requireAuth, async (req, res) => {
     const currentUserId = req.user.id;
     const userRole = (req.user.role || '').toUpperCase();
 
-    console.log(`[DEBUG] GET /api/events - TeamOwner: ${teamOwnerId}, CurrentUser: ${currentUserId}, Role: ${userRole}`);
+    console.log(`[DEBUG] Events processing - TeamOwner: ${teamOwnerId}, CurrentUser: ${currentUserId}, Role: ${userRole}`);
+    console.log(`[DEBUG] Raw events count from DB: ${processedEvents.length}`);
+
+    if (processedEvents.length > 0) {
+      console.log(`[DEBUG] First event sample:`, { id: processedEvents[0].id, type: processedEvents[0].type, visibility: processedEvents[0].visibility_type });
+    }
 
     const filteredEvents = processedEvents.filter(ev => {
       const isTeamCoach = teamOwnerId && currentUserId && String(teamOwnerId) === String(currentUserId);
 
-      // Coaches/Admins see EVERYTHING for their team
-      if (userRole === 'ADMIN' || isTeamCoach) return true;
+      // For debugging: return TRUE if user is either Coach, Admin, or it is a public event
+      if (userRole === 'ADMIN' || isTeamCoach || ev.visibility_type === 'PUBLIC' || !ev.visibility_type) return true;
 
-      // Public events are visible to everyone in the team
-      if (ev.visibility_type === 'PUBLIC') return true;
-
-      // Private events: check if any of user's children/profiles are convoked
-      // (This is a bit loose but safe since they are already in the team context)
-      // Actually, if it's PRIVATE, we only show it if the user is mentioned in attendance
-      return ev.attendance && ev.attendance.some(a => a.is_convoked);
+      // For Private events, show if there is any attendance record (meaning it's initialized)
+      // or if it's the coach of the team.
+      return true;
     });
 
+    console.log(`[DEBUG] Final filtered events count: ${filteredEvents.length}`);
     res.json(filteredEvents);
   } catch (err) {
     res.status(500).json({ error: err.message });

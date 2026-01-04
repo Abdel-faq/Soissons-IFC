@@ -32,7 +32,7 @@ export default function EventCarpooling({ eventId, currentUser }) {
             setLoading(true);
             const { data: ridesData, error: ridesError } = await supabase
                 .from('rides')
-                .select('*, driver:profiles(full_name, email)')
+                .select('*, driver:profiles!driver_id(full_name)')
                 .eq('event_id', eventId);
 
             if (ridesError) throw ridesError;
@@ -40,7 +40,7 @@ export default function EventCarpooling({ eventId, currentUser }) {
             const rideIds = ridesData.map(r => r.id);
             const { data: passengersData } = await supabase
                 .from('ride_passengers')
-                .select('*, player:players(full_name)')
+                .select('*, player:players!player_id(full_name)')
                 .in('ride_id', rideIds);
 
             const ridesWithData = ridesData.map(ride => ({

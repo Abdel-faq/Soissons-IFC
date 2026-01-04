@@ -45,8 +45,8 @@ router.get('/', requireAuth, async (req, res) => {
       return { ...ev, attendance: updatedAttendance };
     });
 
-    console.log(`[DEBUG] GET /api/events - User: ${req.user.email}, TeamID: ${team_id}`);
-    console.log(`[DEBUG] Events trouvés en DB: ${events?.length || 0}`);
+    console.log(`[DEBUG] GET /api/events - User: ${req.user.email} (${req.user.id}), TeamID: ${team_id}, Role: ${req.user.role}`);
+    console.log(`[DEBUG] Events trouvés en DB avant filtre: ${events?.length || 0}`);
 
     if (error) {
       console.error("GET Events database error:", error);
@@ -56,6 +56,8 @@ router.get('/', requireAuth, async (req, res) => {
     const filteredEvents = processedEvents.filter(ev => {
       const userRole = (req.user.role || '').toUpperCase();
       const isOwner = ev.coach_id === req.user.id;
+
+      console.log(`[DEBUG] Event ${ev.id} - Visibility: ${ev.visibility_type}, isOwner: ${isOwner}, CoachID: ${ev.coach_id}`);
 
       if (userRole === 'COACH' || isOwner) return true;
       if (ev.visibility_type === 'PUBLIC') return true;

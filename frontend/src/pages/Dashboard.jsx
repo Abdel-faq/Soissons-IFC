@@ -85,21 +85,39 @@ export default function Dashboard() {
                 }
 
                 // Player Contexts (Children)
-                memberships.forEach(m => {
-                    const child = childrenData.find(c => c.id === m.player_id);
-                    if (m.teams && child) {
-                        availableContexts.push({
-                            id: `player-${m.player_id}-${m.team_id}`,
-                            teamId: m.team_id,
-                            teamName: m.teams.name,
-                            category: m.teams.category,
-                            playerId: m.player_id,
-                            playerName: child.first_name,
-                            role: 'PLAYER',
-                            label: `🧒 ${child.first_name} - ${m.teams.name}`
-                        });
-                    }
-                });
+                if (childrenData) {
+                    childrenData.forEach(child => {
+                        const childMemberships = memberships.filter(m => m.player_id === child.id);
+
+                        if (childMemberships.length > 0) {
+                            childMemberships.forEach(m => {
+                                if (m.teams) {
+                                    availableContexts.push({
+                                        id: `player-${child.id}-${m.team_id}`,
+                                        teamId: m.team_id,
+                                        teamName: m.teams.name,
+                                        category: m.teams.category,
+                                        playerId: child.id,
+                                        playerName: child.first_name,
+                                        role: 'PLAYER',
+                                        label: `🧒 ${child.first_name} - ${m.teams.name}`
+                                    });
+                                }
+                            });
+                        } else {
+                            // Child with no team context
+                            availableContexts.push({
+                                id: `player-${child.id}-none`,
+                                teamId: null,
+                                teamName: 'Pas d\'équipe',
+                                playerId: child.id,
+                                playerName: child.first_name,
+                                role: 'PLAYER',
+                                label: `🧒 ${child.first_name} (En attente d'équipe)`
+                            });
+                        }
+                    });
+                }
 
                 setTeams(availableContexts);
 
@@ -119,20 +137,24 @@ export default function Dashboard() {
 
                 if (activeContext) {
                     localStorage.setItem('sb-active-context', JSON.stringify(activeContext));
-                    localStorage.setItem('active_team_id', activeContext.teamId);
+                    if (activeContext.teamId) localStorage.setItem('active_team_id', activeContext.teamId);
                     setTeam(activeContext);
                     setIsCoach(activeContext.role === 'COACH');
 
-                    // Fetch Next Event
-                    const { data: event } = await supabase
-                        .from('events')
-                        .select('*')
-                        .eq('team_id', activeContext.teamId)
-                        .gte('date', new Date().toISOString())
-                        .order('date', { ascending: true })
-                        .limit(1)
-                        .maybeSingle();
-                    setNextEvent(event);
+                    // Fetch Next Event if has team
+                    if (activeContext.teamId) {
+                        const { data: event } = await supabase
+                            .from('events')
+                            .select('*')
+                            .eq('team_id', activeContext.teamId)
+                            .gte('date', new Date().toISOString())
+                            .order('date', { ascending: true })
+                            .limit(1)
+                            .maybeSingle();
+                        setNextEvent(event);
+                    } else {
+                        setNextEvent(null);
+                    }
                 }
             }
         } catch (error) {
@@ -166,7 +188,7 @@ export default function Dashboard() {
         const selected = teams.find(c => c.id === contextId);
         if (selected) {
             localStorage.setItem('sb-active-context', JSON.stringify(selected));
-            localStorage.setItem('active_team_id', selected.teamId);
+            if (selected.teamId) localStorage.setItem('active_team_id', selected.teamId);
             window.location.reload();
         }
     };
@@ -267,7 +289,7 @@ export default function Dashboard() {
 
                 {!isAdmin && (
                     <div className="flex items-center gap-2">
-                        {teams.length > 1 && (
+                        {teams.length > 0 && (
                             <>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Équipe :</label>
                                 <select

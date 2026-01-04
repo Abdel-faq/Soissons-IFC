@@ -52,7 +52,10 @@ export default function Events() {
                 } catch (e) { console.error("Stale context", e); }
             }
 
-            if (!context) return;
+            if (!context) {
+                setLoading(false);
+                return;
+            }
 
             setTeam(context.teamId);
             setIsCoach(context.role === 'COACH');

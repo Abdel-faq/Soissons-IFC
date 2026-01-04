@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Stats from '../components/Stats';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Users } from 'lucide-react';
 
 export default function Dashboard() {
     const [newTeamName, setNewTeamName] = useState('');
@@ -41,40 +41,38 @@ export default function Dashboard() {
                 // Fetch Team(s)
                 let activeTeam = null;
 
-                if (userRole === 'COACH') {
-                    // Fetch ALL teams for master coach
-                    const { data: coachTeams, error: coachTeamErr } = await supabase.from('teams').select('*').eq('coach_id', user.id);
-                    if (coachTeamErr) console.error("Erreur team coach:", coachTeamErr);
+                // Fetch Teams (Owned and Joined)
+                let allMyTeams = [];
 
-                    const allTeams = coachTeams || [];
-                    setTeams(allTeams);
+                // 1. Fetch teams where I am the coach
+                const { data: ownedTeams } = await supabase.from('teams').select('*').eq('coach_id', user.id);
+                if (ownedTeams) allMyTeams = [...ownedTeams];
 
-                    // Determine Active Team
-                    if (allTeams.length > 0) {
-                        const savedTeamId = localStorage.getItem('active_team_id');
-                        activeTeam = allTeams.find(t => t.id === savedTeamId) || allTeams[0];
-                        if (activeTeam) localStorage.setItem('active_team_id', activeTeam.id);
-                    }
+                // 2. Fetch teams where I am a member (can be a coach join another team or a player)
+                const { data: memberships } = await supabase
+                    .from('team_members')
+                    .select('team_id, teams(*)')
+                    .eq('user_id', user.id);
 
-                } else if (userRole === 'PLAYER') {
-                    // Fetch ALL teams where player is a member
-                    const { data: memberships, error: memberErr } = await supabase
-                        .from('team_members')
-                        .select('team_id, teams(*)')
-                        .eq('user_id', user.id);
+                if (memberships) {
+                    const joinedTeams = memberships.map(m => m.teams).filter(Boolean);
+                    // Avoid duplicates (if a coach is also in team_members of their own team, though unlikely by default)
+                    joinedTeams.forEach(jt => {
+                        if (!allMyTeams.find(t => t.id === jt.id)) allMyTeams.push(jt);
+                    });
+                }
 
-                    if (memberErr) console.error("Erreur memberships player:", memberErr);
+                setTeams(allMyTeams);
 
-                    const playerTeams = memberships?.map(m => m.teams).filter(Boolean) || [];
-                    setTeams(playerTeams);
-
-                    if (playerTeams.length > 0) {
-                        const savedTeamId = localStorage.getItem('active_team_id');
-                        activeTeam = playerTeams.find(t => t.id === savedTeamId) || playerTeams[0];
-                        if (activeTeam) localStorage.setItem('active_team_id', activeTeam.id);
+                // Determine Active Team
+                if (allMyTeams.length > 0) {
+                    const savedTeamId = localStorage.getItem('active_team_id');
+                    activeTeam = allMyTeams.find(t => t.id === savedTeamId) || allMyTeams[0];
+                    if (activeTeam) {
+                        localStorage.setItem('active_team_id', activeTeam.id);
+                        setTeam(activeTeam);
                     }
                 }
-                setTeam(activeTeam);
 
                 // Fetch Next Event (Dependent on Active Team)
                 if (activeTeam) {
@@ -216,15 +214,25 @@ export default function Dashboard() {
                                 </select>
                             </>
                         )}
-                        {isCoach && (
+
+                        <div className="flex gap-1">
+                            {isCoach && (
+                                <button
+                                    onClick={() => setShowForm(!showForm)}
+                                    className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                                    title="Créer une nouvelle équipe"
+                                >
+                                    <Plus size={20} />
+                                </button>
+                            )}
                             <button
-                                onClick={() => setShowForm(!showForm)}
-                                className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
-                                title="Créer une nouvelle équipe"
+                                onClick={joinTeam}
+                                className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                                title="Rejoindre une équipe (Code)"
                             >
-                                <Plus size={20} />
+                                <Users size={20} />
                             </button>
-                        )}
+                        </div>
                     </div>
                 )}
             </div>

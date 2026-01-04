@@ -16,55 +16,48 @@ router.get('/', requireAuth, async (req, res) => {
       }
     } catch (e) { console.error("Error fetching team owner:", e); }
 
-    // 2. Build Query
-    // Using a more basic select first if joined tables fail
-    let query = supabase
+    // 2. Build Query (Simple one first to avoid crashes on joins)
+    const { data: events, error } = await supabase
       .from('events')
-      .select(`
-        *,
-        attendance:attendance (
-          player_id,
-          status,
-          is_convoked
-        ),
-        rides:rides (
-          id,
-          ride_passengers (
-            player_id
-          )
-        )
-      `)
+      .select('*')
+      .eq('team_id', team_id)
+      .eq('is_deleted', false)
       .order('date', { ascending: true });
 
-    if (team_id && team_id !== 'null') {
-      query = query.eq('team_id', team_id);
-    }
-
-    query = query.eq('is_deleted', false);
-
-    const { data: events, error } = await query;
-
     if (error) {
-      console.error("GET Events database error:", error);
-      // If full select fails, try a fallback select without complex joins
-      const fallback = await supabase.from('events').select('*').eq('team_id', team_id).eq('is_deleted', false).order('date', { ascending: true });
-      if (fallback.error) throw fallback.error;
-      return res.json(fallback.data || []);
+      console.error("GET Events error:", error);
+      throw error;
     }
 
-    // 3. Process Events
-    const processedEvents = (events || []).map(ev => {
+    if (!events || events.length === 0) return res.json([]);
+
+    const eventIds = events.map(e => e.id);
+
+    // 3. Fetch related data separately (Resilient to missing tables/columns)
+    let allAttendance = [];
+    try {
+      const { data: att } = await supabase.from('attendance').select('*').in('event_id', eventIds);
+      allAttendance = att || [];
+    } catch (e) { console.error("Att fetch fail:", e); }
+
+    let allRides = [];
+    try {
+      const { data: rd } = await supabase.from('rides').select('*, ride_passengers(*)').in('event_id', eventIds);
+      allRides = rd || [];
+    } catch (e) { console.error("Rides fetch fail:", e); }
+
+    // 4. Process & Filter
+    const processedEvents = events.map(ev => {
+      const evAtt = allAttendance.filter(a => a.event_id === ev.id);
+      const evRides = allRides.filter(r => r.event_id === ev.id);
       const riders = new Set();
-      ev.rides?.forEach(r => {
-        r.ride_passengers?.forEach(rp => riders.add(rp.player_id));
-      });
+      evRides.forEach(r => r.ride_passengers?.forEach(rp => riders.add(rp.player_id || rp.passenger_id || rp.user_id)));
 
-      const updatedAttendance = ev.attendance?.map(a => ({
-        ...a,
-        has_ride: riders.has(a.player_id)
-      }));
-
-      return { ...ev, attendance: updatedAttendance };
+      return {
+        ...ev,
+        attendance: evAtt.map(a => ({ ...a, has_ride: riders.has(a.player_id || a.user_id) })),
+        rides: evRides
+      };
     });
 
     const currentUserId = req.user.id;
@@ -73,7 +66,7 @@ router.get('/', requireAuth, async (req, res) => {
     const filteredEvents = processedEvents.filter(ev => {
       const isTeamCoach = teamOwnerId && currentUserId && String(teamOwnerId) === String(currentUserId);
       if (userRole === 'ADMIN' || isTeamCoach || ev.visibility_type === 'PUBLIC' || !ev.visibility_type) return true;
-      return ev.attendance && ev.attendance.some(a => a.is_convoked);
+      return ev.attendance && ev.attendance.some(a => a.is_convoked && (a.player_id || a.user_id));
     });
 
     res.json(filteredEvents);

@@ -45,8 +45,25 @@ export default function Team() {
             }
 
             if (context) {
-                setTeam({ id: context.teamId, coach_id: context.role === 'COACH' ? user.id : null });
-                fetchMembers(context.teamId);
+                const activeRole = context.role || 'PLAYER';
+                setIsCoach(activeRole === 'COACH');
+
+                // Set dummy team object for initial view if we have context
+                const teamObj = context.teamId ? {
+                    id: context.teamId,
+                    name: context.teamName,
+                    category: context.category,
+                    coach_id: activeRole === 'COACH' ? currentUser.id : null
+                } : null;
+
+                if (teamObj) {
+                    setTeam(teamObj);
+                    setTeams([teamObj]); // Crucial to avoid "No Team" view
+                    fetchMembers(context.teamId);
+                } else {
+                    setTeam(null);
+                    setTeams([]);
+                }
             }
         } catch (err) {
             console.error("TeamPage: Error", err);
@@ -170,7 +187,15 @@ export default function Team() {
             const { data: teamToJoin, error: searchError } = await supabase.from('teams').select('id, name').ilike('invite_code', sanitizedCode).single();
             if (searchError || !teamToJoin) throw new Error("Équipe introuvable");
 
-            const { error: joinError } = await supabase.from('team_members').insert([{ team_id: teamToJoin.id, user_id: user.id }]);
+            // Fetch context again for join
+            const savedCtx = localStorage.getItem('sb-active-context');
+            const context = savedCtx ? JSON.parse(savedCtx) : null;
+
+            const { error: joinError } = await supabase.from('team_members').insert([{
+                team_id: teamToJoin.id,
+                user_id: user.id,
+                player_id: context?.playerId || null
+            }]);
             if (joinError) throw joinError;
 
             alert(`Bienvenue dans ${teamToJoin.name} !`);

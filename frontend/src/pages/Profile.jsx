@@ -26,19 +26,49 @@ export default function Profile() {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
 
+            // Context handling
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { console.error("Stale context", e); }
+            }
+
             if (user) {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single();
+                if (context && context.playerId) {
+                    // Fetch Child Profile
+                    const { data, error } = await supabase
+                        .from('players')
+                        .select('*')
+                        .eq('id', context.playerId)
+                        .single();
 
-                if (error && error.code !== 'PGRST116') {
-                    throw error;
-                }
+                    if (error) throw error;
+                    if (data) {
+                        setProfile({
+                            id: data.id,
+                            full_name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
+                            first_name: data.first_name,
+                            last_name: data.last_name,
+                            email: user.email, // Child doesn't have email, show parent's
+                            role: 'PLAYER',
+                            position: data.position,
+                            avatar_url: data.avatar_url || ''
+                        });
+                    }
+                } else {
+                    // Fetch Parent/Coach Profile
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
 
-                if (data) {
-                    setProfile({ ...data, email: user.email }); // Ensure email comes from auth if missing in profile, but it should be there.
+                    if (error && error.code !== 'PGRST116') throw error;
+                    if (data) {
+                        setProfile({ ...data, email: user.email });
+                    }
                 }
             }
         } catch (error) {
@@ -54,21 +84,52 @@ export default function Profile() {
         try {
             setUpdating(true);
             const { data: { user } } = await supabase.auth.getUser();
-
             if (!user) throw new Error('No user logged in');
 
-            const updates = {
-                id: user.id,
-                email: user.email, // Required for not-null constraint on Insert
-                full_name: profile.full_name,
-                position: profile.position, // Add position
-                avatar_url: profile.avatar_url,
-                // updated_at: new Date(), // Column doesn't exist in schema yet
-            };
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { }
+            }
 
-            const { error } = await supabase.from('profiles').upsert(updates);
+            if (context && context.playerId) {
+                // Update Player
+                let fName = profile.first_name;
+                let lName = profile.last_name;
 
-            if (error) throw error;
+                // If user edited the full_name field, try to split it
+                if (profile.full_name && (!fName || !lName)) {
+                    const parts = profile.full_name.split(' ');
+                    fName = parts[0];
+                    lName = parts.slice(1).join(' ');
+                }
+
+                const { error } = await supabase
+                    .from('players')
+                    .update({
+                        first_name: fName,
+                        last_name: lName,
+                        position: profile.position,
+                        avatar_url: profile.avatar_url
+                    })
+                    .eq('id', context.playerId);
+
+                if (error) throw error;
+            } else {
+                // Update Profile
+                const updates = {
+                    id: user.id,
+                    email: user.email,
+                    full_name: profile.full_name,
+                    avatar_url: profile.avatar_url,
+                };
+
+                const { error } = await supabase.from('profiles').upsert(updates);
+                if (error) throw error;
+            }
+
             alert('Profil mis à jour !');
         } catch (error) {
             alert('Erreur lors de la mise à jour : ' + error.message);

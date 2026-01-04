@@ -279,12 +279,14 @@ export default function Dashboard() {
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6 flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-                        Bonjour, {profile?.full_name || user?.email?.split('@')[0]} 👋
+                        Bonjour, {team?.playerName || profile?.full_name || user?.email?.split('@')[0]} 👋
                         <span className="ml-3 text-xs font-black px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase">
-                            {profile?.role || 'Joueur'}
+                            {team?.role || profile?.role || 'Joueur'}
                         </span>
                     </h1>
-                    <p className="text-gray-500 font-medium">SOISSONS IFC — Espace {isAdmin ? 'Administration' : 'Sportif'}</p>
+                    <p className="text-gray-500 font-medium font-bold">
+                        {team?.teamName ? `Saison ${team.teamName} — ` : ''}SOISSONS IFC — Espace {isAdmin ? 'Administration' : 'Sportif'}
+                    </p>
                 </div>
 
                 {!isAdmin && (

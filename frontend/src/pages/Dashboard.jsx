@@ -195,7 +195,8 @@ export default function Dashboard() {
         if (!joinData.childId || !joinData.code) return;
 
         try {
-            const { data: teamToJoin, error: fetchErr } = await supabase.from('teams').select('id').eq('invite_code', joinData.code.trim()).single();
+            const sanitizedCode = joinData.code.replace(/\s/g, '').toUpperCase();
+            const { data: teamToJoin, error: fetchErr } = await supabase.from('teams').select('id').eq('invite_code', sanitizedCode).single();
             if (fetchErr) throw new Error("Code invalide ou équipe introuvable");
 
             const { error: joinErr } = await supabase.from('team_members').insert([
@@ -512,7 +513,7 @@ export default function Dashboard() {
                                     className="w-full border-2 border-gray-100 rounded-lg p-3 focus:border-emerald-500 focus:outline-none bg-gray-50 font-mono font-bold text-lg text-emerald-700"
                                     placeholder="Ex: AB1234"
                                     value={joinData.code}
-                                    onChange={e => setJoinData({ ...joinData, code: e.target.value.toUpperCase() })}
+                                    onChange={e => setJoinData({ ...joinData, code: e.target.value.replace(/\s/g, '').toUpperCase() })}
                                 />
                             </div>
 

@@ -110,15 +110,19 @@ export default function Team() {
         }
     };
 
-    const handleCoachOverride = async (userId, eventId, status) => {
+    const handleAttendanceUpdate = async (userId, eventId, status) => {
         const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id;
-        if (!isUserCoach) return;
+        const targetEvent = historyEvents.find(e => e.id === eventId);
+        const isFuture = targetEvent && new Date(targetEvent.date) > new Date();
+
+        if (!isUserCoach && (userId !== user?.id || !isFuture)) return;
+
         try {
             const { error } = await supabase.from('attendance').upsert({
                 event_id: eventId,
                 user_id: userId,
                 status: status,
-                is_locked: true,
+                is_locked: isUserCoach, // Lock if coach is overriding
                 updated_at: new Date()
             }, { onConflict: 'event_id, user_id' });
             if (error) throw error;
@@ -361,8 +365,12 @@ export default function Team() {
                                     <button
                                         onClick={async () => {
                                             if (confirm('Supprimer ce joueur de l\'équipe ?')) {
-                                                const { error } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('user_id', m.user_id);
-                                                if (!error) fetchMembers(team.id);
+                                                const { error: deleteError } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('user_id', m.user_id);
+                                                if (deleteError) {
+                                                    alert("Erreur lors de la suppression : " + deleteError.message);
+                                                } else {
+                                                    fetchMembers(team.id);
+                                                }
                                             }
                                         }}
                                         className="text-gray-400 hover:text-red-600 p-2"
@@ -392,7 +400,7 @@ export default function Team() {
                             </tr>
                         </thead>
                         <tbody>
-                            {members.map(m => {
+                            {members.filter(m => isCoach || m.user_id === user?.id).map(m => {
                                 const playerAtt = attendanceMatrix[m.user_id] || {};
                                 const presentCount = historyEvents.filter(ev => playerAtt[ev.id] === 'PRESENT' || playerAtt[ev.id] === 'RETARD').length;
                                 const ratio = historyEvents.length > 0 ? Math.round((presentCount / historyEvents.length) * 100) : 0;
@@ -413,11 +421,11 @@ export default function Team() {
 
                                             return (
                                                 <td key={ev.id} className="p-2 border-r text-center">
-                                                    {isCoach ? (
+                                                    {(isCoach || (m.user_id === user?.id && new Date(ev.date) > new Date())) ? (
                                                         <select
                                                             className={`bg-transparent outline-none ${color}`}
                                                             value={status || ''}
-                                                            onChange={(e) => handleCoachOverride(m.user_id, ev.id, e.target.value)}
+                                                            onChange={(e) => handleAttendanceUpdate(m.user_id, ev.id, e.target.value)}
                                                         >
                                                             <option value="">-</option>
                                                             <option value="PRESENT">P</option>

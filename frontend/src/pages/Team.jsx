@@ -173,7 +173,7 @@ export default function Team() {
 
     const joinTeam = async (e) => {
         e.preventDefault();
-        const sanitizedCode = joinCode.replace(/\s/g, '').toUpperCase();
+        const sanitizedCode = joinCode.replace(/\s/g, '');
         if (!sanitizedCode) return;
         try {
             // Ensure Profile Exists
@@ -185,7 +185,7 @@ export default function Team() {
                 if (createProfileError) throw new Error("Erreur création profil: " + createProfileError.message);
             }
 
-            const { data: teamToJoin, error: searchError } = await supabase.from('teams').select('id, name').eq('invite_code', sanitizedCode).single();
+            const { data: teamToJoin, error: searchError } = await supabase.from('teams').select('id, name').ilike('invite_code', sanitizedCode).single();
             if (searchError || !teamToJoin) throw new Error("Équipe introuvable");
 
             const { error: joinError } = await supabase.from('team_members').insert([{ team_id: teamToJoin.id, user_id: user.id }]);
@@ -261,7 +261,7 @@ export default function Team() {
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                     <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><UserPlus /> Rejoindre une équipe</h2>
                     <form onSubmit={joinTeam}>
-                        <input type="text" className="w-full border p-2 rounded mb-2 uppercase" placeholder="CODE INVITATION" value={joinCode} onChange={e => setJoinCode(e.target.value.replace(/\s/g, '').toUpperCase())} required />
+                        <input type="text" className="w-full border p-2 rounded mb-2 uppercase" placeholder="CODE INVITATION" value={joinCode} onChange={e => setJoinCode(e.target.value.replace(/\s/g, ''))} required />
                         <button className="w-full bg-white border border-indigo-600 text-indigo-600 p-2 rounded">Rejoindre</button>
                     </form>
                 </div>

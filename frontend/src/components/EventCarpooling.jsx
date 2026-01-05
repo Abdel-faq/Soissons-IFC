@@ -81,7 +81,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
     const createRide = async (e) => {
         e.preventDefault();
-        if (!selectedChildForRide) {
+        if (!isCoach && !selectedChildForRide) {
             alert("Veuillez sélectionner l'enfant que vous conduisez.");
             return;
         }
@@ -313,14 +313,12 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     const passengers = ride.passengers || [];
                     const isDriver = ride.driver_id === currentUser.id;
 
-                    // Defense: if passengers list is empty (can happen due to RLS), 
-                    // we assume at least the driver's own seat is occupied (which is the case if the ride exists)
-                    const actualPassengersCount = passengers.length > 0 ? passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0) : 1;
-
-                    // seats_available is the number of EXTRA places offered to others.
-                    // (actualPassengersCount - 1) represents the EXTRA places already taken.
-                    const seatsTakenByOthers = Math.max(0, actualPassengersCount - 1);
-                    const seatsLeft = ride.seats_available - seatsTakenByOthers;
+                    // Logic: seats_available (e.g. 3) is for OTHERS. 
+                    // seatsOccupied counts everyone in ride_passengers.
+                    // The driver's own slot (child or coach themselves) is the FIRST record in ride_passengers.
+                    // So seatsTakenByOthers = seatsOccupied - 1.
+                    const extraOccupied = passengers.length > 0 ? (passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0) - 1) : 0;
+                    const seatsLeft = Math.max(0, ride.seats_available - extraOccupied);
 
                     // Driver Display Info: Find the passenger that is the driver's child
                     const driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
@@ -334,10 +332,12 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
                         else if (relationLabel === 'COACH') relationLabel = 'Coach de';
                         else relationLabel += ' de';
+                    } else if (relationLabel === 'COACH') {
+                        relationLabel = 'Coach';
+                        nameLabel = driverBaseName;
                     } else {
-                        // If we can't find the child (RLS or other), we use the parent name but try to be clear
-                        if (relationLabel === 'COACH') relationLabel = 'Coach';
-                        else if (relationLabel === 'PAPA') relationLabel = 'Papa';
+                        // Fallback labels
+                        if (relationLabel === 'PAPA') relationLabel = 'Papa';
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman';
                         nameLabel = driverBaseName;
                     }

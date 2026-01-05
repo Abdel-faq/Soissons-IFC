@@ -331,17 +331,48 @@ export default function Events() {
         if (eventIds.length === 0) return;
 
         // Fetch user_id AND player_id to handle both types of members
-        const { data: attData } = await supabase
+        const { data: attendanceData, error: attError } = await supabase
             .from('attendance')
             .select('event_id, user_id, player_id, status, is_convoked')
             .in('event_id', eventIds);
 
-        // Map: event_id -> { entity_id -> { status, is_convoked } }
-        const availabilityMap = {};
-        const convocationsMap = {};
+        if (attError) {
+            console.error(attError);
+            return;
+        }
 
+        // --- FETCH RIDE DATA ---
+        // 1. Get rides for these events
+        const { data: eventRides } = await supabase
+            .from('rides')
+            .select('id, event_id')
+            .in('event_id', eventIds);
+
+        const rideIds = eventRides?.map(r => r.id) || [];
+
+        // 2. Get passengers for these rides
+        let playersWithRides = new Set();
+        if (rideIds.length > 0) {
+            const { data: passengers } = await supabase
+                .from('ride_passengers')
+                .select('player_id')
+                .in('ride_id', rideIds);
+
+            passengers?.forEach(p => playersWithRides.add(p.player_id));
+        }
+        // -----------------------
+
+        const availabilityMap = {}; // event_id -> { member_id -> status }
+        const convocationsMap = {}; // event_id -> { member_id -> boolean }
+
+        // Start with empty maps for all events
+        events.forEach(ev => {
+            availabilityMap[ev.id] = {};
+            convocationsMap[ev.id] = {};
+        });
+
+        // Loop attendance to build basic maps
         attData?.forEach(row => {
-            // Use player_id if available (for players), else user_id (for coach/admins)
             const entityId = row.player_id || row.user_id;
             if (!entityId) return;
 
@@ -349,12 +380,32 @@ export default function Events() {
             availabilityMap[row.event_id][entityId] = row.status;
 
             if (!convocationsMap[row.event_id]) convocationsMap[row.event_id] = {};
-            // Only map if true, or track state. Ideally track boolean.
             if (row.is_convoked) convocationsMap[row.event_id][entityId] = true;
         });
 
         setMemberAvailability(availabilityMap);
         setConvocations(convocationsMap);
+
+        // Update the main events state to include the 'attendance' enriched with 'has_ride'
+        // We need to mutate the events state so the UI (Cards) can see who has a ride.
+        // The UI uses `ev.attendance` array.
+        setEvents(prev => prev.map(ev => {
+            // Get attendance records for this event (from the recently fetched data OR existing state?)
+            // existing `ev.attendance` might be stale or incomplete if we only use `attData`.
+            // But `attData` is the source of truth for status.
+            // Let's rely on `attData` to REBUILD `ev.attendance` or just update the flag.
+
+            // Simplest: Just inject has_ride into the existing attendance list if it matches
+            const updatedAttendance = ev.attendance?.map(att => ({
+                ...att,
+                has_ride: playersWithRides.has(att.player_id)
+            }));
+
+            return {
+                ...ev,
+                attendance: updatedAttendance
+            };
+        }));
     };
 
     // Fetch Convocations status for events

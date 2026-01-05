@@ -63,7 +63,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
             const { data: passengersData } = await supabase
                 .from('ride_passengers')
-                .select('*, player:players!player_id(first_name, full_name, parent_id)')
+                .select('*, player:players!player_id(first_name, full_name, parent_id), passenger:profiles!passenger_id(full_name)')
                 .in('ride_id', rideIds);
 
             const ridesWithData = ridesData.map(ride => ({
@@ -206,6 +206,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     };
 
     const hasAlreadyProposed = rides.some(r => r.driver_id === currentUser.id);
+    const isAlreadyPassenger = rides.some(r => r.passengers?.some(p => p.passenger_id === currentUser.id));
+
     let isAvailableToDrive = false;
     if (isCoach) {
         const s = myAttendance[currentUser.id]?.[eventId]?.status;
@@ -217,8 +219,9 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
         });
     }
 
-    const canPropose = !hasAlreadyProposed && isAvailableToDrive;
-    const canJoinAny = isAvailableToDrive; // Simplified: if you are available for the event, you can join a ride (either as coach or for a child)
+    const canPropose = !hasAlreadyProposed && !isAlreadyPassenger && isAvailableToDrive;
+    const canJoinAny = isAvailableToDrive && !hasAlreadyProposed && !isAlreadyPassenger;
+
 
     if (loading) return <div className="text-sm text-gray-400">Chargement covoiturage...</div>;
 
@@ -372,7 +375,9 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                         <div key={p.id} className="flex justify-between items-center text-[11px] group">
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
-                                                <span className="font-medium">{p.player?.full_name || 'Joueur'}</span>
+                                                <span className="font-medium">
+                                                    {p.player?.full_name || p.passenger?.full_name || 'Passager'}
+                                                </span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">

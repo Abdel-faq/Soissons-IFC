@@ -87,7 +87,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
         }
 
         try {
-            const availableForOthers = rideMode === 'PRIVATE' ? 0 : extraSeats;
+            const availableForOthers = rideMode === 'PRIVATE' ? 0 : parseInt(extraSeats);
 
             const { data: rideData, error: rideError } = await supabase.from('rides').insert({
                 event_id: eventId,
@@ -103,7 +103,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
             const { error: passengerError } = await supabase.from('ride_passengers').insert({
                 ride_id: rideData.id,
-                player_id: selectedChildForRide,
+                player_id: selectedChildForRide || null, // Optional for Coach
                 passenger_id: currentUser.id, // satisfying legacy constraint
                 seat_count: 1
             });
@@ -313,20 +313,27 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     const passengers = ride.passengers || [];
                     const isDriver = ride.driver_id === currentUser.id;
                     const seatsOccupied = passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0);
-                    const seatsLeft = ride.seats_available - (seatsOccupied - 1); // -1 because the driver's child is already included in capacity calculation logic if we use seats_available as "others"
 
-                    // Driver Display Info: Find the passenger that is the driver's child
-                    const myChildPassenger = passengers.find(p => p.player?.parent_id === ride.driver_id);
+                    // Simple logic: seats_available (e.g. 3) is for OTHERS. 
+                    // seatsOccupied counts everyone, INCLUDING the driver's own record (1 seat).
+                    // So seatsLeft = ride.seats_available - (seatsOccupied - 1)
+                    const seatsLeft = ride.seats_available - (seatsOccupied - 1);
+
+                    // Driver Display Info: Find the passenger that is the driver's child (if any)
+                    const driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
                     const driverBaseName = ride.driver?.full_name || 'Inconnu';
                     let relationLabel = ride.driver_relation || '';
                     let nameLabel = driverBaseName;
 
-                    if (myChildPassenger) {
-                        nameLabel = myChildPassenger.player.full_name;
+                    if (driverChild) {
+                        nameLabel = driverChild.player.full_name;
                         if (relationLabel === 'PAPA') relationLabel = 'Papa de';
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
-                        else if (relationLabel === 'COACH') relationLabel = 'Coach';
+                        else if (relationLabel === 'COACH') relationLabel = 'Coach de';
                         else relationLabel += ' de';
+                    } else if (relationLabel === 'COACH') {
+                        relationLabel = 'Coach';
+                        nameLabel = driverBaseName;
                     }
 
                     const driverDisplay = `${relationLabel} ${nameLabel}`.trim();

@@ -151,12 +151,11 @@ export default function Events() {
         try {
             if (isCoachSelf) {
                 // Coach Update (User ID based) - Manual Upsert Logic due to missing constraint
-                // 1. Check if exists
                 const { data: existing } = await supabase
                     .from('attendance')
                     .select('event_id')
                     .eq('event_id', eventId)
-                    .eq('user_id', entityId) // entityId is user.id here
+                    .eq('user_id', entityId)
                     .maybeSingle();
 
                 if (existing) {
@@ -175,8 +174,12 @@ export default function Events() {
                     });
                     if (error) throw error;
                 }
+
+                if (['ABSENT', 'MALADE', 'BLESSE'].includes(status)) {
+                    await supabase.from('rides').delete().eq('event_id', eventId).eq('driver_id', entityId);
+                }
             } else {
-                // Player Update (Player ID based) - Standard Upsert (uses attendance_player_event_unique)
+                // Player Update (Player ID based)
                 const { error } = await supabase.from('attendance').upsert({
                     event_id: eventId,
                     player_id: entityId,
@@ -185,6 +188,17 @@ export default function Events() {
                     is_locked: false
                 }, { onConflict: 'event_id, player_id' });
                 if (error) throw error;
+
+                if (['ABSENT', 'MALADE', 'BLESSE'].includes(status)) {
+                    const otherChildren = children.filter(c => c.id !== entityId);
+                    const anyOtherPresent = otherChildren.some(c => {
+                        const s = myAttendance[c.id]?.[eventId]?.status;
+                        return s === 'PRESENT' || s === 'RETARD';
+                    });
+                    if (!anyOtherPresent) {
+                        await supabase.from('rides').delete().eq('event_id', eventId).eq('driver_id', user.id);
+                    }
+                }
             }
         } catch (err) {
             fetchEvents();
@@ -885,7 +899,13 @@ export default function Events() {
                             {
                                 isMatch && ev.match_location === 'EXTERIEUR' && (
                                     <div className="bg-gray-50/30 px-4 pb-4">
-                                        <EventCarpooling eventId={ev.id} currentUser={user} teamId={team} />
+                                        <EventCarpooling
+                                            eventId={ev.id}
+                                            currentUser={user}
+                                            teamId={team}
+                                            myAttendance={myAttendance}
+                                            isCoach={isCoach}
+                                        />
                                     </div>
                                 )
                             }

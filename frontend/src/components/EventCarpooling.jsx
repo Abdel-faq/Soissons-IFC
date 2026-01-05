@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Car, UserPlus, Users, XCircle, Trash2 } from 'lucide-react';
 
-export default function EventCarpooling({ eventId, currentUser, teamId }) {
+export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach }) {
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -172,6 +172,20 @@ export default function EventCarpooling({ eventId, currentUser, teamId }) {
         else fetchRides();
     };
 
+    const hasAlreadyProposed = rides.some(r => r.driver_id === currentUser.id);
+    let isAvailableToDrive = false;
+    if (isCoach) {
+        const s = myAttendance[currentUser.id]?.[eventId]?.status;
+        isAvailableToDrive = s === 'PRESENT' || s === 'RETARD';
+    } else {
+        isAvailableToDrive = children.some(c => {
+            const s = myAttendance[c.id]?.[eventId]?.status;
+            return s === 'PRESENT' || s === 'RETARD';
+        });
+    }
+
+    const canPropose = !hasAlreadyProposed && isAvailableToDrive;
+
     if (loading) return <div className="text-sm text-gray-400">Chargement covoiturage...</div>;
 
     return (
@@ -180,12 +194,20 @@ export default function EventCarpooling({ eventId, currentUser, teamId }) {
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                     <Car size={12} /> Covoiturage
                 </h3>
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors ${showForm ? 'bg-gray-200 text-gray-600' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
-                >
-                    {showForm ? 'Annuler' : '+ Proposer une place'}
-                </button>
+                {canPropose && (
+                    <button
+                        onClick={() => setShowForm(!showForm)}
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors ${showForm ? 'bg-gray-200 text-gray-600' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                    >
+                        {showForm ? 'Annuler' : '+ Proposer une place'}
+                    </button>
+                )}
+                {!isAvailableToDrive && !loading && (
+                    <span className="text-[10px] text-gray-400 italic">Droit de proposer (Absent)</span>
+                )}
+                {hasAlreadyProposed && !showForm && (
+                    <span className="text-[10px] text-indigo-400 font-bold">Ma voiture est publiée</span>
+                )}
             </div>
 
             {showForm && (

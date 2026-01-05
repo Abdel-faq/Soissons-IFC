@@ -125,22 +125,49 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     };
 
     const joinRide = async (rideId) => {
-        if (children.length === 0) {
-            alert("Veuillez d'abord ajouter un enfant à votre profil.");
+        let selectedChildId = null;
+        let seatCount = 1;
+
+        if (isCoach) {
+            // Coach joining
+            if (children.length > 0) {
+                const choice = prompt("Qui voyage ?\n1. Moi (Coach)\n2. Un de mes enfants");
+                if (choice === '2') {
+                    const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+                    const childChoice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
+                    const index = parseInt(childChoice) - 1;
+                    if (children[index]) selectedChildId = children[index].id;
+                    else return;
+                }
+            }
+            // If selectedChildId is still null, it's the coach himself
+        } else {
+            // Standard Parent joining
+            if (children.length === 0) {
+                alert("Veuillez d'abord ajouter un enfant à votre profil.");
+                return;
+            }
+
+            selectedChildId = children[0].id;
+            if (children.length > 1) {
+                const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+                const choice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
+                const index = parseInt(choice) - 1;
+                if (children[index]) selectedChildId = children[index].id;
+                else return;
+            }
+
+            const seatChoice = prompt("Combien de places ?\n1. Enfant seul\n2. Enfant + Parent");
+            seatCount = seatChoice === '2' ? 2 : 1;
+        }
+
+        // Attendance Check for the person joining
+        const entityToCheck = selectedChildId || currentUser.id;
+        const status = myAttendance[entityToCheck]?.[eventId]?.status;
+        if (status !== 'PRESENT' && status !== 'RETARD') {
+            alert("Impossible de réserver pour une personne absente.");
             return;
         }
-
-        let selectedChildId = children[0].id;
-        if (children.length > 1) {
-            const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
-            const choice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
-            const index = parseInt(choice) - 1;
-            if (children[index]) selectedChildId = children[index].id;
-            else return;
-        }
-
-        const seatChoice = prompt("Combien de places ?\n1. Enfant seul\n2. Enfant + Parent");
-        const seatCount = seatChoice === '2' ? 2 : 1;
 
         try {
             const { error } = await supabase.from('ride_passengers').insert({
@@ -157,10 +184,16 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     };
 
     const leaveRide = async (rideId) => {
-        const { error } = await supabase.from('ride_passengers')
+        const query = supabase.from('ride_passengers')
             .delete()
             .eq('ride_id', rideId)
-            .eq('player_id', selectedChildForRide || children[0]?.id); // Try to leave with own child
+            .eq('passenger_id', currentUser.id);
+
+        // If not a coach or has children, we might need to be more specific about WHICH child is leaving
+        // But for stay-simple, leaving as a parent usually means removing the child's seat.
+        // Actually, let's keep it simple: the current user removes their own passenger record from that ride.
+
+        const { error } = await query;
         if (error) alert("Erreur : " + error.message);
         else fetchRides();
     };
@@ -185,6 +218,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     }
 
     const canPropose = !hasAlreadyProposed && isAvailableToDrive;
+    const canJoinAny = isAvailableToDrive; // Simplified: if you are available for the event, you can join a ride (either as coach or for a child)
 
     if (loading) return <div className="text-sm text-gray-400">Chargement covoiturage...</div>;
 
@@ -325,7 +359,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                             <Trash2 size={16} />
                                         </button>
                                     ) : (
-                                        ride.seats_available > 0 && seatsLeft > 0 && (
+                                        ride.seats_available > 0 && seatsLeft > 0 && canJoinAny && (
                                             <button onClick={() => joinRide(ride.id)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm transition-all active:scale-95">Réserver</button>
                                         )
                                     )}

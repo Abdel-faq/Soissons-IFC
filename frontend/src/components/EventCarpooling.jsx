@@ -312,14 +312,17 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 {rides.map(ride => {
                     const passengers = ride.passengers || [];
                     const isDriver = ride.driver_id === currentUser.id;
-                    const seatsOccupied = passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0);
 
-                    // Simple logic: seats_available (e.g. 3) is for OTHERS. 
-                    // seatsOccupied counts everyone, INCLUDING the driver's own record (1 seat).
-                    // So seatsLeft = ride.seats_available - (seatsOccupied - 1)
-                    const seatsLeft = ride.seats_available - (seatsOccupied - 1);
+                    // Defense: if passengers list is empty (can happen due to RLS), 
+                    // we assume at least the driver's own seat is occupied (which is the case if the ride exists)
+                    const actualPassengersCount = passengers.length > 0 ? passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0) : 1;
 
-                    // Driver Display Info: Find the passenger that is the driver's child (if any)
+                    // seats_available is the number of EXTRA places offered to others.
+                    // (actualPassengersCount - 1) represents the EXTRA places already taken.
+                    const seatsTakenByOthers = Math.max(0, actualPassengersCount - 1);
+                    const seatsLeft = ride.seats_available - seatsTakenByOthers;
+
+                    // Driver Display Info: Find the passenger that is the driver's child
                     const driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
                     const driverBaseName = ride.driver?.full_name || 'Inconnu';
                     let relationLabel = ride.driver_relation || '';
@@ -331,8 +334,11 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
                         else if (relationLabel === 'COACH') relationLabel = 'Coach de';
                         else relationLabel += ' de';
-                    } else if (relationLabel === 'COACH') {
-                        relationLabel = 'Coach';
+                    } else {
+                        // If we can't find the child (RLS or other), we use the parent name but try to be clear
+                        if (relationLabel === 'COACH') relationLabel = 'Coach';
+                        else if (relationLabel === 'PAPA') relationLabel = 'Papa';
+                        else if (relationLabel === 'MAMAN') relationLabel = 'Maman';
                         nameLabel = driverBaseName;
                     }
 

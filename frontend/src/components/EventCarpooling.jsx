@@ -63,7 +63,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
             const { data: passengersData } = await supabase
                 .from('ride_passengers')
-                .select('*, player:players!player_id(first_name, full_name, parent_id), passenger:profiles!passenger_id(full_name)')
+                .select('*, player:players!player_id(full_name, parent_id), passenger:profiles!passenger_id(full_name)')
                 .in('ride_id', rideIds);
 
             const ridesWithData = ridesData.map(ride => ({
@@ -322,7 +322,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     let nameLabel = driverBaseName;
 
                     if (myChildPassenger) {
-                        nameLabel = myChildPassenger.player.first_name;
+                        nameLabel = myChildPassenger.player.full_name;
                         if (relationLabel === 'PAPA') relationLabel = 'Papa de';
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
                         else if (relationLabel === 'COACH') relationLabel = 'Coach';
@@ -376,7 +376,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
                                                 <span className="font-medium">
-                                                    {p.player?.full_name || p.passenger?.full_name || 'Passager'}
+                                                    {p.player?.full_name || p.passenger?.full_name || 'Passager (Inconnu)'}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">

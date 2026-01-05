@@ -212,11 +212,13 @@ router.post('/:id/convocations', requireAuth, async (req, res) => {
     // 1. Fetch current attendance to preserve statuses
     const { data: currentAtt } = await supabase
       .from('attendance')
-      .select('user_id, status')
+      .select('player_id, status')
       .eq('event_id', id);
 
     const statusMap = {};
-    (currentAtt || []).forEach(a => statusMap[a.user_id] = a.status);
+    (currentAtt || []).forEach(a => {
+      if (a.player_id) statusMap[a.player_id] = a.status;
+    });
 
     // 2. Prepare upsert data with existing status or default 'INCONNU'
     const upsertData = updates.map(u => ({

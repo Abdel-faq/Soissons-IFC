@@ -386,7 +386,7 @@ export default function Events() {
         });
 
         // Loop attendance to build basic maps
-        attData?.forEach(row => {
+        attendanceData?.forEach(row => {
             const entityId = row.player_id || row.user_id;
             if (!entityId) return;
 

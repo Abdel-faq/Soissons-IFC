@@ -330,21 +330,27 @@ export default function Events() {
         const eventIds = events.map(e => e.id);
         if (eventIds.length === 0) return;
 
+        // Fetch user_id AND player_id to handle both types of members
         const { data: attData } = await supabase
             .from('attendance')
-            .select('event_id, user_id, status, is_convoked')
+            .select('event_id, user_id, player_id, status, is_convoked')
             .in('event_id', eventIds);
 
-        // Map: event_id -> { user_id -> { status, is_convoked } }
+        // Map: event_id -> { entity_id -> { status, is_convoked } }
         const availabilityMap = {};
-        const convocationsMap = {}; // Update convo state too from DB
+        const convocationsMap = {};
 
         attData?.forEach(row => {
+            // Use player_id if available (for players), else user_id (for coach/admins)
+            const entityId = row.player_id || row.user_id;
+            if (!entityId) return;
+
             if (!availabilityMap[row.event_id]) availabilityMap[row.event_id] = {};
-            availabilityMap[row.event_id][row.user_id] = row.status;
+            availabilityMap[row.event_id][entityId] = row.status;
 
             if (!convocationsMap[row.event_id]) convocationsMap[row.event_id] = {};
-            if (row.is_convoked) convocationsMap[row.event_id][row.user_id] = true;
+            // Only map if true, or track state. Ideally track boolean.
+            if (row.is_convoked) convocationsMap[row.event_id][entityId] = true;
         });
 
         setMemberAvailability(availabilityMap);
@@ -381,16 +387,15 @@ export default function Events() {
         const eventConvs = { ...(convocations[eventId] || {}) };
 
         // Prepare updates for the API
-        // If a member is NOT in eventConvs, they are considered NOT convoked? 
-        // Or we just send what we have in state.
         const updates = members.map(m => ({
-            user_id: m.id,
+            player_id: m.id, // Use player_id (m.id is player id from fetchMembers)
             is_convoked: !!eventConvs[m.id],
-            is_locked: true // Lock the status once managed by coach
+            is_locked: true
         }));
 
         try {
             const { data: sessionData } = await supabase.auth.getSession();
+            // ... (keep middle lines same, just skip them in replacement if possible, but safer to replace block)
             const session = sessionData?.session;
 
             if (!session) {
@@ -412,7 +417,7 @@ export default function Events() {
             }
 
             alert("Convocations enregistrées !");
-            fetchEvents(); // Refresh to ensure UI is in sync with server state
+            fetchEvents();
         } catch (e) {
             console.error(e);
             alert("Erreur: " + e.message);
@@ -781,61 +786,56 @@ export default function Events() {
                                     )}
                                 </div>
                             </div>
-
-                            {/* Coach Convocations Section (collapsible) */}
-                            {isCoach && (
-                                <div className="px-4 pb-2 border-t border-gray-100 bg-gray-50/50">
-                                    <details className="text-sm group">
-                                        <summary className="py-2 text-indigo-600 font-semibold cursor-pointer hover:underline flex items-center gap-2">
-                                            <Users size={14} /> Gérer la convocation ({Object.keys(convocations[ev.id] || {}).length} convoqués)
-                                        </summary>
-                                        <div className="py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                            {members.map(m => {
-                                                const mStatus = memberAvailability[ev.id]?.[m.id] || 'UNKNOWN';
-                                                const isSelected = convocations[ev.id]?.[m.id];
-                                                return (
-                                                    <div
-                                                        key={m.id}
-                                                        onClick={() => handleConvocationToggle(ev.id, m.id)}
-                                                        className={`flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-100 bg-white opacity-60 grayscale'
-                                                            }`}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold">
-                                                                {m.full_name?.[0]}
-                                                            </div>
-                                                            <span className="text-xs font-semibold">{m.full_name}</span>
-                                                        </div>
-                                                        <div className="text-[10px]">
-                                                            {mStatus === 'PRESENT' && <span className="text-green-600 font-bold">✅</span>}
-                                                            {mStatus === 'ABSENT' && <span className="text-red-600 font-bold">❌</span>}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            <div className="sm:col-span-2 lg:col-span-3">
-                                                <button
-                                                    onClick={() => saveConvocations(ev.id)}
-                                                    className="w-full mt-2 bg-indigo-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-indigo-700"
-                                                >
-                                                    Mettre à jour la convocation
-                                                </button>
+                            <div className="py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {members.map(m => {
+                                    const mStatus = memberAvailability[ev.id]?.[m.id] || 'UNKNOWN';
+                                    const isSelected = convocations[ev.id]?.[m.id];
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            onClick={() => handleConvocationToggle(ev.id, m.id)}
+                                            className={`flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-100 bg-white opacity-60 grayscale'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold">
+                                                    {m.full_name?.[0]}
+                                                </div>
+                                                <span className="text-xs font-semibold">{m.full_name}</span>
+                                            </div>
+                                            <div className="text-[10px]">
+                                                {mStatus === 'PRESENT' && <span className="text-green-600 font-bold">✅</span>}
+                                                {mStatus === 'ABSENT' && <span className="text-red-600 font-bold">❌</span>}
                                             </div>
                                         </div>
-                                    </details>
+                                    );
+                                })}
+                                <div className="sm:col-span-2 lg:col-span-3">
+                                    <button
+                                        onClick={() => saveConvocations(ev.id)}
+                                        className="w-full mt-2 bg-indigo-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-indigo-700"
+                                    >
+                                        Mettre à jour la convocation
+                                    </button>
                                 </div>
-                            )}
-
-                            {/* Integrated Carpooling Section */}
-                            {isMatch && ev.match_location === 'EXTERIEUR' && (
-                                <div className="bg-gray-50/30 px-4 pb-4">
-                                    <EventCarpooling eventId={ev.id} currentUser={user} teamId={team} />
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
+                            </div>
+                        </details>
             </div>
-        </div>
+            )
+    }
+
+            {/* Integrated Carpooling Section */}
+            {
+                isMatch && ev.match_location === 'EXTERIEUR' && (
+                    <div className="bg-gray-50/30 px-4 pb-4">
+                        <EventCarpooling eventId={ev.id} currentUser={user} teamId={team} />
+                    </div>
+                )
+            }
+        </div >
+    );
+})}
+            </div >
+        </div >
     );
 }

@@ -96,20 +96,39 @@ export default function Events() {
                         ? [context.playerId]
                         : filteredChildren.map(c => c.id);
 
+                    // If Coach, we also want to fetch THEIR OWN attendance (user_id based)
+                    let attData = [];
+
+                    // 1. Fetch Players Attendance
                     if (relevantPlayerIds.length > 0) {
-                        const { data: attData } = await supabase
+                        const { data } = await supabase
                             .from('attendance')
                             .select('event_id, player_id, status, is_locked')
                             .in('player_id', relevantPlayerIds)
                             .in('event_id', activeEvents.map(e => e.id));
-
-                        const attMap = {};
-                        attData?.forEach(a => {
-                            if (!attMap[a.player_id]) attMap[a.player_id] = {};
-                            attMap[a.player_id][a.event_id] = { status: a.status, is_locked: a.is_locked };
-                        });
-                        setMyAttendance(attMap);
+                        if (data) attData = [...attData, ...data];
                     }
+
+                    // 2. Fetch Coach Attendance (if Coach)
+                    if (context.role === 'COACH') {
+                        const { data } = await supabase
+                            .from('attendance')
+                            .select('event_id, user_id, status, is_locked')
+                            .eq('user_id', user.id)
+                            .in('event_id', activeEvents.map(e => e.id));
+
+                        // Map user_id to a 'coach_self' key or use user.id directly
+                        if (data) attData = [...attData, ...data];
+                    }
+
+                    const attMap = {};
+                    attData?.forEach(a => {
+                        // Key by player_id OR user_id (if coach)
+                        const key = a.player_id || a.user_id;
+                        if (!attMap[key]) attMap[key] = {};
+                        attMap[key][a.event_id] = { status: a.status, is_locked: a.is_locked };
+                    });
+                    setMyAttendance(attMap);
                 }
             }
         } catch (error) {
@@ -119,30 +138,54 @@ export default function Events() {
         }
     };
 
-    const updateAttendance = async (eventId, playerId, status) => {
-        const current = myAttendance[playerId]?.[eventId];
-        if (current?.is_locked) {
-            alert("Cette présence a été verrouillée par l'entraîneur.");
-            return;
-        }
-
+    const updateAttendance = async (eventId, entityId, status, isCoachSelf = false) => {
+        // Optimistic UI Update
         setMyAttendance(prev => ({
             ...prev,
-            [playerId]: {
-                ...(prev[playerId] || {}),
-                [eventId]: { ...(prev[playerId]?.[eventId] || {}), status }
+            [entityId]: {
+                ...(prev[entityId] || {}),
+                [eventId]: { ...(prev[entityId]?.[eventId] || {}), status }
             }
         }));
 
         try {
-            const { error } = await supabase.from('attendance').upsert({
-                event_id: eventId,
-                player_id: playerId,
-                status: status,
-                updated_at: new Date(),
-                is_locked: false
-            }, { onConflict: 'event_id, player_id' });
-            if (error) throw error;
+            if (isCoachSelf) {
+                // Coach Update (User ID based) - Manual Upsert Logic due to missing constraint
+                // 1. Check if exists
+                const { data: existing } = await supabase
+                    .from('attendance')
+                    .select('event_id')
+                    .eq('event_id', eventId)
+                    .eq('user_id', entityId) // entityId is user.id here
+                    .maybeSingle();
+
+                if (existing) {
+                    const { error } = await supabase.from('attendance').update({
+                        status: status,
+                        updated_at: new Date()
+                    }).eq('event_id', eventId).eq('user_id', entityId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('attendance').insert({
+                        event_id: eventId,
+                        user_id: entityId,
+                        player_id: null,
+                        status: status,
+                        is_locked: false
+                    });
+                    if (error) throw error;
+                }
+            } else {
+                // Player Update (Player ID based) - Standard Upsert (uses attendance_player_event_unique)
+                const { error } = await supabase.from('attendance').upsert({
+                    event_id: eventId,
+                    player_id: entityId,
+                    status: status,
+                    updated_at: new Date(),
+                    is_locked: false
+                }, { onConflict: 'event_id, player_id' });
+                if (error) throw error;
+            }
         } catch (err) {
             fetchEvents();
             alert("Erreur : " + err.message);
@@ -663,7 +706,10 @@ export default function Events() {
 
                                 {/* Attendance Controls per Child/Member */}
                                 <div className="flex flex-col items-center md:items-end gap-4">
-                                    {(isCoach ? members : children).filter(Boolean).map(child => {
+                                    {(isCoach
+                                        ? [{ id: user.id, first_name: 'Moi (Coach)', isCoachSelf: true }]
+                                        : children
+                                    ).filter(Boolean).map(child => {
                                         const cStatus = myAttendance[child.id]?.[ev.id];
                                         const isCConvoked = ev.attendance?.some(a => a.player_id === child.id && a.is_convoked);
                                         const hasCResponded = cStatus?.status && cStatus.status !== 'UNKNOWN' && cStatus.status !== 'INCONNU';
@@ -689,7 +735,7 @@ export default function Events() {
                                                     ].map(btn => (
                                                         <button
                                                             key={btn.id}
-                                                            onClick={() => updateAttendance(ev.id, child.id, btn.id)}
+                                                            onClick={() => updateAttendance(ev.id, child.id, btn.id, child.isCoachSelf)}
                                                             className={`w-8 h-8 flex items-center justify-center rounded-full transition-all transform active:scale-90 ${cStatus?.status === btn.id
                                                                 ? `${btn.color} text-white shadow-md ring-2 ring-offset-1 ring-gray-200`
                                                                 : 'bg-white text-gray-400 hover:bg-gray-50'

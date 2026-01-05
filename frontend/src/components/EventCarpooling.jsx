@@ -104,6 +104,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId }) {
             const { error: passengerError } = await supabase.from('ride_passengers').insert({
                 ride_id: rideData.id,
                 player_id: selectedChildForRide,
+                passenger_id: currentUser.id, // satisfying legacy constraint
                 seat_count: 1
             });
 
@@ -145,6 +146,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId }) {
             const { error } = await supabase.from('ride_passengers').insert({
                 ride_id: rideId,
                 player_id: selectedChildId,
+                passenger_id: currentUser.id, // satisfying legacy constraint
                 seat_count: seatCount
             });
             if (error) throw error;

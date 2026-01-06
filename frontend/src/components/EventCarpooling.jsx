@@ -16,6 +16,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     const [selectedChildForRide, setSelectedChildForRide] = useState(activePlayer?.id || null);
     const [rideMode, setRideMode] = useState('PUBLIC'); // 'PUBLIC' or 'PRIVATE'
     const [extraSeats, setExtraSeats] = useState(2);
+    const [joiningRideId, setJoiningRideId] = useState(null);
+    const [joinRelation, setJoinRelation] = useState('ALONE'); // 'ALONE', 'PAPA', 'MAMAN'
 
     useEffect(() => {
         if (eventId) fetchRides();
@@ -129,13 +131,18 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
         try {
             const availableForOthers = rideMode === 'PRIVATE' ? 0 : parseInt(extraSeats);
 
+            // Determine correct relation if current one is not allowed
+            let finalRelation = relation;
+            if (isCoach) finalRelation = 'COACH';
+            else if (relation === 'COACH') finalRelation = 'PAPA';
+
             const { data: rideData, error: rideError } = await supabase.from('rides').insert({
                 event_id: eventId,
                 driver_id: currentUser.id,
                 seats_available: availableForOthers,
                 departure_location: location,
                 departure_time: depTime,
-                driver_relation: relation,
+                driver_relation: finalRelation,
                 restrictions: rideMode === 'PRIVATE' ? 'CLOSED' : restriction
             }).select().single();
 
@@ -145,7 +152,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 ride_id: rideData.id,
                 player_id: selectedChildForRide || null, // Optional for Coach
                 passenger_id: currentUser.id, // satisfying legacy constraint
-                seat_count: 1
+                seat_count: 1,
+                relation: isCoach ? 'COACH' : finalRelation
             });
 
             if (passengerError) {
@@ -167,20 +175,13 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     const joinRide = async (rideId) => {
         let selectedChildId = null;
         let seatCount = 1;
+        let finalRelation = 'SELF';
 
         if (isCoach) {
-            // Coach joining
-            if (children.length > 0) {
-                const choice = prompt("Qui voyage ?\n1. Moi (Coach)\n2. Un de mes enfants");
-                if (choice === '2') {
-                    const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
-                    const childChoice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
-                    const index = parseInt(childChoice) - 1;
-                    if (children[index]) selectedChildId = children[index].id;
-                    else return;
-                }
-            }
-            // If selectedChildId is still null, it's the coach himself
+            // If coach has children, they might be joining as parent, or as coach
+            // Assuming simpler case for now: if they join another's car, they are just a passenger
+            selectedChildId = null; // Coach joins themselves
+            finalRelation = 'COACH';
         } else {
             // Standard Parent joining
             if (children.length === 0) {
@@ -188,17 +189,18 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 return;
             }
 
-            selectedChildId = children[0].id;
-            if (children.length > 1) {
-                const names = children.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
-                const choice = prompt(`Pour quel enfant ?\n${names}\n(Entrez le numéro)`);
-                const index = parseInt(choice) - 1;
-                if (children[index]) selectedChildId = children[index].id;
-                else return;
-            }
+            selectedChildId = activePlayer?.id || children[0].id;
 
-            const seatChoice = prompt("Combien de places ?\n1. Enfant seul\n2. Enfant + Parent");
-            seatCount = seatChoice === '2' ? 2 : 1;
+            if (joinRelation === 'ALONE') {
+                seatCount = 1;
+                finalRelation = 'CHILD_ALONE';
+            } else if (joinRelation === 'PAPA') {
+                seatCount = 2;
+                finalRelation = 'PAPA';
+            } else if (joinRelation === 'MAMAN') {
+                seatCount = 2;
+                finalRelation = 'MAMAN';
+            }
         }
 
         // Attendance Check for the person joining
@@ -214,7 +216,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 ride_id: rideId,
                 player_id: selectedChildId,
                 passenger_id: currentUser.id, // satisfying legacy constraint
-                seat_count: seatCount
+                seat_count: seatCount,
+                relation: finalRelation
             });
             if (error) {
                 if (error.code === '23505') {
@@ -225,10 +228,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 throw error;
             }
 
-            console.log('Reservation successful, refreshing rides...');
-            // Immediate refresh after successful reservation
-            await fetchRides();
-            console.log('Rides refreshed');
+            setJoiningRideId(null);
+            fetchRides();
         } catch (err) {
             console.error('Join ride error:', err);
             alert("Impossible de rejoindre : " + err.message);
@@ -337,11 +338,16 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     <div className="grid grid-cols-2 gap-2 mb-2">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Lien</label>
-                            <select className="w-full border p-1.5 rounded-lg bg-white font-bold text-xs" value={relation} onChange={e => setRelation(e.target.value)}>
-                                <option value="PAPA">🧔 PAPA</option>
-                                <option value="MAMAN">👩 MAMAN</option>
-                                <option value="COACH">👔 COACH</option>
-                                <option value="AUTRE">👤 AUTRE</option>
+                            <select className="w-full border p-1.5 rounded-lg bg-white font-bold text-xs" value={isCoach ? 'COACH' : relation} onChange={e => setRelation(e.target.value)} disabled={isCoach}>
+                                {isCoach ? (
+                                    <option value="COACH">👔 COACH</option>
+                                ) : (
+                                    <>
+                                        <option value="PAPA">🧔 PAPA</option>
+                                        <option value="MAMAN">👩 MAMAN</option>
+                                        <option value="AUTRE">👤 AUTRE</option>
+                                    </>
+                                )}
                             </select>
                         </div>
                         <div>
@@ -461,11 +467,41 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                         </button>
                                     ) : (
                                         ride.seats_available > 0 && seatsLeft > 0 && canJoinAny && (
-                                            <button onClick={() => joinRide(ride.id)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm transition-all active:scale-95">Réserver</button>
+                                            joiningRideId === ride.id ? (
+                                                <button onClick={() => setJoiningRideId(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                                                    <XCircle size={18} />
+                                                </button>
+                                            ) : (
+                                                <button onClick={() => setJoiningRideId(ride.id)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm transition-all active:scale-95">Réserver</button>
+                                            )
                                         )
                                     )}
                                 </div>
                             </div>
+
+                            {/* Inline Join Form */}
+                            {joiningRideId === ride.id && (
+                                <div className="mt-3 p-2 bg-indigo-50 rounded-lg border border-indigo-100 animate-in fade-in slide-in-from-top-1">
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qui voyage ?</label>
+                                    <div className="flex flex-col gap-2">
+                                        <select
+                                            className="w-full text-xs p-2 border rounded-md bg-white font-bold"
+                                            value={joinRelation}
+                                            onChange={(e) => setJoinRelation(e.target.value)}
+                                        >
+                                            <option value="ALONE">👦 {activePlayer?.first_name || 'Enfant'} seul (1 place)</option>
+                                            <option value="PAPA">👦+🧔 Avec Papa (2 places)</option>
+                                            <option value="MAMAN">👦+👩 Avec Maman (2 places)</option>
+                                        </select>
+                                        <button
+                                            onClick={() => joinRide(ride.id)}
+                                            className="w-full bg-indigo-600 text-white py-2 rounded-md text-xs font-black shadow-sm"
+                                        >
+                                            Confirmer la réservation
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {passengers.length > 0 && (
                                 <div className="mt-3 pt-3 border-t border-gray-50 space-y-1.5">
@@ -492,8 +528,9 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                                     <span className={`font-medium ${isMe ? 'text-indigo-600 font-bold' : ''}`}>{displayName}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
-                                                        {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
+                                                    <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500 flex items-center gap-1">
+                                                        {p.relation === 'PAPA' ? '👦+🧔' : p.relation === 'MAMAN' ? '👦+👩' : p.relation === 'COACH' ? '👔' : '👦'}
+                                                        {p.seat_count}p
                                                     </span>
                                                     {/* Show leave button only if:
                                                         1. It's the current user's reservation (not driver), OR

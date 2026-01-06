@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon, Trash2, Plus, Users, Radio, Lock, X } from 'lucide-react';
+import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon, Trash2, Plus, Users, Radio, Lock, X, Settings } from 'lucide-react';
 
 export default function Chat() {
     const [messages, setMessages] = useState([]);
@@ -16,6 +16,8 @@ export default function Chat() {
     const [activeRoom, setActiveRoom] = useState(null); // null means Global Team Chat
     const [showRoomForm, setShowRoomForm] = useState(false);
     const [newRoomData, setNewRoomData] = useState({ name: '', is_broadcast: false, members: [] });
+    const [isEditingRoom, setIsEditingRoom] = useState(false);
+    const [editingRoomData, setEditingRoomData] = useState({ id: '', name: '', is_broadcast: false, members: [] });
     const [teamMembers, setTeamMembers] = useState([]);
     const [activePlayerId, setActivePlayerId] = useState(null);
     const messagesEndRef = useRef(null);
@@ -256,6 +258,75 @@ export default function Chat() {
         }
     };
 
+    const startEditingRoom = async (room) => {
+        try {
+            const { data: currentMembers, error } = await supabase
+                .from('group_members')
+                .select('player_id')
+                .eq('group_id', room.id);
+
+            if (error) throw error;
+
+            // Map IDs back to full member objects from teamMembers
+            const selectedMembers = teamMembers.filter(m =>
+                currentMembers.some(cm => cm.player_id === m.id)
+            );
+
+            setEditingRoomData({
+                id: room.id,
+                name: room.name,
+                is_broadcast: room.is_broadcast,
+                members: selectedMembers
+            });
+            setIsEditingRoom(true);
+        } catch (err) {
+            alert("Erreur chargement membres: " + err.message);
+        }
+    };
+
+    const handleUpdateRoom = async (e) => {
+        e.preventDefault();
+        try {
+            // 1. Update Room Name/Broadcast
+            const { error: roomError } = await supabase
+                .from('custom_groups')
+                .update({
+                    name: editingRoomData.name,
+                    is_broadcast: editingRoomData.is_broadcast
+                })
+                .eq('id', editingRoomData.id);
+
+            if (roomError) throw roomError;
+
+            // 2. Manage Members (simplest approach: wipe and re-insert)
+            // Or more precise: find diff. Let's do wipe/re-insert for reliability.
+            const { error: delError } = await supabase
+                .from('group_members')
+                .delete()
+                .eq('group_id', editingRoomData.id);
+
+            if (delError) throw delError;
+
+            if (editingRoomData.members.length > 0) {
+                const memberInserts = editingRoomData.members.map(m => ({
+                    group_id: editingRoomData.id,
+                    user_id: m.user_id,
+                    player_id: m.id
+                }));
+                const { error: memberError } = await supabase
+                    .from('group_members')
+                    .insert(memberInserts);
+                if (memberError) throw memberError;
+            }
+
+            setIsEditingRoom(false);
+            fetchChatData();
+            alert("Salon mis à jour !");
+        } catch (err) {
+            alert("Erreur mise à jour salon: " + err.message);
+        }
+    };
+
     if (loading) return <div className="p-10 text-center">Chargement...</div>;
     if (!team) return <div className="p-10 text-center">Vous n'avez pas d'équipe pour discuter.</div>;
 
@@ -295,12 +366,21 @@ export default function Chat() {
                             {room.is_broadcast ? <Radio size={12} /> : <span>#</span>} {room.name}
                         </button>
                         {isCoach && (
-                            <button
-                                onClick={() => deleteRoom(room.id)}
-                                className={`pr-3 pl-1 hover:text-red-500 transition-colors ${activeRoom?.id === room.id ? 'text-indigo-200' : 'text-gray-300'}`}
-                            >
-                                <X size={14} />
-                            </button>
+                            <div className="flex items-center">
+                                <button
+                                    onClick={() => startEditingRoom(room)}
+                                    className={`p-1.5 hover:text-indigo-600 transition-colors ${activeRoom?.id === room.id ? 'text-indigo-200' : 'text-gray-300'}`}
+                                    title="Gérer les membres"
+                                >
+                                    <Settings size={14} />
+                                </button>
+                                <button
+                                    onClick={() => deleteRoom(room.id)}
+                                    className={`pr-3 pl-1 hover:text-red-500 transition-colors ${activeRoom?.id === room.id ? 'text-indigo-200' : 'text-gray-300'}`}
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
                         )}
                     </div>
                 ))}
@@ -475,6 +555,84 @@ export default function Chat() {
                             >
                                 Créer le Salon
                             </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Room Edit Modal */}
+            {isEditingRoom && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
+                        <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
+                            <h2 className="font-bold flex items-center gap-2"><Settings size={18} /> Gérer le Salon</h2>
+                            <button onClick={() => setIsEditingRoom(false)} className="hover:bg-white/10 p-1 rounded-lg"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleUpdateRoom} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nom du salon</label>
+                                <input
+                                    type="text" required
+                                    className="w-full border-2 border-gray-100 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none bg-gray-50 font-medium"
+                                    value={editingRoomData.name}
+                                    onChange={e => setEditingRoomData({ ...editingRoomData, name: e.target.value })}
+                                />
+                            </div>
+
+                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border group">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 text-indigo-600 rounded"
+                                    checked={editingRoomData.is_broadcast}
+                                    onChange={e => setEditingRoomData({ ...editingRoomData, is_broadcast: e.target.checked })}
+                                />
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-indigo-600 flex items-center gap-1">
+                                    <Radio size={14} className="text-indigo-600" /> Mode Diffusion (Seul le coach peut écrire)
+                                </span>
+                            </label>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Gérer les membres ({editingRoomData.members.length})</label>
+                                <div className="max-h-40 overflow-y-auto border-2 border-gray-50 rounded-lg p-2 grid grid-cols-1 gap-1 bg-gray-50/50">
+                                    {teamMembers.map(m => (
+                                        <button
+                                            key={m.id} type="button"
+                                            onClick={() => {
+                                                const isSelected = editingRoomData.members.find(sm => sm.id === m.id);
+                                                setEditingRoomData({
+                                                    ...editingRoomData,
+                                                    members: isSelected
+                                                        ? editingRoomData.members.filter(sm => sm.id !== m.id)
+                                                        : [...editingRoomData.members, m]
+                                                });
+                                            }}
+                                            className={`p-2 rounded-lg text-left text-xs transition-all flex items-center gap-2 border ${editingRoomData.members.find(sm => sm.id === m.id)
+                                                ? 'bg-indigo-600 text-white border-indigo-700'
+                                                : 'bg-white text-gray-600 border-gray-100 hover:border-indigo-200'
+                                                }`}
+                                        >
+                                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-[8px]">{m.full_name?.[0]}</div>
+                                            <span className="truncate">{m.full_name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingRoom(false)}
+                                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-200 transition-all"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-2 bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                                >
+                                    Enregistrer
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

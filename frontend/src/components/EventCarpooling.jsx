@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Car, UserPlus, Users, XCircle, Trash2 } from 'lucide-react';
 
-export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer }) {
+export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer, evAttendance = [] }) {
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);

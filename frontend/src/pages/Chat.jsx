@@ -99,9 +99,14 @@ export default function Chat() {
                 if (isCoach) {
                     const { data: members } = await supabase
                         .from('team_members')
-                        .select('player_id, players(id, full_name)')
+                        .select('player_id, user_id, players(id, full_name)')
                         .eq('team_id', context.teamId);
-                    setTeamMembers(members?.map(m => m.players).filter(Boolean) || []);
+                    // Store the richer member objects
+                    setTeamMembers(members?.filter(m => m.players).map(m => ({
+                        id: m.player_id,
+                        user_id: m.user_id,
+                        full_name: m.players.full_name
+                    })) || []);
                 }
             }
         } catch (error) {
@@ -198,6 +203,23 @@ export default function Chat() {
         }
     };
 
+    const deleteRoom = async (roomId) => {
+        if (!confirm("Supprimer ce salon définitivement ? Tous les messages seront perdus.")) return;
+        try {
+            const { error } = await supabase
+                .from('custom_groups')
+                .delete()
+                .eq('id', roomId);
+
+            if (error) throw error;
+
+            if (activeRoom?.id === roomId) setActiveRoom(null);
+            fetchChatData();
+        } catch (err) {
+            alert("Erreur suppression salon: " + err.message);
+        }
+    };
+
     const handleCreateRoom = async (e) => {
         e.preventDefault();
         try {
@@ -214,9 +236,10 @@ export default function Chat() {
             if (roomError) throw roomError;
 
             if (newRoom && newRoomData.members.length > 0) {
-                const memberInserts = newRoomData.members.map(mid => ({
+                const memberInserts = newRoomData.members.map(m => ({
                     group_id: newRoom.id,
-                    user_id: mid
+                    user_id: m.user_id,
+                    player_id: m.id
                 }));
                 const { error: memberError } = await supabase
                     .from('group_members')
@@ -410,13 +433,15 @@ export default function Chat() {
                                         <button
                                             key={m.id} type="button"
                                             onClick={() => {
-                                                const isSelected = newRoomData.members.includes(m.id);
+                                                const isSelected = newRoomData.members.find(sm => sm.id === m.id);
                                                 setNewRoomData({
                                                     ...newRoomData,
-                                                    members: isSelected ? newRoomData.members.filter(id => id !== m.id) : [...newRoomData.members, m.id]
+                                                    members: isSelected
+                                                        ? newRoomData.members.filter(sm => sm.id !== m.id)
+                                                        : [...newRoomData.members, m]
                                                 });
                                             }}
-                                            className={`p-2 rounded-lg text-left text-xs transition-all flex items-center gap-2 border ${newRoomData.members.includes(m.id)
+                                            className={`p-2 rounded-lg text-left text-xs transition-all flex items-center gap-2 border ${newRoomData.members.find(sm => sm.id === m.id)
                                                 ? 'bg-indigo-600 text-white border-indigo-700'
                                                 : 'bg-white text-gray-600 border-gray-100 hover:border-indigo-200'
                                                 }`}

@@ -68,10 +68,14 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 return;
             }
 
-            const { data: passengersData } = await supabase
+            const { data: passengersData, error: passengersError } = await supabase
                 .from('ride_passengers')
-                .select('*, player:players!player_id(full_name, parent_id), passenger:profiles!passenger_id(full_name)')
+                .select('*, player:players(full_name, parent_id), passenger:profiles(full_name)')
                 .in('ride_id', rideIds);
+
+            if (passengersError) {
+                console.error('Error fetching passengers:', passengersError);
+            }
 
             const ridesWithData = ridesData.map(ride => ({
                 ...ride,
@@ -471,7 +475,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     );
                 })}
                 <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
-                    <span>v2.5 Fix</span>
+                    <span>v2.6 Fix</span>
                     <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
                 </div>
             </div>

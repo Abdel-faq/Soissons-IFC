@@ -11,6 +11,7 @@ export default function Events() {
     const [team, setTeam] = useState(null);
     const [isCoach, setIsCoach] = useState(false);
     const [children, setChildren] = useState([]);
+    const [activePlayer, setActivePlayer] = useState(null); // { id, name }
     const [myAttendance, setMyAttendance] = useState({}); // player_id -> { event_id -> status }
 
     // New Event Form
@@ -59,6 +60,15 @@ export default function Events() {
 
             setTeam(context.teamId);
             setIsCoach(context.role === 'COACH');
+            if (context.playerId) {
+                const childObj = (allChildren || []).find(c => c.id === context.playerId);
+                setActivePlayer({
+                    id: context.playerId,
+                    name: childObj?.full_name || childObj?.first_name || context.playerName
+                });
+            } else {
+                setActivePlayer(null);
+            }
 
             // Filter children to only those in the current team
             let filteredChildren = allChildren || [];
@@ -905,6 +915,7 @@ export default function Events() {
                                             teamId={team}
                                             myAttendance={myAttendance}
                                             isCoach={isCoach}
+                                            activePlayer={activePlayer}
                                         />
                                     </div>
                                 )

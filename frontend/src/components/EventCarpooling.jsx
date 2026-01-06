@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Car, UserPlus, Users, XCircle, Trash2 } from 'lucide-react';
 
-export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach }) {
+export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer }) {
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -13,7 +13,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     const [depTime, setDepTime] = useState('');
     const [relation, setRelation] = useState('PAPA');
     const [restriction, setRestriction] = useState('NONE');
-    const [selectedChildForRide, setSelectedChildForRide] = useState(null);
+    const [selectedChildForRide, setSelectedChildForRide] = useState(activePlayer?.id || null);
     const [rideMode, setRideMode] = useState('PUBLIC'); // 'PUBLIC' or 'PRIVATE'
     const [extraSeats, setExtraSeats] = useState(3);
 
@@ -21,6 +21,12 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
         if (eventId) fetchRides();
         if (currentUser?.id && teamId) fetchChildren();
     }, [eventId, teamId, currentUser?.id]);
+
+    useEffect(() => {
+        if (activePlayer?.id) {
+            setSelectedChildForRide(activePlayer.id);
+        }
+    }, [activePlayer]);
 
     useEffect(() => {
         if (children.length > 0 && !selectedChildForRide) {
@@ -332,13 +338,15 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
                         else if (relationLabel === 'COACH') relationLabel = 'Coach de';
                         else relationLabel += ' de';
-                    } else if (relationLabel === 'COACH') {
-                        relationLabel = 'Coach';
-                        nameLabel = driverBaseName;
                     } else {
-                        // Very robust fallback: if current user is the driver and name is generic, 
-                        // try to use the first child from our local 'children' state.
-                        if (isDriver && (driverBaseName.toLowerCase().includes('joueur') || driverBaseName === 'Inconnu')) {
+                        // Priority fallback: use the active player from dashboard context if it's the current user driving
+                        if (isDriver && activePlayer?.name) {
+                            nameLabel = activePlayer.name;
+                            if (relationLabel === 'PAPA') relationLabel = 'Papa de';
+                            else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
+                        }
+                        // Secondary fallback: local children state
+                        else if (isDriver && (driverBaseName.toLowerCase().includes('joueur') || driverBaseName === 'Inconnu')) {
                             const firstChild = children[0];
                             if (firstChild) {
                                 nameLabel = firstChild.full_name;
@@ -397,26 +405,29 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
                             {passengers.length > 0 && (
                                 <div className="mt-3 pt-3 border-t border-gray-50 space-y-1.5">
-                                    {passengers.map(p => (
-                                        <div key={p.id} className="flex justify-between items-center text-[11px] group">
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
-                                                <span className="font-medium">
-                                                    {p.player?.full_name || p.passenger?.full_name || 'Passager (Inconnu)'}
-                                                </span>
+                                    {passengers.map(p => {
+                                        const myChild = children.find(c => c.id === p.player_id);
+                                        const displayName = p.player?.full_name || myChild?.full_name || p.passenger?.full_name || 'Passager (Inconnu)';
+
+                                        return (
+                                            <div key={p.id} className="flex justify-between items-center text-[11px] group">
+                                                <div className="flex items-center gap-2 text-gray-600">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
+                                                    <span className="font-medium">{displayName}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
+                                                        {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
+                                                    </span>
+                                                    {(p.player?.parent_id === currentUser.id || isDriver) && (
+                                                        <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                                            <XCircle size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
-                                                    {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
-                                                </span>
-                                                {(p.player?.parent_id === currentUser.id || isDriver) && (
-                                                    <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                                                        <XCircle size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

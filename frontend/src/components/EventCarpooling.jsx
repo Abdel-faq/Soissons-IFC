@@ -337,23 +337,24 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     const isDriver = ride.driver_id === currentUser.id;
 
                     // Seats Logic
-                    const totalOccupiedByPassengers = passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0);
-                    // The driver always takes 1 seat (they are in ride_passengers as the first record)
                     // seats_available is the number of EXTRA spots for OTHERS.
-                    const seatsLeft = Math.max(0, ride.seats_available - (totalOccupiedByPassengers - 1));
+                    // The driver's own child (or the driver themselves) is the first record in 'passengers'.
+                    // So we subtract (passengers.length - 1) from seats_available.
+                    const spotsTaken = Math.max(0, passengers.length - 1);
+                    const seatsLeft = Math.max(0, (ride.seats_available || 0) - spotsTaken);
 
-                    // Driver Display Info: Find the passenger that is the driver's child
+                    // Driver Display Info
+                    const driverProfile = ride.driver;
+                    const driverBaseName = driverProfile?.full_name || 'Inconnu';
+                    let relationLabel = ride.driver_relation || '';
+                    let nameLabel = driverBaseName;
+
+                    // Try to find the child's name for 'Papa de ...' logic
                     let driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
-
-                    // NEW: Fallback to members list (passed from Events.jsx) to find the child's name even if RLS blocks the passenger link
                     if (!driverChild && members.length > 0) {
                         const m = members.find(m => m.parent_id === ride.driver_id);
                         if (m) driverChild = { player: m };
                     }
-
-                    const driverBaseName = ride.driver?.full_name || 'Inconnu';
-                    let relationLabel = ride.driver_relation || '';
-                    let nameLabel = driverBaseName;
 
                     if (driverChild) {
                         nameLabel = driverChild.player.full_name;
@@ -361,29 +362,14 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
                         else if (relationLabel === 'COACH') relationLabel = 'Coach de';
                         else relationLabel += ' de';
-                    } else {
-                        // Priority fallback for current user
-                        if (isDriver && activePlayer?.name) {
-                            nameLabel = activePlayer.name;
-                            if (relationLabel === 'PAPA') relationLabel = 'Papa de';
-                            else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
-                        }
-                        // Secondary fallback: local children state
-                        else if (isDriver && (driverBaseName.toLowerCase().includes('joueur') || driverBaseName === 'Inconnu')) {
-                            const firstChild = children[0];
-                            if (firstChild) {
-                                nameLabel = firstChild.full_name;
-                                if (relationLabel === 'PAPA') relationLabel = 'Papa de';
-                                else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
-                            }
-                        }
+                    } else if (relationLabel === 'COACH') {
+                        relationLabel = 'Coach';
+                    }
 
-                        // If still generic, use simple labels
-                        if (!nameLabel.includes(' ')) {
-                            if (relationLabel === 'COACH') relationLabel = 'Coach';
-                            else if (relationLabel === 'PAPA') relationLabel = 'Papa';
-                            else if (relationLabel === 'MAMAN') relationLabel = 'Maman';
-                        }
+                    // Special case for generic names: if nameLabel is still generic, try to clean it up
+                    if (nameLabel.toLowerCase().includes('joueur') || nameLabel === 'Inconnu') {
+                        if (isDriver && activePlayer?.name) nameLabel = activePlayer.name;
+                        else if (isDriver && children[0]?.full_name) nameLabel = children[0].full_name;
                     }
 
                     const driverDisplay = `${relationLabel} ${nameLabel}`.trim();
@@ -397,7 +383,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                             <Car size={14} />
                                         </div>
                                         <div className="leading-tight">
-                                            <p className="capitalize text-xs">{driverDisplay}</p>
+                                            <p className="capitalize text-xs font-black">{driverDisplay}</p>
                                             <p className="text-[10px] text-gray-400 font-normal">
                                                 {ride.departure_location || '?'} • {ride.departure_time?.slice(0, 5)}
                                             </p>
@@ -406,7 +392,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {ride.seats_available > 0 ? (
                                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${seatsLeft > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                                {seatsLeft > 0 ? `🏃 ${seatsLeft} PLACES LIBRES` : 'FULL 🛑'}
+                                                {seatsLeft > 0 ? `🏃 ${seatsLeft} PLACES LIBRES` : 'Pleine 🛑'}
                                             </span>
                                         ) : (
                                             <span className="text-[9px] font-black bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">🔒 PRIVÉ</span>
@@ -415,7 +401,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {isDriver ? (
-                                        <button onClick={() => deleteRide(ride.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                                        <button onClick={() => deleteRide(ride.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
                                             <Trash2 size={16} />
                                         </button>
                                     ) : (
@@ -431,20 +417,27 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                     {passengers.map(p => {
                                         const myChild = children.find(c => c.id === p.player_id);
                                         const otherChild = members.find(m => m.id === p.player_id);
-                                        const displayName = p.player?.full_name || myChild?.full_name || otherChild?.full_name || p.passenger?.full_name || 'Passager (Inconnu)';
+
+                                        let displayName = p.player?.full_name || myChild?.full_name || otherChild?.full_name || p.passenger?.full_name || 'Passager (Inconnu)';
+                                        const isMe = p.passenger_id === currentUser.id;
+
+                                        // If it's a coach (no player_id), append "(Coach)" if not already there
+                                        if (!p.player_id && !displayName.toLowerCase().includes('coach')) {
+                                            displayName += ' (Coach)';
+                                        }
 
                                         return (
                                             <div key={p.id} className="flex justify-between items-center text-[11px] group">
                                                 <div className="flex items-center gap-2 text-gray-600">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
-                                                    <span className="font-medium">{displayName} {!p.player_id && <span className="text-[9px] bg-gray-100 px-1 rounded">Coach</span>}</span>
+                                                    <span className={`font-medium ${isMe ? 'text-indigo-600 font-bold' : ''}`}>{displayName}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
                                                         {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
                                                     </span>
                                                     {(p.passenger_id === currentUser.id || isDriver) && (
-                                                        <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                                        <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 transition-all p-1">
                                                             <XCircle size={14} />
                                                         </button>
                                                     )}

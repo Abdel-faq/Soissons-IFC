@@ -236,7 +236,6 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     };
 
     const leaveRide = async (passengerId) => {
-        console.log("Tentative de suppression du passager:", passengerId);
         const { error, count } = await supabase
             .from('ride_passengers')
             .delete({ count: 'exact' })
@@ -246,9 +245,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
             console.error("Erreur suppression:", error);
             alert("Erreur : " + error.message);
         } else {
-            console.log("Nombre de lignes supprimées:", count);
             if (count === 0) {
-                alert("Impossible de supprimer ce passager. Vérifiez que vous avez les droits (RLS).");
+                alert("Impossible de retirer ce passager. Si vous êtes le conducteur, assurez-vous d'avoir exécuté le script SQL de permission (RLS).");
             }
             await fetchRides();
         }
@@ -517,7 +515,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     );
                 })}
                 <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
-                    <span>v3.1 Debug</span>
+                    <span>v3.3 Final</span>
                     <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
                 </div>
             </div>

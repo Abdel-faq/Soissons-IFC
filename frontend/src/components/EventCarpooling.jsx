@@ -489,11 +489,16 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                                     <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
                                                         {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
                                                     </span>
-                                                    {(String(p.passenger_id) === String(currentUser.id) || isDriver) && (
+                                                    {/* Show leave button only if:
+                                                        1. It's the current user's reservation (not driver), OR
+                                                        2. It's the driver AND it's NOT their own child (driver_id !== passenger_id for the initial passenger)
+                                                    */}
+                                                    {(String(p.passenger_id) === String(currentUser.id) && !isDriver) ||
+                                                        (isDriver && String(p.passenger_id) !== String(ride.driver_id)) ? (
                                                         <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 transition-all p-1">
                                                             <XCircle size={14} />
                                                         </button>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         );
@@ -504,7 +509,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     );
                 })}
                 <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
-                    <span>v2.8 Fix</span>
+                    <span>v2.9 Fix</span>
                     <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
                 </div>
             </div>

@@ -191,11 +191,13 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 }
                 throw error;
             }
-            // Small delay to ensure Supabase propagation before re-fetch
-            setTimeout(async () => {
-                await fetchRides();
-            }, 300);
+
+            console.log('Reservation successful, refreshing rides...');
+            // Immediate refresh after successful reservation
+            await fetchRides();
+            console.log('Rides refreshed');
         } catch (err) {
+            console.error('Join ride error:', err);
             alert("Impossible de rejoindre : " + err.message);
         }
     };
@@ -469,7 +471,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     );
                 })}
                 <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
-                    <span>v2.3 Fix</span>
+                    <span>v2.5 Fix</span>
                     <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
                 </div>
             </div>

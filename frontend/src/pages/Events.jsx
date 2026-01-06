@@ -331,7 +331,7 @@ export default function Events() {
     const fetchMembers = async () => {
         const { data, error } = await supabase
             .from('team_members')
-            .select('player_id, players(id, full_name, first_name, position, avatar_url)')
+            .select('player_id, players(id, full_name, first_name, position, avatar_url, parent_id)')
             .eq('team_id', team);
 
         if (data) setMembers(data.map(d => d.players).filter(Boolean));
@@ -917,6 +917,7 @@ export default function Events() {
                                             isCoach={isCoach}
                                             activePlayer={activePlayer}
                                             evAttendance={ev.attendance || []}
+                                            members={members}
                                         />
                                     </div>
                                 )

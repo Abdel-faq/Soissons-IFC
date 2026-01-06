@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Car, UserPlus, Users, XCircle, Trash2 } from 'lucide-react';
 
-export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer, evAttendance = [] }) {
+export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer, evAttendance = [], members = [] }) {
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -202,10 +202,6 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
             .eq('ride_id', rideId)
             .eq('passenger_id', currentUser.id);
 
-        // If not a coach or has children, we might need to be more specific about WHICH child is leaving
-        // But for stay-simple, leaving as a parent usually means removing the child's seat.
-        // Actually, let's keep it simple: the current user removes their own passenger record from that ride.
-
         const { error } = await query;
         if (error) alert("Erreur : " + error.message);
         else fetchRides();
@@ -241,7 +237,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     const canJoinAny = isAvailableToDrive && !hasAlreadyProposed && !isAlreadyPassenger;
 
 
-    if (loading) return <div className="text-sm text-gray-400">Chargement covoiturage...</div>;
+    if (loading) return <div className="text-sm text-gray-400 font-bold p-2">Chargement covoiturage...</div>;
 
     return (
         <div className="mt-2 text-sm">
@@ -280,7 +276,16 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                     {child.first_name}
                                 </button>
                             ))}
-                            {children.length === 0 && <span className="text-xs text-red-500 p-1">Aucun enfant trouvé</span>}
+                            {isCoach && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedChildForRide(null)}
+                                    className={`flex-1 py-1.5 rounded text-xs font-bold transition-all ${selectedChildForRide === null ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                                >
+                                    Moi seul (Coach)
+                                </button>
+                            )}
+                            {children.length === 0 && !isCoach && <span className="text-xs text-red-500 p-1">Aucun enfant trouvé</span>}
                         </div>
                     </div>
 
@@ -331,15 +336,21 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     const passengers = ride.passengers || [];
                     const isDriver = ride.driver_id === currentUser.id;
 
-                    // Logic: seats_available (e.g. 3) is for OTHERS. 
-                    // seatsOccupied counts everyone in ride_passengers.
-                    // The driver's own slot (child or coach themselves) is the FIRST record in ride_passengers.
-                    // So seatsTakenByOthers = seatsOccupied - 1.
-                    const extraOccupied = passengers.length > 0 ? (passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0) - 1) : 0;
-                    const seatsLeft = Math.max(0, ride.seats_available - extraOccupied);
+                    // Seats Logic
+                    const totalOccupiedByPassengers = passengers.reduce((sum, p) => sum + (p.seat_count || 1), 0);
+                    // The driver always takes 1 seat (they are in ride_passengers as the first record)
+                    // seats_available is the number of EXTRA spots for OTHERS.
+                    const seatsLeft = Math.max(0, ride.seats_available - (totalOccupiedByPassengers - 1));
 
                     // Driver Display Info: Find the passenger that is the driver's child
-                    const driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
+                    let driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
+
+                    // NEW: Fallback to members list (passed from Events.jsx) to find the child's name even if RLS blocks the passenger link
+                    if (!driverChild && members.length > 0) {
+                        const m = members.find(m => m.parent_id === ride.driver_id);
+                        if (m) driverChild = { player: m };
+                    }
+
                     const driverBaseName = ride.driver?.full_name || 'Inconnu';
                     let relationLabel = ride.driver_relation || '';
                     let nameLabel = driverBaseName;
@@ -351,7 +362,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         else if (relationLabel === 'COACH') relationLabel = 'Coach de';
                         else relationLabel += ' de';
                     } else {
-                        // Priority fallback: use the active player from dashboard context if it's the current user driving
+                        // Priority fallback for current user
                         if (isDriver && activePlayer?.name) {
                             nameLabel = activePlayer.name;
                             if (relationLabel === 'PAPA') relationLabel = 'Papa de';
@@ -368,7 +379,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         }
 
                         // If still generic, use simple labels
-                        if (!nameLabel.includes(' ')) { // still feels like a placeholder
+                        if (!nameLabel.includes(' ')) {
                             if (relationLabel === 'COACH') relationLabel = 'Coach';
                             else if (relationLabel === 'PAPA') relationLabel = 'Papa';
                             else if (relationLabel === 'MAMAN') relationLabel = 'Maman';
@@ -419,19 +430,20 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                 <div className="mt-3 pt-3 border-t border-gray-50 space-y-1.5">
                                     {passengers.map(p => {
                                         const myChild = children.find(c => c.id === p.player_id);
-                                        const displayName = p.player?.full_name || myChild?.full_name || p.passenger?.full_name || 'Passager (Inconnu)';
+                                        const otherChild = members.find(m => m.id === p.player_id);
+                                        const displayName = p.player?.full_name || myChild?.full_name || otherChild?.full_name || p.passenger?.full_name || 'Passager (Inconnu)';
 
                                         return (
                                             <div key={p.id} className="flex justify-between items-center text-[11px] group">
                                                 <div className="flex items-center gap-2 text-gray-600">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-300"></div>
-                                                    <span className="font-medium">{displayName}</span>
+                                                    <span className="font-medium">{displayName} {!p.player_id && <span className="text-[9px] bg-gray-100 px-1 rounded">Coach</span>}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
                                                         {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
                                                     </span>
-                                                    {(p.player?.parent_id === currentUser.id || isDriver) && (
+                                                    {(p.passenger_id === currentUser.id || isDriver) && (
                                                         <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
                                                             <XCircle size={14} />
                                                         </button>

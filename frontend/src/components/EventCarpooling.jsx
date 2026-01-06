@@ -362,7 +362,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
                     if (driverKidsInTeam.length > 0 && relation !== 'COACH') {
                         // It's a parent -> Display "Papa de [ChildName]"
-                        const childName = driverKidsInTeam[0].first_name; // Use first child found
+                        const childName = driverKidsInTeam[0].full_name; // Use first child found
 
                         let label = "Parent";
                         if (relation === 'PAPA') label = "Papa de";

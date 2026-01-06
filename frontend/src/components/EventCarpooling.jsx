@@ -235,15 +235,14 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
         }
     };
 
-    const leaveRide = async (rideId) => {
-        const query = supabase.from('ride_passengers')
+    const leaveRide = async (passengerId) => {
+        const { error } = await supabase
+            .from('ride_passengers')
             .delete()
-            .eq('ride_id', rideId)
-            .eq('passenger_id', currentUser.id);
+            .eq('id', passengerId);
 
-        const { error } = await query;
         if (error) alert("Erreur : " + error.message);
-        else fetchRides();
+        else await fetchRides();
     };
 
     const deleteRide = async (rideId) => {
@@ -495,7 +494,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                                     */}
                                                     {(String(p.passenger_id) === String(currentUser.id) && !isDriver) ||
                                                         (isDriver && String(p.passenger_id) !== String(ride.driver_id)) ? (
-                                                        <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 transition-all p-1">
+                                                        <button onClick={() => leaveRide(p.id)} className="text-gray-300 hover:text-red-500 transition-all p-1">
                                                             <XCircle size={14} />
                                                         </button>
                                                     ) : null}
@@ -509,7 +508,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     );
                 })}
                 <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
-                    <span>v2.9 Fix</span>
+                    <span>v3.0 Fix</span>
                     <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
                 </div>
             </div>

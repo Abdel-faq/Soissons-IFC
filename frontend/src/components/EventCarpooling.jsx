@@ -336,10 +336,23 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         relationLabel = 'Coach';
                         nameLabel = driverBaseName;
                     } else {
-                        // Fallback labels
-                        if (relationLabel === 'PAPA') relationLabel = 'Papa';
-                        else if (relationLabel === 'MAMAN') relationLabel = 'Maman';
-                        nameLabel = driverBaseName;
+                        // Very robust fallback: if current user is the driver and name is generic, 
+                        // try to use the first child from our local 'children' state.
+                        if (isDriver && (driverBaseName.toLowerCase().includes('joueur') || driverBaseName === 'Inconnu')) {
+                            const firstChild = children[0];
+                            if (firstChild) {
+                                nameLabel = firstChild.full_name;
+                                if (relationLabel === 'PAPA') relationLabel = 'Papa de';
+                                else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
+                            }
+                        }
+
+                        // If still generic, use simple labels
+                        if (!nameLabel.includes(' ')) { // still feels like a placeholder
+                            if (relationLabel === 'COACH') relationLabel = 'Coach';
+                            else if (relationLabel === 'PAPA') relationLabel = 'Papa';
+                            else if (relationLabel === 'MAMAN') relationLabel = 'Maman';
+                        }
                     }
 
                     const driverDisplay = `${relationLabel} ${nameLabel}`.trim();

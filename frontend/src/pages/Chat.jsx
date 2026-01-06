@@ -60,7 +60,8 @@ export default function Chat() {
             if (!context) return;
 
             setTeam(context.teamId);
-            setIsCoach(context.role === 'COACH');
+            const isUserCoach = context.role === 'COACH';
+            setIsCoach(isUserCoach);
             setActivePlayerId(context.playerId || null);
 
             if (context.teamId) {
@@ -74,7 +75,7 @@ export default function Chat() {
                     .from('messages')
                     .select(`
                         id, content, created_at, file_url, file_type, group_id, player_id,
-                        user:sender_id ( id, full_name, role ),
+                        sender:sender_id ( id, full_name, role ),
                         player:player_id ( id, full_name )
                     `)
                     .eq('team_id', context.teamId)
@@ -98,7 +99,7 @@ export default function Chat() {
                 setRooms(myRooms || []);
 
                 // Fetch Team Members (Players + Coaches)
-                if (isCoach) {
+                if (isUserCoach) {
                     const { data: members } = await supabase
                         .from('team_members')
                         .select('player_id, user_id, players(id, full_name)')
@@ -123,7 +124,7 @@ export default function Chat() {
             .from('messages')
             .select(`
                 id, content, created_at, file_url, file_type, player_id,
-                user:sender_id ( id, full_name, role ),
+                sender:sender_id ( id, full_name, role ),
                 player:player_id ( id, full_name )
             `)
             .eq('id', id)
@@ -230,7 +231,8 @@ export default function Chat() {
                 .insert({
                     team_id: team,
                     name: newRoomData.name,
-                    is_broadcast: newRoomData.is_broadcast
+                    is_broadcast: newRoomData.is_broadcast,
+                    created_by: user.id
                 })
                 .select()
                 .single();
@@ -409,10 +411,10 @@ export default function Chat() {
                 }
                 {
                     messages.map((msg, index) => {
-                        const isMe = msg.user?.id === user.id;
-                        const isCoachMsg = msg.user?.role === 'COACH';
+                        const isMe = msg.sender?.id === user.id;
+                        const isCoachMsg = msg.sender?.role === 'COACH';
                         const prevMsg = index > 0 ? messages[index - 1] : null;
-                        const showHeader = !prevMsg || prevMsg.user?.id !== msg.user?.id;
+                        const showHeader = !prevMsg || prevMsg.sender?.id !== msg.sender?.id;
 
                         return (
                             <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${showHeader ? 'mt-4' : 'mt-1'}`}>

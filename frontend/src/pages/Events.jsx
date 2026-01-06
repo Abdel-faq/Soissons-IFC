@@ -710,8 +710,8 @@ export default function Events() {
                     const hasResponded = status?.status && status.status !== 'UNKNOWN' && status.status !== 'INCONNU';
 
                     // New: Team Riders Stats
-                    const ridersCount = ev.attendance?.filter(a => a.has_ride).length || 0; // Assuming we add has_ride or similar
-                    const convokedCount = ev.attendance?.filter(a => a.is_convoked).length || 0;
+                    const ridersCount = ev.attendance?.filter(a => a.player_id && a.has_ride).length || 0;
+                    const convokedCount = ev.attendance?.filter(a => a.player_id && a.is_convoked).length || 0;
 
                     const getFrameColor = () => {
                         if (isCoach && stats && stats.total > 0 && stats.responded === stats.total) {
@@ -916,6 +916,7 @@ export default function Events() {
                                             myAttendance={myAttendance}
                                             isCoach={isCoach}
                                             activePlayer={activePlayer}
+                                            evAttendance={ev.attendance || []}
                                         />
                                     </div>
                                 )

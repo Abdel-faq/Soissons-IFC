@@ -182,7 +182,14 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                 passenger_id: currentUser.id, // satisfying legacy constraint
                 seat_count: seatCount
             });
-            if (error) throw error;
+            if (error) {
+                if (error.code === '23505') {
+                    alert("Vous faites déjà partie de ce trajet (en tant que chauffeur ou passager).");
+                    fetchRides(); // refresh to update UI
+                    return;
+                }
+                throw error;
+            }
             fetchRides();
         } catch (err) {
             alert("Impossible de rejoindre : " + err.message);
@@ -212,7 +219,12 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     };
 
     const hasAlreadyProposed = rides.some(r => r.driver_id === currentUser.id);
-    const isAlreadyPassenger = rides.some(r => r.passengers?.some(p => p.passenger_id === currentUser.id));
+
+    // Robust check for passenger status using backend-enriched evAttendance if available
+    const isAlreadyPassenger = evAttendance.some(a => {
+        const isMeOrMyChild = (a.user_id === currentUser.id || a.player_id === currentUser.id || children.some(c => c.id === a.player_id));
+        return isMeOrMyChild && a.has_ride;
+    }) || rides.some(r => r.passengers?.some(p => p.passenger_id === currentUser.id));
 
     let isAvailableToDrive = false;
     if (isCoach) {

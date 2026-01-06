@@ -33,6 +33,24 @@ export default function Events() {
         fetchEvents();
     }, []);
 
+    const fetchMembers = async (teamId) => {
+        if (!teamId) return;
+        try {
+            const { data } = await supabase
+                .from('team_members')
+                .select(`
+                    player_id,
+                    player:players(id, full_name, first_name, parent_id)
+                `)
+                .eq('team_id', teamId);
+
+            const membersList = data?.map(m => m.player).filter(Boolean) || [];
+            setMembers(membersList);
+        } catch (error) {
+            console.error('Error fetching team members:', error);
+        }
+    };
+
     const fetchEvents = async () => {
         try {
             setLoading(true);
@@ -327,10 +345,10 @@ export default function Events() {
     const [members, setMembers] = useState([]); // All team members
 
     useEffect(() => {
-        if (isCoach && team) {
+        if (team) {
             fetchMembers();
         }
-    }, [isCoach, team]);
+    }, [team]);
 
     // Fetch Base Members
     const fetchMembers = async () => {

@@ -688,11 +688,21 @@ export default function Events() {
 
                     // Statistics (Coach only)
                     let stats = null;
-                    if (isCoach && convocations[ev.id]) {
-                        // Filter valid members that are convoked
-                        const convokedIds = Object.keys(convocations[ev.id]).filter(uid =>
-                            convocations[ev.id][uid] === true && members.some(m => m.id === uid)
-                        );
+                    if (isCoach) {
+                        // Use aggregated convocations map if available (more reliable for Coach view)
+                        // otherwise fallback to event.attendance (ensure to filter only valid player IDs)
+                        let convokedIds = [];
+
+                        if (convocations[ev.id]) {
+                            // Get IDs from the map where value is true
+                            convokedIds = Object.keys(convocations[ev.id]).filter(uid => convocations[ev.id][uid]);
+                        } else {
+                            // Fallback to ev.attendance
+                            convokedIds = ev.attendance
+                                ?.filter(a => a.is_convoked && a.player_id)
+                                .map(a => a.player_id) || [];
+                        }
+
                         const totalConvoked = convokedIds.length;
 
                         if (totalConvoked > 0) {

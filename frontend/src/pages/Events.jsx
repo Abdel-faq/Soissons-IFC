@@ -349,11 +349,14 @@ export default function Events() {
     // Actually, fetchEvents only gets MY attendance.
     // Let's add a specialized fetch for Coach View.
 
+    // Use a stable key for events to prevent infinite loop when fetchTeamAttendance updates events state
+    const eventIdsString = events.map(e => e.id).sort().join(',');
+
     useEffect(() => {
         if (isCoach && team && events.length > 0) {
             fetchTeamAttendance();
         }
-    }, [isCoach, team, events]);
+    }, [isCoach, team, eventIdsString]);
 
     const fetchTeamAttendance = async () => {
         const eventIds = events.map(e => e.id);

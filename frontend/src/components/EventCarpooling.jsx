@@ -350,13 +350,15 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                 )}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mode</label>
-                            <select className="w-full border p-1.5 rounded-lg bg-white font-bold text-xs" value={rideMode} onChange={e => setRideMode(e.target.value)}>
-                                <option value="PUBLIC">👋 Places partagées</option>
-                                <option value="PRIVATE">🔒 Juste mon enfant</option>
-                            </select>
-                        </div>
+                        {!isCoach && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mode</label>
+                                <select className="w-full border p-1.5 rounded-lg bg-white font-bold text-xs" value={rideMode} onChange={e => setRideMode(e.target.value)}>
+                                    <option value="PUBLIC">👋 Places partagées</option>
+                                    <option value="PRIVATE">🔒 Juste mon enfant</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mb-2">

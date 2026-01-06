@@ -893,7 +893,11 @@ export default function Events() {
                                                 return (
                                                     <div
                                                         key={m.id}
-                                                        onClick={() => handleConvocationToggle(ev.id, m.id)}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation(); // Prevent closing/toggling details
+                                                            handleConvocationToggle(ev.id, m.id);
+                                                        }}
                                                         className={`flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-100 bg-white opacity-60 grayscale'
                                                             }`}
                                                     >

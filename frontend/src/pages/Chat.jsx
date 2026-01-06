@@ -17,6 +17,7 @@ export default function Chat() {
     const [showRoomForm, setShowRoomForm] = useState(false);
     const [newRoomData, setNewRoomData] = useState({ name: '', is_broadcast: false, members: [] });
     const [teamMembers, setTeamMembers] = useState([]);
+    const [activePlayerId, setActivePlayerId] = useState(null);
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
@@ -58,6 +59,7 @@ export default function Chat() {
 
             setTeam(context.teamId);
             setIsCoach(context.role === 'COACH');
+            setActivePlayerId(context.playerId || null);
 
             if (context.teamId) {
                 const { data: t } = await supabase.from('teams').select('is_chat_locked').eq('id', context.teamId).single();
@@ -69,8 +71,9 @@ export default function Chat() {
                 const query = supabase
                     .from('messages')
                     .select(`
-                        id, content, created_at, file_url, file_type, group_id,
-                        user:sender_id ( id, full_name, role )
+                        id, content, created_at, file_url, file_type, group_id, player_id,
+                        user:sender_id ( id, full_name, role ),
+                        player:player_id ( id, full_name )
                     `)
                     .eq('team_id', context.teamId)
                     .order('created_at', { ascending: true });
@@ -89,15 +92,15 @@ export default function Chat() {
                 const { data: myRooms } = await supabase
                     .from('custom_groups')
                     .select('*')
-                    .eq('team_id', myTeamId);
+                    .eq('team_id', context.teamId);
                 setRooms(myRooms || []);
 
                 // Fetch Team Members (Players + Coaches)
-                if (coachStatus) {
+                if (isCoach) {
                     const { data: members } = await supabase
                         .from('team_members')
                         .select('player_id, players(id, full_name)')
-                        .eq('team_id', myTeamId);
+                        .eq('team_id', context.teamId);
                     setTeamMembers(members?.map(m => m.players).filter(Boolean) || []);
                 }
             }
@@ -112,8 +115,9 @@ export default function Chat() {
         const { data } = await supabase
             .from('messages')
             .select(`
-                id, content, created_at, file_url, file_type,
-                user:sender_id ( id, full_name, role )
+                id, content, created_at, file_url, file_type, player_id,
+                user:sender_id ( id, full_name, role ),
+                player:player_id ( id, full_name )
             `)
             .eq('id', id)
             .single();
@@ -148,6 +152,7 @@ export default function Chat() {
             await supabase.from('messages').insert({
                 team_id: team,
                 sender_id: user.id,
+                player_id: activePlayerId,
                 content: `Fichier : ${file.name}`,
                 file_url: publicUrl,
                 file_type: file.type.includes('image') ? 'IMAGE' : 'PDF',
@@ -180,6 +185,7 @@ export default function Chat() {
             const { data, error } = await supabase.from('messages').insert({
                 team_id: team,
                 sender_id: user.id,
+                player_id: activePlayerId,
                 content: newMessage.trim(),
                 group_id: activeRoom?.id || null
             }).select().single();
@@ -294,7 +300,7 @@ export default function Chat() {
                         <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${showHeader ? 'mt-4' : 'mt-1'}`}>
                             {showHeader && !isMe && (
                                 <div className="flex items-center gap-1.5 mb-1 ml-1">
-                                    <span className="text-[10px] font-bold text-gray-500">{msg.user?.full_name || 'Inconnu'}</span>
+                                    <span className="text-[10px] font-bold text-gray-500">{msg.player?.full_name || msg.user?.full_name || 'Inconnu'}</span>
                                     {isCoachMsg && <span className="bg-indigo-100 text-indigo-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Coach</span>}
                                 </div>
                             )}

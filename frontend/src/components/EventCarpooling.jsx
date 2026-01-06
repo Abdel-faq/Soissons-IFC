@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Car, UserPlus, Users, XCircle, Trash2 } from 'lucide-react';
 
-export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer, evAttendance = [], members = [] }) {
+export default function EventCarpooling({ eventId, currentUser, teamId, myAttendance = {}, isCoach, activePlayer, evAttendance = [], members = [], userName }) {
     const [rides, setRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -15,7 +15,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
     const [restriction, setRestriction] = useState('NONE');
     const [selectedChildForRide, setSelectedChildForRide] = useState(activePlayer?.id || null);
     const [rideMode, setRideMode] = useState('PUBLIC'); // 'PUBLIC' or 'PRIVATE'
-    const [extraSeats, setExtraSeats] = useState(3);
+    const [extraSeats, setExtraSeats] = useState(2);
 
     useEffect(() => {
         if (eventId) fetchRides();
@@ -57,7 +57,8 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
             const { data: ridesData, error: ridesError } = await supabase
                 .from('rides')
                 .select('*, driver:profiles!driver_id(full_name)')
-                .eq('event_id', eventId);
+                .eq('event_id', eventId)
+                .order('created_at', { ascending: true });
 
             if (ridesError) throw ridesError;
 
@@ -339,12 +340,13 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     const passengers = ride.passengers || [];
                     const isDriver = ride.driver_id === currentUser.id;
 
-                    // Seats Logic
-                    // seats_available is the number of EXTRA spots for OTHERS.
-                    // The driver's own child (or the driver themselves) is the first record in 'passengers'.
-                    // So we subtract (passengers.length - 1) from seats_available.
-                    const spotsTaken = Math.max(0, passengers.length - 1);
-                    const seatsLeft = Math.max(0, (ride.seats_available || 0) - spotsTaken);
+                    // Calculation: seats_available (for OTHERS) minus total seats taken by other passengers
+                    const totalSeatsTakenByOthers = passengers.reduce((sum, p) => {
+                        // The driver's own initial record has passenger_id === driver_id
+                        if (String(p.passenger_id) === String(ride.driver_id)) return sum;
+                        return sum + (p.seat_count || 1);
+                    }, 0);
+                    const seatsLeft = Math.max(0, (ride.seats_available || 0) - totalSeatsTakenByOthers);
 
                     // Driver Display Info
                     const driverProfile = ride.driver;
@@ -371,7 +373,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
 
                     // Special case for generic names: if nameLabel is still generic, try to clean it up
                     if (nameLabel.toLowerCase().includes('joueur') || nameLabel === 'Inconnu') {
-                        if (isDriver && activePlayer?.name) nameLabel = activePlayer.name;
+                        if (isDriver && (userName || activePlayer?.name)) nameLabel = userName || activePlayer.name;
                         else if (isDriver && children[0]?.full_name) nameLabel = children[0].full_name;
                     }
 
@@ -418,15 +420,15 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                             {passengers.length > 0 && (
                                 <div className="mt-3 pt-3 border-t border-gray-50 space-y-1.5">
                                     {passengers.map(p => {
-                                        const myChild = children.find(c => c.id === p.player_id);
-                                        const otherChild = members.find(m => m.id === p.player_id);
-
                                         const isMe = String(p.passenger_id) === String(currentUser.id);
+                                        const myChild = children.find(c => String(c.id) === String(p.player_id));
+                                        const otherChild = members.find(m => String(m.id) === String(p.player_id));
+
                                         let displayName = p.player?.full_name
                                             || myChild?.full_name
                                             || otherChild?.full_name
                                             || p.passenger?.full_name
-                                            || (isMe ? (currentUser.user_metadata?.full_name || 'Moi') : 'Passager (Inconnu)');
+                                            || (isMe ? (userName || currentUser.user_metadata?.full_name || 'Moi') : 'Passager (Inconnu)');
 
                                         // If it's a coach (no player_id), append "(Coach)" if not already there
                                         if (!p.player_id && !displayName.toLowerCase().includes('coach')) {

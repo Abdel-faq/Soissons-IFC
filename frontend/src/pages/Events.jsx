@@ -8,6 +8,7 @@ export default function Events() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
+    const [userName, setUserName] = useState('');
     const [team, setTeam] = useState(null);
     const [isCoach, setIsCoach] = useState(false);
     const [children, setChildren] = useState([]);
@@ -37,6 +38,10 @@ export default function Events() {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
+            if (user) {
+                const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+                if (prof?.full_name) setUserName(prof.full_name);
+            }
 
             if (!user) return;
 
@@ -918,6 +923,7 @@ export default function Events() {
                                             activePlayer={activePlayer}
                                             evAttendance={ev.attendance || []}
                                             members={members}
+                                            userName={userName}
                                         />
                                     </div>
                                 )

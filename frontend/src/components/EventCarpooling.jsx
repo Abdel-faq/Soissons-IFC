@@ -348,39 +348,48 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     }, 0);
                     const seatsLeft = Math.max(0, (ride.seats_available || 0) - totalSeatsTakenByOthers);
 
-                    // Driver Display Info
-                    const driverProfile = ride.driver;
-                    const driverBaseName = driverProfile?.full_name || 'Inconnu';
-                    let relationLabel = ride.driver_relation || '';
-                    let nameLabel = driverBaseName;
+                    // -------------------------------------------------------------------------
+                    // DRIVER DISPLAY LOGIC
+                    // -------------------------------------------------------------------------
 
-                    // Try to find the child's name for 'Papa de ...' logic
-                    let driverChild = passengers.find(p => p.player?.id && p.player?.parent_id === ride.driver_id);
-                    if (!driverChild && members.length > 0) {
-                        const m = members.find(m => m.parent_id === ride.driver_id);
-                        if (m) driverChild = { player: m };
+                    let driverDisplay = "Chauffeur";
+                    const driverProfileName = ride.driver?.full_name || 'Inconnu';
+                    let relation = ride.driver_relation; // PAPA, MAMAN, COACH, AUTRE
+
+                    // 1. Try to find the driver's child in the team list (members)
+                    // This is the most reliable way to say "Papa de ..." even if the child isn't in the car
+                    const driverKidsInTeam = members.filter(m => String(m.parent_id) === String(ride.driver_id));
+
+                    if (driverKidsInTeam.length > 0 && relation !== 'COACH') {
+                        // It's a parent -> Display "Papa de [ChildName]"
+                        const childName = driverKidsInTeam[0].first_name; // Use first child found
+
+                        let label = "Parent";
+                        if (relation === 'PAPA') label = "Papa de";
+                        else if (relation === 'MAMAN') label = "Maman de";
+                        else label = "Parent de";
+
+                        driverDisplay = `${label} ${childName}`;
+                    } else {
+                        // It's a Coach or someone without kids in team -> Show Profile Name
+                        if (relation === 'COACH') {
+                            driverDisplay = userName && isDriver ? userName : driverProfileName;
+                            if (!driverDisplay.toLowerCase().includes('coach')) driverDisplay = `Coach ${driverDisplay}`;
+                        } else {
+                            // Fallback for others
+                            driverDisplay = driverProfileName;
+                        }
                     }
-
-                    if (driverChild) {
-                        nameLabel = driverChild.player.full_name;
-                        if (relationLabel === 'PAPA') relationLabel = 'Papa de';
-                        else if (relationLabel === 'MAMAN') relationLabel = 'Maman de';
-                        else if (relationLabel === 'COACH') relationLabel = 'Coach de';
-                        else relationLabel += ' de';
-                    } else if (relationLabel === 'COACH') {
-                        relationLabel = 'Coach';
-                    }
-
-                    // Special case for generic names: if nameLabel is still generic, try to clean it up
-                    if (nameLabel.toLowerCase().includes('joueur') || nameLabel === 'Inconnu') {
-                        if (isDriver && (userName || activePlayer?.name)) nameLabel = userName || activePlayer.name;
-                        else if (isDriver && children[0]?.full_name) nameLabel = children[0].full_name;
-                    }
-
-                    const driverDisplay = `${relationLabel} ${nameLabel}`.trim();
 
                     return (
                         <div key={ride.id} className={`bg-white border rounded-xl p-3 shadow-sm transition-all ${isDriver ? 'border-indigo-300 ring-1 ring-indigo-50' : 'border-gray-200'}`}>
+                            {/* DEBUG INFO - REMOVE LATER */}
+                            {currentUser.email === 'debug@test.com' && (
+                                <div className="text-[9px] text-red-500 bg-red-50 p-1 mb-1">
+                                    DEBUG: Driver: {ride.driver_id} | Me: {currentUser.id} | Seats: {ride.seats_available}
+                                </div>
+                            )}
+
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="font-bold text-gray-900 flex items-center gap-1.5">
@@ -459,6 +468,10 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                         </div>
                     );
                 })}
+                <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
+                    <span>v2.2 Fix</span>
+                    <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
+                </div>
             </div>
         </div>
     );

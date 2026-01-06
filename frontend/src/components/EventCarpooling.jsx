@@ -185,12 +185,15 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
             if (error) {
                 if (error.code === '23505') {
                     alert("Vous faites déjà partie de ce trajet (en tant que chauffeur ou passager).");
-                    fetchRides(); // refresh to update UI
+                    await fetchRides(); // refresh to update UI
                     return;
                 }
                 throw error;
             }
-            fetchRides();
+            // Small delay to ensure Supabase propagation before re-fetch
+            setTimeout(async () => {
+                await fetchRides();
+            }, 300);
         } catch (err) {
             alert("Impossible de rejoindre : " + err.message);
         }
@@ -418,8 +421,12 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                         const myChild = children.find(c => c.id === p.player_id);
                                         const otherChild = members.find(m => m.id === p.player_id);
 
-                                        let displayName = p.player?.full_name || myChild?.full_name || otherChild?.full_name || p.passenger?.full_name || 'Passager (Inconnu)';
-                                        const isMe = p.passenger_id === currentUser.id;
+                                        const isMe = String(p.passenger_id) === String(currentUser.id);
+                                        let displayName = p.player?.full_name
+                                            || myChild?.full_name
+                                            || otherChild?.full_name
+                                            || p.passenger?.full_name
+                                            || (isMe ? (currentUser.user_metadata?.full_name || 'Moi') : 'Passager (Inconnu)');
 
                                         // If it's a coach (no player_id), append "(Coach)" if not already there
                                         if (!p.player_id && !displayName.toLowerCase().includes('coach')) {
@@ -436,7 +443,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                                                     <span className="text-[10px] bg-gray-100 px-1.5 rounded font-bold text-gray-500">
                                                         {p.seat_count === 2 ? '👦+🧔 2p' : '👦 1p'}
                                                     </span>
-                                                    {(p.passenger_id === currentUser.id || isDriver) && (
+                                                    {(String(p.passenger_id) === String(currentUser.id) || isDriver) && (
                                                         <button onClick={() => leaveRide(ride.id)} className="text-gray-300 hover:text-red-500 transition-all p-1">
                                                             <XCircle size={14} />
                                                         </button>

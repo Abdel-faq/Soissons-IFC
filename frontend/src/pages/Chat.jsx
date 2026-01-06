@@ -284,13 +284,25 @@ export default function Chat() {
                     # Général
                 </button>
                 {rooms.map(room => (
-                    <button
+                    <div
                         key={room.id}
-                        onClick={() => setActiveRoom(room)}
-                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${activeRoom?.id === room.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                        className={`flex-shrink-0 flex items-center bg-white rounded-full transition-all border ${activeRoom?.id === room.id ? 'border-indigo-600' : 'border-gray-200'}`}
                     >
-                        {room.is_broadcast ? <Radio size={12} /> : <span>#</span>} {room.name}
-                    </button>
+                        <button
+                            onClick={() => setActiveRoom(room)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${activeRoom?.id === room.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                        >
+                            {room.is_broadcast ? <Radio size={12} /> : <span>#</span>} {room.name}
+                        </button>
+                        {isCoach && (
+                            <button
+                                onClick={() => deleteRoom(room.id)}
+                                className={`pr-3 pl-1 hover:text-red-500 transition-colors ${activeRoom?.id === room.id ? 'text-indigo-200' : 'text-gray-300'}`}
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
                 ))}
                 {isCoach && (
                     <button
@@ -304,64 +316,68 @@ export default function Chat() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
-                {messages.length === 0 && (
-                    <div className="text-center py-20">
-                        <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border shadow-sm">
-                            <MessageSquare className="text-gray-200" size={32} />
+            < div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50" >
+                {
+                    messages.length === 0 && (
+                        <div className="text-center py-20">
+                            <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border shadow-sm">
+                                <MessageSquare className="text-gray-200" size={32} />
+                            </div>
+                            <p className="text-gray-400 font-medium">{activeRoom ? `Bienvenue dans le salon ${activeRoom.name} !` : 'Lancez la conversation !'}</p>
                         </div>
-                        <p className="text-gray-400 font-medium">{activeRoom ? `Bienvenue dans le salon ${activeRoom.name} !` : 'Lancez la conversation !'}</p>
-                    </div>
-                )}
-                {messages.map((msg, index) => {
-                    const isMe = msg.user?.id === user.id;
-                    const isCoachMsg = msg.user?.role === 'COACH';
-                    const prevMsg = index > 0 ? messages[index - 1] : null;
-                    const showHeader = !prevMsg || prevMsg.user?.id !== msg.user?.id;
+                    )
+                }
+                {
+                    messages.map((msg, index) => {
+                        const isMe = msg.user?.id === user.id;
+                        const isCoachMsg = msg.user?.role === 'COACH';
+                        const prevMsg = index > 0 ? messages[index - 1] : null;
+                        const showHeader = !prevMsg || prevMsg.user?.id !== msg.user?.id;
 
-                    return (
-                        <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${showHeader ? 'mt-4' : 'mt-1'}`}>
-                            {showHeader && !isMe && (
-                                <div className="flex items-center gap-1.5 mb-1 ml-1">
-                                    <span className="text-[10px] font-bold text-gray-500">{msg.player?.full_name || msg.user?.full_name || 'Inconnu'}</span>
-                                    {isCoachMsg && <span className="bg-indigo-100 text-indigo-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Coach</span>}
-                                </div>
-                            )}
-
-                            <div className={`group relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm transition-all ${isMe
-                                ? 'bg-indigo-600 text-white rounded-tr-none'
-                                : `bg-white text-gray-800 border-2 rounded-tl-none ${isCoachMsg ? 'border-indigo-100 bg-indigo-50/30' : 'border-gray-100'}`
-                                }`}>
-                                {msg.file_url && (
-                                    <div className="mb-2">
-                                        {msg.file_type === 'IMAGE' ? (
-                                            <img src={msg.file_url} alt="Attachment" className="max-w-full rounded-lg border shadow-sm cursor-pointer hover:opacity-90 active:scale-95 transition-all" />
-                                        ) : (
-                                            <a href={msg.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-3 bg-white/10 rounded-lg border border-white/20 hover:bg-white/20 transition-all">
-                                                <FileText className={isMe ? 'text-indigo-200' : 'text-indigo-600'} />
-                                                <span className="text-sm font-semibold truncate underline">Voir le PDF</span>
-                                            </a>
-                                        )}
+                        return (
+                            <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${showHeader ? 'mt-4' : 'mt-1'}`}>
+                                {showHeader && !isMe && (
+                                    <div className="flex items-center gap-1.5 mb-1 ml-1">
+                                        <span className="text-[10px] font-bold text-gray-500">{msg.player?.full_name || msg.user?.full_name || 'Inconnu'}</span>
+                                        {isCoachMsg && <span className="bg-indigo-100 text-indigo-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Coach</span>}
                                     </div>
                                 )}
-                                <p className="text-sm break-words leading-relaxed">{msg.content}</p>
-                                <div className={`text-[9px] font-bold mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
-                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    {isMe && <ShieldCheck size={10} className="text-indigo-300" />}
+
+                                <div className={`group relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm transition-all ${isMe
+                                    ? 'bg-indigo-600 text-white rounded-tr-none'
+                                    : `bg-white text-gray-800 border-2 rounded-tl-none ${isCoachMsg ? 'border-indigo-100 bg-indigo-50/30' : 'border-gray-100'}`
+                                    }`}>
+                                    {msg.file_url && (
+                                        <div className="mb-2">
+                                            {msg.file_type === 'IMAGE' ? (
+                                                <img src={msg.file_url} alt="Attachment" className="max-w-full rounded-lg border shadow-sm cursor-pointer hover:opacity-90 active:scale-95 transition-all" />
+                                            ) : (
+                                                <a href={msg.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-3 bg-white/10 rounded-lg border border-white/20 hover:bg-white/20 transition-all">
+                                                    <FileText className={isMe ? 'text-indigo-200' : 'text-indigo-600'} />
+                                                    <span className="text-sm font-semibold truncate underline">Voir le PDF</span>
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+                                    <p className="text-sm break-words leading-relaxed">{msg.content}</p>
+                                    <div className={`text-[9px] font-bold mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
+                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {isMe && <ShieldCheck size={10} className="text-indigo-300" />}
+                                    </div>
+                                    {isCoach && (
+                                        <button
+                                            onClick={() => deleteMessage(msg.id)}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                        >
+                                            <Trash2 size={10} />
+                                        </button>
+                                    )}
                                 </div>
-                                {isCoach && (
-                                    <button
-                                        onClick={() => deleteMessage(msg.id)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                    >
-                                        <Trash2 size={10} />
-                                    </button>
-                                )}
                             </div>
-                        </div>
-                    );
-                })}
-                <div ref={messagesEndRef} />
+                        );
+                    })
+                }
+                < div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}

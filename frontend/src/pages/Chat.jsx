@@ -420,7 +420,7 @@ export default function Chat() {
                             <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${showHeader ? 'mt-4' : 'mt-1'}`}>
                                 {showHeader && !isMe && (
                                     <div className="flex items-center gap-1.5 mb-1 ml-1">
-                                        <span className="text-[10px] font-bold text-gray-500">{msg.player?.full_name || msg.user?.full_name || 'Inconnu'}</span>
+                                        <span className="text-[10px] font-bold text-gray-500">{msg.player?.full_name || msg.sender?.full_name || 'Inconnu'}</span>
                                         {isCoachMsg && <span className="bg-indigo-100 text-indigo-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Coach</span>}
                                     </div>
                                 )}

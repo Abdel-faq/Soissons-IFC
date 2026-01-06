@@ -689,20 +689,18 @@ export default function Events() {
                     // Statistics (Coach only)
                     let stats = null;
                     if (isCoach) {
-                        // DEBUG: Trace execution
-                        console.log(`[Stats Debug] Processing Event ${ev.id}`);
-                        console.log(`[Stats Debug] Convocations Map:`, convocations[ev.id]);
-                        console.log(`[Stats Debug] Attendance Array:`, ev.attendance);
-
-                        // Use aggregated convocations map if available (more reliable for Coach view)
+                        // Use aggregated convocations map if available AND has content (more reliable for Coach view)
                         // otherwise fallback to event.attendance (ensure to filter only valid player IDs)
                         let convokedIds = [];
 
-                        if (convocations[ev.id]) {
-                            // Get IDs from the map where value is true
-                            convokedIds = Object.keys(convocations[ev.id]).filter(uid => convocations[ev.id][uid]);
+                        const mapConvocations = convocations[ev.id]
+                            ? Object.keys(convocations[ev.id]).filter(uid => convocations[ev.id][uid])
+                            : [];
+
+                        if (mapConvocations.length > 0) {
+                            convokedIds = mapConvocations;
                         } else {
-                            // Fallback to ev.attendance
+                            // Fallback to ev.attendance if map is empty/initialized but not populated
                             convokedIds = ev.attendance
                                 ?.filter(a => a.is_convoked && a.player_id)
                                 .map(a => a.player_id) || [];

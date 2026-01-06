@@ -689,6 +689,11 @@ export default function Events() {
                     // Statistics (Coach only)
                     let stats = null;
                     if (isCoach) {
+                        // DEBUG: Trace execution
+                        console.log(`[Stats Debug] Processing Event ${ev.id}`);
+                        console.log(`[Stats Debug] Convocations Map:`, convocations[ev.id]);
+                        console.log(`[Stats Debug] Attendance Array:`, ev.attendance);
+
                         // Use aggregated convocations map if available (more reliable for Coach view)
                         // otherwise fallback to event.attendance (ensure to filter only valid player IDs)
                         let convokedIds = [];

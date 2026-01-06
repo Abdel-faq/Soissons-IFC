@@ -65,21 +65,50 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
             const rideIds = ridesData.map(r => r.id);
             if (rideIds.length === 0) {
                 setRides([]);
+                setLoading(false);
                 return;
             }
 
+            // Fetch passengers with just IDs (no joins to avoid 400 error)
             const { data: passengersData, error: passengersError } = await supabase
                 .from('ride_passengers')
-                .select('*, player:players(full_name, parent_id), passenger:profiles(full_name)')
+                .select('*')
                 .in('ride_id', rideIds);
 
             if (passengersError) {
                 console.error('Error fetching passengers:', passengersError);
             }
 
+            // Manually enrich passenger data with player/profile info
+            const enrichedPassengers = await Promise.all((passengersData || []).map(async (p) => {
+                let playerInfo = null;
+                let passengerInfo = null;
+
+                // Get player info from members list if player_id exists
+                if (p.player_id) {
+                    playerInfo = members.find(m => String(m.id) === String(p.player_id));
+                }
+
+                // Get passenger profile info
+                if (p.passenger_id) {
+                    const { data } = await supabase
+                        .from('profiles')
+                        .select('full_name')
+                        .eq('id', p.passenger_id)
+                        .single();
+                    passengerInfo = data;
+                }
+
+                return {
+                    ...p,
+                    player: playerInfo ? { full_name: playerInfo.full_name, parent_id: playerInfo.parent_id } : null,
+                    passenger: passengerInfo
+                };
+            }));
+
             const ridesWithData = ridesData.map(ride => ({
                 ...ride,
-                passengers: passengersData?.filter(p => p.ride_id === ride.id) || []
+                passengers: enrichedPassengers?.filter(p => p.ride_id === ride.id) || []
             }));
 
             setRides(ridesWithData);
@@ -475,7 +504,7 @@ export default function EventCarpooling({ eventId, currentUser, teamId, myAttend
                     );
                 })}
                 <div className="text-[9px] text-center text-gray-300 mt-4 flex justify-center gap-2">
-                    <span>v2.7 Fix</span>
+                    <span>v2.8 Fix</span>
                     <button onClick={() => window.location.reload()} className="underline hover:text-gray-500">Forcer Actualisation</button>
                 </div>
             </div>

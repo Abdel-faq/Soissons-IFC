@@ -891,17 +891,19 @@ export default function Events() {
                                                 const mStatus = memberAvailability[ev.id]?.[m.id] || 'UNKNOWN';
                                                 const isSelected = convocations[ev.id]?.[m.id];
                                                 return (
-                                                    <div
+                                                    <label
                                                         key={m.id}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation(); // Prevent closing/toggling details
-                                                            handleConvocationToggle(ev.id, m.id);
-                                                        }}
                                                         className={`flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-100 bg-white opacity-60 grayscale'
                                                             }`}
                                                     >
                                                         <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="w-4 h-4 text-indigo-600 rounded bg-gray-100 border-gray-300 focus:ring-indigo-500"
+                                                                checked={!!isSelected}
+                                                                onChange={() => handleConvocationToggle(ev.id, m.id)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
                                                             <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold">
                                                                 {m.full_name?.[0]}
                                                             </div>
@@ -911,7 +913,7 @@ export default function Events() {
                                                             {mStatus === 'PRESENT' && <span className="text-green-600 font-bold">✅</span>}
                                                             {mStatus === 'ABSENT' && <span className="text-red-600 font-bold">❌</span>}
                                                         </div>
-                                                    </div>
+                                                    </label>
                                                 );
                                             })}
                                             <div className="sm:col-span-2 lg:col-span-3">

@@ -99,11 +99,11 @@ export default function Profile() {
                 let fName = profile.first_name;
                 let lName = profile.last_name;
 
-                // If user edited the full_name field, try to split it
-                if (profile.full_name && (!fName || !lName)) {
-                    const parts = profile.full_name.split(' ');
+                // Ensure we split the full_name if it was edited
+                if (profile.full_name) {
+                    const parts = profile.full_name.trim().split(' ');
                     fName = parts[0];
-                    lName = parts.slice(1).join(' ');
+                    lName = parts.slice(1).join(' ') || '';
                 }
 
                 const { error } = await supabase
@@ -123,6 +123,7 @@ export default function Profile() {
                     id: user.id,
                     email: user.email,
                     full_name: profile.full_name,
+                    position: profile.position,
                     avatar_url: profile.avatar_url,
                 };
 

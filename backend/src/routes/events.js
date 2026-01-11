@@ -11,8 +11,8 @@ async function ensureRecurringEvents(team_id) {
       .from('events')
       .select('*, attendance(player_id, is_convoked)')
       .eq('team_id', team_id)
-      .eq('is_recurring', true)
-      .eq('is_deleted', false);
+      .eq('is_recurring', true);
+    // We removed .eq('is_deleted', false) to allow past cleaned-up events to serve as templates
 
     if (!templates || templates.length === 0) return;
 
@@ -37,7 +37,7 @@ async function ensureRecurringEvents(team_id) {
           .eq('team_id', team_id)
           .eq('type', template.type)
           .eq('date', targetIso)
-          .eq('is_deleted', false)
+          // We check for ANY existence (even deleted) to respect manual deletions by the coach
           .maybeSingle();
 
         if (existing) continue;

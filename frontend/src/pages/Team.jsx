@@ -102,48 +102,43 @@ export default function Team() {
     };
 
     const fetchAttendanceHistory = async (teamId) => {
-        // Calculate week range (same as backend/Events.jsx)
-        const now = new Date();
-        const day = now.getDay();
-        const monday = new Date(now);
-        const diffToMonday = (day === 0 ? -6 : 1) - day;
-        monday.setDate(now.getDate() + diffToMonday);
-        monday.setHours(0, 0, 0, 0);
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const session = sessionData?.session;
+            if (!session) return;
 
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-
-        // Weekend transition: Show next week starting Saturday 10:00 AM or Sunday
-        const isSaturdayAfter10 = (day === 6 && now.getHours() >= 10);
-        const isSunday = (day === 0);
-        if (isSaturdayAfter10 || isSunday) {
-            sunday.setDate(sunday.getDate() + 7);
-        }
-        sunday.setHours(23, 59, 59, 999);
-
-        const { data: evs } = await supabase
-            .from('events')
-            .select('*')
-            .eq('team_id', teamId)
-            .eq('is_deleted', false)
-            .gte('date', monday.toISOString())
-            .lte('date', sunday.toISOString())
-            .order('date', { ascending: false });
-
-        setHistoryEvents(evs || []);
-
-        if (evs && evs.length > 0) {
-            const { data: att } = await supabase
-                .from('attendance')
-                .select('*')
-                .in('event_id', evs.map(e => e.id));
-
-            const matrix = {};
-            att?.forEach(row => {
-                if (!matrix[row.player_id]) matrix[row.player_id] = {};
-                matrix[row.player_id][row.event_id] = row.status;
+            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${teamId}`;
+            const response = await fetch(apiUrl, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
-            setAttendanceMatrix(matrix);
+
+            if (!response.ok) throw new Error("Erreur lors de la récupération des événements");
+
+            const eventsData = await response.json();
+            const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+
+            console.log(`[DEBUG] Team Attendance: Received ${activeEvents.length} events from API`);
+            setHistoryEvents(activeEvents);
+
+            if (activeEvents.length > 0) {
+                const { data: att } = await supabase
+                    .from('attendance')
+                    .select('*')
+                    .in('event_id', activeEvents.map(e => e.id));
+
+                const matrix = {};
+                att?.forEach(row => {
+                    const entityId = row.player_id || row.user_id;
+                    if (!entityId) return;
+                    if (!matrix[entityId]) matrix[entityId] = {};
+                    matrix[entityId][row.event_id] = row.status;
+                });
+                setAttendanceMatrix(matrix);
+            } else {
+                setAttendanceMatrix({});
+            }
+        } catch (err) {
+            console.error("Error fetching attendance history:", err);
         }
     };
 

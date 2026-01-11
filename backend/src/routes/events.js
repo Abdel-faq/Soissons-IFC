@@ -105,24 +105,34 @@ async function performAutomaticCleanup(team_id) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      // Delete events older than today
-      const { error } = await supabase
-        .from('events')
-        .update({ is_deleted: true }) // Soft delete preferred
-        .eq('team_id', team_id)
-        .lt('date', todayStart.toISOString());
+      console.log(`[CLEANUP] Starting cleanup for team ${team_id}. Today is ${now.toISOString()}`);
 
-      if (error) console.error("Cleanup error:", error);
-
-      // Also cleanup future recurring events that were generated before the 1-week limit change
-      const tenDaysHence = new Date();
-      tenDaysHence.setDate(tenDaysHence.getDate() + 10);
-      await supabase
+      // 1. Soft delete events older than today
+      const { data: pastEvs, error: pastError } = await supabase
         .from('events')
         .update({ is_deleted: true })
         .eq('team_id', team_id)
-        .eq('is_recurring', true)
-        .gt('date', tenDaysHence.toISOString());
+        .lt('date', todayStart.toISOString())
+        .select('id, date');
+
+      if (pastError) console.error("Cleanup past error:", pastError);
+      else if (pastEvs?.length > 0) console.log(`[CLEANUP] Soft-deleted ${pastEvs.length} past events.`);
+
+      // 2. Aggressive Cleanup: Delete ANY future event that is beyond our 1-week/2-week window
+      // window end is roughly 10 days from now to be safe (covers next Sunday)
+      const windowEnd = new Date();
+      windowEnd.setDate(windowEnd.getDate() + 10);
+      windowEnd.setHours(23, 59, 59, 999);
+
+      const { data: futureEvs, error: futureError } = await supabase
+        .from('events')
+        .update({ is_deleted: true })
+        .eq('team_id', team_id)
+        .gt('date', windowEnd.toISOString())
+        .select('id, date');
+
+      if (futureError) console.error("Cleanup future error:", futureError);
+      else if (futureEvs?.length > 0) console.log(`[CLEANUP] Soft-deleted ${futureEvs.length} orphaned future events.`);
     }
   } catch (err) {
     console.error("Error in performAutomaticCleanup:", err);

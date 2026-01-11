@@ -149,6 +149,14 @@ router.get('/', requireAuth, async (req, res) => {
     // Get Sunday of this week
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
+
+    // Weekend transition: Show next week's sessions starting Saturday 10:00 AM or Sunday
+    const isSaturdayAfter10 = (day === 6 && now.getHours() >= 10);
+    const isSunday = (day === 0);
+    if (isSaturdayAfter10 || isSunday) {
+      sunday.setDate(sunday.getDate() + 7);
+    }
+
     sunday.setHours(23, 59, 59, 999);
 
     // 2. Build Query (Filtered by current week)

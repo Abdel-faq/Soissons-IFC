@@ -2,12 +2,132 @@
 const router = express.Router();
 const { requireAuth, supabase } = require('../middleware/auth');
 
+/**
+ * Ensures recurring events are generated for the next 4 weeks
+ */
+async function ensureRecurringEvents(team_id) {
+  try {
+    const { data: templates } = await supabase
+      .from('events')
+      .select('*, attendance(player_id, is_convoked)')
+      .eq('team_id', team_id)
+      .eq('is_recurring', true)
+      .eq('is_deleted', false);
+
+    if (!templates || templates.length === 0) return;
+
+    for (const template of templates) {
+      // Find the "master" date (original template date)
+      const masterDate = new Date(template.date);
+
+      // Generate for next 1 week (only the next occurrence)
+      for (let i = 1; i <= 1; i++) {
+        const targetDate = new Date(masterDate.getTime());
+        targetDate.setDate(targetDate.getDate() + (i * 7));
+
+        // Skip if target date is in the past
+        if (targetDate < new Date()) continue;
+
+        const targetIso = targetDate.toISOString();
+
+        // Check if occurrence already exists (same team, same type, same day/hour)
+        const { data: existing } = await supabase
+          .from('events')
+          .select('id')
+          .eq('team_id', team_id)
+          .eq('type', template.type)
+          .eq('date', targetIso)
+          .eq('is_deleted', false)
+          .maybeSingle();
+
+        if (existing) continue;
+
+        // Create new occurrence
+        const { data: newEv, error: insError } = await supabase
+          .from('events')
+          .insert([{
+            team_id: template.team_id,
+            type: template.type,
+            date: targetIso,
+            location: template.location,
+            notes: template.notes,
+            match_location: template.match_location,
+            visibility_type: template.visibility_type,
+            group_id: template.group_id,
+            coach_id: template.coach_id,
+            is_recurring: true,
+            recurrence_pattern: 'WEEKLY'
+          }])
+          .select()
+          .single();
+
+        if (insError) {
+          console.error("Error generating recurring occurrence:", insError);
+          continue;
+        }
+
+        // Copy convocations
+        if (template.attendance?.length > 0) {
+          const convocations = template.attendance
+            .filter(a => a.is_convoked && a.player_id)
+            .map(a => ({
+              event_id: newEv.id,
+              player_id: a.player_id,
+              is_convoked: true,
+              status: 'INCONNU'
+            }));
+
+          if (convocations.length > 0) {
+            await supabase.from('attendance').insert(convocations);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error in ensureRecurringEvents:", err);
+  }
+}
+
+/**
+ * Automatically cleans up past events after Saturday 10:00 AM
+ */
+async function performAutomaticCleanup(team_id) {
+  try {
+    const now = new Date();
+    const day = now.getDay(); // 0 (Sun) to 6 (Sat)
+    const hour = now.getHours();
+
+    // Condition: Saturday after 10:00 AM OR Sunday
+    const isSaturdayAfter10 = (day === 6 && hour >= 10);
+    const isSunday = (day === 0);
+
+    if (isSaturdayAfter10 || isSunday) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      // Delete events older than today
+      const { error } = await supabase
+        .from('events')
+        .update({ is_deleted: true }) // Soft delete preferred
+        .eq('team_id', team_id)
+        .lt('date', todayStart.toISOString());
+
+      if (error) console.error("Cleanup error:", error);
+    }
+  } catch (err) {
+    console.error("Error in performAutomaticCleanup:", err);
+  }
+}
+
 // Get all events
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { team_id } = req.query;
+    if (!team_id || team_id === 'null') return res.json([]);
 
-    // 1. Fetch Team to check ownership
+    // Trigger maintenance tasks
+    await performAutomaticCleanup(team_id);
+    await ensureRecurringEvents(team_id);
     let teamOwnerId = null;
     try {
       if (team_id && team_id !== 'null') {
@@ -16,12 +136,29 @@ router.get('/', requireAuth, async (req, res) => {
       }
     } catch (e) { console.error("Error fetching team owner:", e); }
 
-    // 2. Build Query (Simple one first to avoid crashes on joins)
+    // 1.5 Calculate current week range (Monday to Sunday)
+    const now = new Date();
+    const day = now.getDay(); // 0 (Sun) to 6 (Sat)
+
+    // Get Monday of this week
+    const monday = new Date(now);
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    monday.setDate(now.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    // Get Sunday of this week
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    // 2. Build Query (Filtered by current week)
     const { data: events, error } = await supabase
       .from('events')
       .select('*')
       .eq('team_id', team_id)
       .eq('is_deleted', false)
+      .gte('date', monday.toISOString())
+      .lte('date', sunday.toISOString())
       .order('date', { ascending: true });
 
     if (error) {

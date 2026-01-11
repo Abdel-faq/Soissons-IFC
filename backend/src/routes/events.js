@@ -113,6 +113,16 @@ async function performAutomaticCleanup(team_id) {
         .lt('date', todayStart.toISOString());
 
       if (error) console.error("Cleanup error:", error);
+
+      // Also cleanup future recurring events that were generated before the 1-week limit change
+      const tenDaysHence = new Date();
+      tenDaysHence.setDate(tenDaysHence.getDate() + 10);
+      await supabase
+        .from('events')
+        .update({ is_deleted: true })
+        .eq('team_id', team_id)
+        .eq('is_recurring', true)
+        .gt('date', tenDaysHence.toISOString());
     }
   } catch (err) {
     console.error("Error in performAutomaticCleanup:", err);

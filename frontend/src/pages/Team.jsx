@@ -102,11 +102,34 @@ export default function Team() {
     };
 
     const fetchAttendanceHistory = async (teamId) => {
+        // Calculate week range (same as backend/Events.jsx)
+        const now = new Date();
+        const day = now.getDay();
+        const monday = new Date(now);
+        const diffToMonday = (day === 0 ? -6 : 1) - day;
+        monday.setDate(now.getDate() + diffToMonday);
+        monday.setHours(0, 0, 0, 0);
+
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+
+        // Weekend transition: Show next week starting Saturday 10:00 AM or Sunday
+        const isSaturdayAfter10 = (day === 6 && now.getHours() >= 10);
+        const isSunday = (day === 0);
+        if (isSaturdayAfter10 || isSunday) {
+            sunday.setDate(sunday.getDate() + 7);
+        }
+        sunday.setHours(23, 59, 59, 999);
+
         const { data: evs } = await supabase
             .from('events')
             .select('*')
             .eq('team_id', teamId)
+            .eq('is_deleted', false)
+            .gte('date', monday.toISOString())
+            .lte('date', sunday.toISOString())
             .order('date', { ascending: false });
+
         setHistoryEvents(evs || []);
 
         if (evs && evs.length > 0) {

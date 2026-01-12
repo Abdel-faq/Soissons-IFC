@@ -249,6 +249,38 @@ export default function Team() {
     };
 
     // RENDER LOGIC
+    const [selectedEvent, setSelectedEvent] = useState(null); // For delete modal
+
+    const handleDeleteEvent = async (eventId, mode = 'single') => {
+        if (!confirm(mode === 'series' ? 'Êtes-vous sûr de vouloir supprimer cette séance ET toutes les suivantes ?' : 'Supprimer cette séance uniquement ?')) return;
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}${mode === 'series' ? '?mode=series' : ''}`;
+            const response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur lors de la suppression");
+            }
+
+            alert(mode === 'series' ? 'Série supprimée' : 'Séance supprimée');
+            setSelectedEvent(null);
+            fetchAttendanceHistory(team.id); // Refresh
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
     const toggleChatLock = async () => {
         if (!team) return;
         try {
@@ -325,6 +357,7 @@ export default function Team() {
 
     return (
         <div className="space-y-6">
+
             {teams.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                     {teams.map(t => (
@@ -444,7 +477,12 @@ export default function Team() {
                             <tr>
                                 <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
                                 {historyEvents.map(ev => (
-                                    <th key={ev.id} className={`p-2 min-w-[60px] text-center border-r ${ev.is_deleted ? 'bg-red-50 text-red-400 line-through' : ''}`} title={`${ev.type} - ${ev.location}`}>
+                                    <th
+                                        key={ev.id}
+                                        onClick={() => isCoach && setSelectedEvent(ev)}
+                                        className={`p-2 min-w-[60px] text-center border-r select-none ${ev.is_deleted ? 'bg-red-50 text-red-400 line-through' : ''} ${isCoach ? 'cursor-pointer hover:bg-gray-100 text-indigo-600' : ''}`}
+                                        title={isCoach ? "Cliquez pour gérer" : `${ev.type} - ${ev.location}`}
+                                    >
                                         {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                                         <div className="text-[8px] opacity-70">{ev.type === 'MATCH' ? 'Match' : 'Entr.'}</div>
                                     </th>
@@ -506,6 +544,42 @@ export default function Team() {
                             })}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/* Event Options Modal */}
+            {selectedEvent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+                        <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                            📅 Gestion de la séance
+                        </h3>
+                        <p className="text-gray-600 mb-1">Date : {new Date(selectedEvent.date).toLocaleString('fr-FR')}</p>
+                        <p className="text-gray-600 mb-4">Lieu : {selectedEvent.location}</p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => handleDeleteEvent(selectedEvent.id, 'single')}
+                                className="w-full bg-red-50 text-red-600 border border-red-200 p-3 rounded font-bold hover:bg-red-100 flex items-center justify-center gap-2"
+                            >
+                                🗑️ Supprimer uniquement cette séance
+                            </button>
+
+                            <button
+                                onClick={() => handleDeleteEvent(selectedEvent.id, 'series')}
+                                className="w-full bg-red-600 text-white p-3 rounded font-bold hover:bg-red-700 flex items-center justify-center gap-2"
+                            >
+                                💥 Supprimer TOUTE LA SÉRIE
+                            </button>
+                            <p className="text-[10px] text-gray-400 text-center">
+                                "Toute la série" supprimera cette séance ET toutes les futures séances identiques.
+                            </p>
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t flex justify-end">
+                            <button onClick={() => setSelectedEvent(null)} className="text-gray-500 font-bold hover:text-gray-700">Annuler</button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

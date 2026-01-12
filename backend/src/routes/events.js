@@ -5,6 +5,10 @@ const { requireAuth, supabase } = require('../middleware/auth');
 /**
  * Ensures recurring events are generated for the next 4 weeks
  */
+/**
+ * Ensures recurring events are generated for the next 4 weeks
+ * Uses the original template to project future dates, avoiding "chaining" logic.
+ */
 async function ensureRecurringEvents(team_id) {
   try {
     const { data: templates } = await supabase
@@ -12,32 +16,49 @@ async function ensureRecurringEvents(team_id) {
       .select('*, attendance(player_id, is_convoked)')
       .eq('team_id', team_id)
       .eq('is_recurring', true);
-    // We removed .eq('is_deleted', false) to allow past cleaned-up events to serve as templates
 
     if (!templates || templates.length === 0) return;
 
+    const now = new Date();
+    // 4 weeks window
+    const windowEnd = new Date();
+    windowEnd.setDate(windowEnd.getDate() + 28);
+
     for (const template of templates) {
-      // Find the "master" date (original template date)
-      const masterDate = new Date(template.date);
+      // 1. FILTER: Ignore "ghost" templates (deleted events in the future)
+      const templateDate = new Date(template.date);
+      if (template.is_deleted && templateDate > now) continue;
 
-      // Generate for next 1 week (only the next occurrence)
-      for (let i = 1; i <= 1; i++) {
-        const targetDate = new Date(masterDate.getTime());
-        targetDate.setDate(targetDate.getDate() + (i * 7));
+      // 2. Calculate target dates in the next 4 weeks
+      let scanner = new Date(templateDate);
 
-        // Skip if target date is in the past
-        if (targetDate < new Date()) continue;
+      // Advance scanner to at least TODAY (or keep if future)
+      if (scanner < now) {
+        while (scanner < now) {
+          scanner.setDate(scanner.getDate() + 7);
+        }
+      }
 
-        const targetIso = targetDate.toISOString();
+      // 3. Iterate while inside the 4-week window
+      while (scanner <= windowEnd) {
+        // Skip if strictly in past (safety check)
+        if (scanner < now) {
+          scanner.setDate(scanner.getDate() + 7);
+          continue;
+        }
 
-        // Check if occurrence already exists (same team, same type, same day/hour)
+        const targetIso = scanner.toISOString();
+
+        // Advance for next loop
+        scanner.setDate(scanner.getDate() + 7);
+
+        // Check if occurrence already exists
         const { data: existing } = await supabase
           .from('events')
           .select('id')
           .eq('team_id', team_id)
           .eq('type', template.type)
           .eq('date', targetIso)
-          // We check for ANY existence (even deleted) to respect manual deletions by the coach
           .maybeSingle();
 
         if (existing) continue;
@@ -55,7 +76,7 @@ async function ensureRecurringEvents(team_id) {
             visibility_type: template.visibility_type,
             group_id: template.group_id,
             coach_id: template.coach_id,
-            is_recurring: true,
+            is_recurring: false, // STOP RECURSION
             recurrence_pattern: 'WEEKLY'
           }])
           .select()
@@ -89,39 +110,29 @@ async function ensureRecurringEvents(team_id) {
 }
 
 /**
- * Automatically cleans up past events after Saturday 10:00 AM
+ * Automatically cleans up past events AND excess future events
  */
 async function performAutomaticCleanup(team_id) {
   try {
     const now = new Date();
-    const day = now.getDay(); // 0 (Sun) to 6 (Sat)
-    const hour = now.getHours();
-
-    // Condition: Saturday after 10:00 AM OR Sunday
-    const isSaturdayAfter10 = (day === 6 && hour >= 10);
-    const isSunday = (day === 0);
-
-    if (isSaturdayAfter10 || isSunday) {
+    // Always run cleanup temporarily to fix the 2027 bug
+    if (true) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      console.log(`[CLEANUP] Starting cleanup for team ${team_id}. Today is ${now.toISOString()}`);
-
       // 1. Soft delete events older than today
-      const { data: pastEvs, error: pastError } = await supabase
+      const { error: pastError } = await supabase
         .from('events')
         .update({ is_deleted: true })
         .eq('team_id', team_id)
         .lt('date', todayStart.toISOString())
-        .select('id, date');
+        .eq('is_deleted', false);
 
       if (pastError) console.error("Cleanup past error:", pastError);
-      else if (pastEvs?.length > 0) console.log(`[CLEANUP] Soft-deleted ${pastEvs.length} past events.`);
 
-      // 2. Aggressive Cleanup: Delete ANY future event that is beyond our 1-week/2-week window
-      // window end is roughly 10 days from now to be safe (covers next Sunday)
+      // 2. Aggressive Cleanup: Delete ANY future event that is beyond our 5-week window
       const windowEnd = new Date();
-      windowEnd.setDate(windowEnd.getDate() + 10);
+      windowEnd.setDate(windowEnd.getDate() + 35); // 5 weeks
       windowEnd.setHours(23, 59, 59, 999);
 
       const { data: futureEvs, error: futureError } = await supabase
@@ -129,10 +140,11 @@ async function performAutomaticCleanup(team_id) {
         .update({ is_deleted: true })
         .eq('team_id', team_id)
         .gt('date', windowEnd.toISOString())
-        .select('id, date');
+        .eq('is_deleted', false)
+        .select('id');
 
       if (futureError) console.error("Cleanup future error:", futureError);
-      else if (futureEvs?.length > 0) console.log(`[CLEANUP] Soft-deleted ${futureEvs.length} orphaned future events.`);
+      else if (futureEvs?.length > 0) console.log(`[CLEANUP] Soft-deleted ${futureEvs.length} distant future events.`);
     }
   } catch (err) {
     console.error("Error in performAutomaticCleanup:", err);

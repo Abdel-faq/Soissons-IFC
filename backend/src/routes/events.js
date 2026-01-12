@@ -9,31 +9,51 @@ const { requireAuth, supabase } = require('../middleware/auth');
  * Ensures recurring events are generated for the next 4 weeks
  * Uses the original template to project future dates, avoiding "chaining" logic.
  */
+/**
+ * Ensures recurring events are generated for the next 4 weeks
+ * Uses the original template to project future dates, avoiding "chaining" logic.
+ */
 async function ensureRecurringEvents(team_id) {
   try {
+    const now = new Date();
+    const todayIso = now.toISOString();
+
+    // OPTIMIZATION: Only fetch templates that are ACTIVE (not deleted)
+    // Or, if we must support past deleted templates, ensure we don't fetch thousands of future deleted ones.
+    // Logic: Fetch ALL templates that are (is_recurring=true) AND ( (is_deleted=false) OR (date < today) )
+    // This allows past original templates to work, but ignores the generated future deleted ones (the "ghosts")
     const { data: templates } = await supabase
       .from('events')
       .select('*, attendance(player_id, is_convoked)')
       .eq('team_id', team_id)
-      .eq('is_recurring', true);
+      .eq('is_recurring', true)
+      .or(`is_deleted.eq.false,date.lt.${todayIso}`);
 
     if (!templates || templates.length === 0) return;
 
-    const now = new Date();
     // 4 weeks window
     const windowEnd = new Date();
     windowEnd.setDate(windowEnd.getDate() + 28);
 
     for (const template of templates) {
-      // 1. FILTER: Ignore "ghost" templates (deleted events in the future)
+      // Double check: if it's deleted and in the future, SKIP IT.
+      // (The query .or() might still return some edges, so we filter safely in JS)
       const templateDate = new Date(template.date);
       if (template.is_deleted && templateDate > now) continue;
 
       // 2. Calculate target dates in the next 4 weeks
       let scanner = new Date(templateDate);
 
-      // Advance scanner to at least TODAY (or keep if future)
+      // Advance scanner to at least TODAY
       if (scanner < now) {
+        // Efficient scanning: advance by weeks strictly
+        // Calculate weeks to add: Math.ceil((now - scanner) / weekMillis)
+        const weekMillis = 7 * 24 * 60 * 60 * 1000;
+        const diff = now.getTime() - scanner.getTime();
+        const weeksToAdd = Math.ceil(diff / weekMillis);
+        // Be careful not to overshoot if today is the exact day
+        // Standard loop is safer for robustness against timezone edge cases, but limit iterations.
+        // We just do a while loop, it won't be infinite because we check < now.
         while (scanner < now) {
           scanner.setDate(scanner.getDate() + 7);
         }
@@ -144,7 +164,26 @@ async function performAutomaticCleanup(team_id) {
         .select('id');
 
       if (futureError) console.error("Cleanup future error:", futureError);
-      else if (futureEvs?.length > 0) console.log(`[CLEANUP] Soft-deleted ${futureEvs.length} distant future events.`);
+
+      // 3. STERILIZATION: Fix the "Zombie Template" issue.
+      // Any event in the future (next week+) that has is_recurring=true but shouldn't (created by bug)
+      // must be set to is_recurring=false.
+      // This is risky if we disable valid templates, but needed to stop the loop.
+      // Strategy: Disable recurrence for ALL events > 10 days from now. 
+      // Real templates are usually created once in the past. 
+      // User creates "Monday Practice" starting today. It repeats.
+      // The future instances should NOT be recurring.
+      const sterilizationDate = new Date();
+      sterilizationDate.setDate(sterilizationDate.getDate() + 10);
+
+      const { error: sterilizeError } = await supabase
+        .from('events')
+        .update({ is_recurring: false })
+        .eq('team_id', team_id)
+        .gt('date', sterilizationDate.toISOString())
+        .eq('is_recurring', true);
+
+      if (sterilizeError) console.error("Sterilization error:", sterilizeError);
     }
   } catch (err) {
     console.error("Error in performAutomaticCleanup:", err);

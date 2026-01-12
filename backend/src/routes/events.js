@@ -197,8 +197,14 @@ router.get('/', requireAuth, async (req, res) => {
     if (!team_id || team_id === 'null') return res.json([]);
 
     // Trigger maintenance tasks
-    await performAutomaticCleanup(team_id);
-    await ensureRecurringEvents(team_id);
+    // Trigger maintenance tasks safely
+    try {
+      await performAutomaticCleanup(team_id);
+    } catch (e) { console.error("Maintenance Cleanup failed:", e); }
+
+    try {
+      await ensureRecurringEvents(team_id);
+    } catch (e) { console.error("Maintenance Generation failed:", e); }
     let teamOwnerId = null;
     try {
       if (team_id && team_id !== 'null') {

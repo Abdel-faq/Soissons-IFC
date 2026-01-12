@@ -276,6 +276,9 @@ router.get('/', requireAuth, async (req, res) => {
       };
     });
 
+    const currentUserId = req.user.id;
+    const userRole = (req.user.role || '').toUpperCase();
+
     // Fetch user's players (children) to check convocations
     let userPlayerIds = [];
     if (userRole !== 'COACH' && userRole !== 'ADMIN') {
@@ -288,7 +291,10 @@ router.get('/', requireAuth, async (req, res) => {
 
     const filteredEvents = processedEvents.filter(ev => {
       const isTeamCoach = teamOwnerId && currentUserId && String(teamOwnerId) === String(currentUserId);
-      if (userRole === 'ADMIN' || isTeamCoach || ev.visibility_type === 'PUBLIC' || !ev.visibility_type) return true;
+      const isPublic = ev.visibility_type === 'PUBLIC' || !ev.visibility_type;
+
+      // Allow ADMIN and COACH (any coach) to see events.
+      if (userRole === 'ADMIN' || userRole === 'COACH' || isTeamCoach || isPublic) return true;
 
       // Private Event: Check if USER or their CHILDREN are convoked
       return ev.attendance && ev.attendance.some(a =>

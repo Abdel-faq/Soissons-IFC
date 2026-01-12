@@ -904,7 +904,7 @@ export default function Events() {
                                                 <Trash2 size={16} />
                                             </button>
 
-                                            {ev.is_recurring && (
+                                            {(ev.is_recurring || ev.recurrence_pattern) && (
                                                 <button
                                                     onClick={() => deleteEvent(ev.id, 'series')}
                                                     className="text-gray-300 hover:text-red-700 transition-colors flex items-center gap-1"

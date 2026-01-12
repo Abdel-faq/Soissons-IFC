@@ -310,11 +310,35 @@ export default function Events() {
         }));
     };
 
-    const deleteEvent = async (id) => {
-        if (!confirm('Voulez-vous supprimer cet événement ? (L\'historique sera conservé)')) return;
-        // Soft Deletion: update is_deleted = true
-        const { error } = await supabase.from('events').update({ is_deleted: true }).eq('id', id);
-        if (!error) fetchEvents();
+    const deleteEvent = async (id, mode = 'single') => {
+        if (!confirm(mode === 'series'
+            ? 'Êtes-vous sûr de vouloir supprimer cette séance ET toutes les suivantes ?'
+            : 'Voulez-vous supprimer cet événement ? (L\'historique sera conservé)')) return;
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events/${id}${mode === 'series' ? '?mode=series' : ''}`;
+            const response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur lors de la suppression");
+            }
+
+            fetchEvents();
+            alert(mode === 'series' ? 'Série supprimée' : 'Événement supprimé');
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        }
     };
 
 
@@ -772,7 +796,7 @@ export default function Events() {
                                         </span>
 
                                         {/* Team Ride Stats */}
-                                        {isMatch && convokedCount > 0 && (
+                                        {isMatch && ev.match_location === 'EXTERIEUR' && convokedCount > 0 && (
                                             <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1" title="Joueurs ayant un trajet">
                                                 🚗 {ridersCount} / {convokedCount} ont une voiture
                                             </span>
@@ -875,9 +899,21 @@ export default function Events() {
                                             >
                                                 <Edit2 size={16} />
                                             </button>
-                                            <button onClick={() => deleteEvent(ev.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Supprimer">
+
+                                            <button onClick={() => deleteEvent(ev.id, 'single')} className="text-gray-300 hover:text-red-500 transition-colors" title="Supprimer cet événement">
                                                 <Trash2 size={16} />
                                             </button>
+
+                                            {ev.is_recurring && (
+                                                <button
+                                                    onClick={() => deleteEvent(ev.id, 'series')}
+                                                    className="text-gray-300 hover:text-red-700 transition-colors flex items-center gap-1"
+                                                    title="Supprimer toute la série"
+                                                >
+                                                    <Trash2 size={16} className="text-red-900" />
+                                                    <span className="text-[10px] font-bold text-red-900 border border-red-200 bg-red-50 rounded px-1">SÉRIE</span>
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>

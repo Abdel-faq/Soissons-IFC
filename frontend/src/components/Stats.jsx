@@ -18,26 +18,24 @@ export default function Stats({ teamId }) {
         try {
             setLoading(true);
 
-            // 1. Total Players (count only 'PLAYER' role? or all members?)
-            // Let's count actual PLAYERS.
-            // We need to join profiles.
-            const { data: members, error: countError } = await supabase
+            // 1. Total Players
+            const { data: members } = await supabase
                 .from('team_members')
-                .select('user_id, profiles!inner(role)') // inner join to filter by role
-                .eq('team_id', teamId)
-                .eq('profiles.role', 'PLAYER');
+                .select('player_id')
+                .eq('team_id', teamId);
 
             const playerCount = members?.length || 0;
 
-            // 2. Attendance Stats (Last 3 Months)
+            // 2. Events (Last 3 Months)
             const threeMonthsAgo = new Date();
             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
             const { data: events } = await supabase
                 .from('events')
-                .select('id')
+                .select('id, visibility_type') // Need visibility for logic
                 .eq('team_id', teamId)
-                .gte('date', threeMonthsAgo.toISOString()) // Filter last 3 months
+                .gte('date', threeMonthsAgo.toISOString())
+                .eq('is_deleted', false)
                 .order('date', { ascending: false });
 
             let attendanceRate = 0;
@@ -45,18 +43,33 @@ export default function Stats({ teamId }) {
             let flopPlayerName = '-';
 
             if (events && events.length > 0) {
+                const eventMap = {};
+                events.forEach(e => eventMap[e.id] = e);
                 const eventIds = events.map(e => e.id);
-                // Fetch attendance AND profiles to filter roles
+
+                // Fetch attendance for these events
+                // Join on 'players' to get names
                 const { data: attendance } = await supabase
                     .from('attendance')
-                    .select('status, user_id, profiles!inner(full_name, role)')
+                    .select('event_id, status, is_convoked, player_id, players(full_name)')
                     .in('event_id', eventIds)
-                    .neq('profiles.role', 'COACH'); // Exclude Coaches explicitly
+                    .not('player_id', 'is', null); // Only players
 
                 if (attendance && attendance.length > 0) {
-                    // Filter meaningful statuses (ignore UNKNOWN if any)
-                    const validAttendance = attendance.filter(a => ['PRESENT', 'ABSENT', 'LATE', 'MALADE', 'BLESSE'].includes(a.status));
-                    const presentCount = validAttendance.filter(a => a.status === 'PRESENT').length;
+                    // Filter meaningful statuses AND valid visibility
+                    const validAttendance = attendance.filter(a => {
+                        const evt = eventMap[a.event_id];
+                        if (!evt) return false;
+
+                        // [LOGIC] Logic: If Private + Not Convoked -> Ignore completely
+                        if (evt.visibility_type === 'PRIVATE' && !a.is_convoked) {
+                            return false;
+                        }
+
+                        return ['PRESENT', 'ABSENT', 'RETARD', 'MALADE', 'BLESSE'].includes(a.status);
+                    });
+
+                    const presentCount = validAttendance.filter(a => a.status === 'PRESENT' || a.status === 'RETARD').length;
 
                     if (validAttendance.length > 0) {
                         attendanceRate = Math.round((presentCount / validAttendance.length) * 100);
@@ -67,10 +80,14 @@ export default function Stats({ teamId }) {
                     const absenceCounts = {};
 
                     validAttendance.forEach(a => {
-                        const name = a.profiles?.full_name || 'Inconnu';
+                        const name = a.players?.full_name || 'Inconnu';
+
                         if (a.status === 'PRESENT') {
                             presenceCounts[name] = (presenceCounts[name] || 0) + 1;
-                        } else if (['ABSENT', 'LATE'].includes(a.status)) { // Malade/Blessé not counted as 'Absent' for "Flop" logic? Or should they? strict absence.
+                        }
+                        // "Plus Absent" logic: Strictly ABSENT (red) or include Retard?
+                        // Usually "Plus Absent" means ABSENT.
+                        else if (a.status === 'ABSENT') {
                             absenceCounts[name] = (absenceCounts[name] || 0) + 1;
                         }
                     });

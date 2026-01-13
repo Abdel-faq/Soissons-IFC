@@ -141,34 +141,12 @@ async function performAutomaticCleanup(team_id) {
       todayStart.setHours(0, 0, 0, 0);
 
       // 1. Soft delete events older than today
-      // [MODIFIED] DO NOT DELETE PAST EVENTS. We want to keep history.
-      // Instead, let's explicitely RESTORE events from the current season (since Aug 2025) 
-      // ensuring that "yesterday's" event (12/01) comes back if it was auto-deleted.
-      // We only restore if they were deleted by the system (hard to know, but safe to restore all for now or check updated_at?)
-      // Simpler: Just restore everything > 2025-08-01. If user deleted manually, they can delete again.
-      // Or better: Restore only the specific one requested or last 30 days.
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // [MODIFIED] We do NOT delete past events anymore to preserve history.
+      // We also do not auto-restore anymore, to respect manual deletions.
 
-      const { error: restoreError } = await supabase
-        .from('events')
-        .update({ is_deleted: false })
-        .eq('team_id', team_id)
-        .gte('date', thirtyDaysAgo.toISOString()) // Restore last 30 days
-        .lte('date', todayStart.toISOString())    // Only past events
-        .eq('is_deleted', true);
-
-      if (restoreError) console.error("Restoration error:", restoreError);
-      else console.log("Auto-restored past events for history.");
-
-      /*
-      const { error: pastError } = await supabase
-        .from('events')
-        .update({ is_deleted: true })
-        .eq('team_id', team_id)
-        .lt('date', todayStart.toISOString())
-        .eq('is_deleted', false);
-      if (pastError) console.error("Cleanup past error:", pastError);
+      /* 
+         Previous logic removed. 
+         Past events (date < today) remain is_deleted=false so they appear in history (range=season).
       */
 
       // 2. Aggressive Cleanup: Delete ANY future event that is beyond our 5-week window
@@ -267,12 +245,14 @@ router.get('/', requireAuth, async (req, res) => {
       .eq('is_deleted', false);
 
     if (range === 'season') {
-      // Fetch from start of season (e.g., August 1st of previous year if strictly needed, or just arbitrary past)
-      // For now, let's say last 6 months
+      // Fetch from start of season
       const seasonStart = new Date();
       seasonStart.setMonth(seasonStart.getMonth() - 6);
-      query = query.gte('date', seasonStart.toISOString());
-      // No upper limit (show future too)
+
+      // [MODIFIED] User wants History + Current Week. NO future beyond current week.
+      query = query
+        .gte('date', seasonStart.toISOString())
+        .lte('date', sunday.toISOString()); // Same upper limit as default view
     } else {
       // DEFAULT: Current Week
       query = query

@@ -254,17 +254,33 @@ router.get('/', requireAuth, async (req, res) => {
         .gte('date', seasonStart.toISOString())
         .lte('date', sunday.toISOString()); // Same upper limit as default view
     } else {
-      // DEFAULT: Current Week
-      query = query
-        .gte('date', monday.toISOString())
-        .lte('date', sunday.toISOString());
+      // DEFAULT: Events View
+      // 1. Start from TODAY (00:00), ignore yesterday
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      query = query.gte('date', todayStart.toISOString());
+      // we remove the .lte(sunday) here because MATCHES can be in future
     }
 
-    const { data: events, error } = await query.order('date', { ascending: true });
+    const { data: rawEvents, error } = await query.order('date', { ascending: true });
 
     if (error) {
       console.error("GET Events error:", error);
       throw error;
+    }
+
+    let events = rawEvents || [];
+
+    // [MODIFIED] Filter logic for Default View (NOT season)
+    // - Trainings: Cap at Sunday 23:59
+    // - Matches: Show all future
+    if (range !== 'season') {
+      events = events.filter(ev => {
+        if (ev.type === 'MATCH') return true; // Keep all matches
+        const evDate = new Date(ev.date);
+        return evDate <= sunday; // Keep trainings only if this week
+      });
     }
 
     if (!events || events.length === 0) return res.json([]);

@@ -493,8 +493,21 @@ export default function Team() {
                         <tbody>
                             {members.filter(m => isCoach || m.players?.parent_id === user?.id).map(m => {
                                 const playerAtt = attendanceMatrix[m.player_id] || {};
-                                const presentCount = historyEvents.filter(ev => playerAtt[ev.id] === 'PRESENT' || playerAtt[ev.id] === 'RETARD').length;
-                                const ratio = historyEvents.length > 0 ? Math.round((presentCount / historyEvents.length) * 100) : 0;
+
+                                // [MODIFIED] STATS CALCULATION
+                                // Only count events where the player is actually concerned.
+                                // If event is PRIVATE and player NOT convoked -> Skip from total.
+                                const relevantEvents = historyEvents.filter(ev => {
+                                    if (ev.visibility_type === 'PRIVATE') {
+                                        // Check convocation in event.attendance list (source of truth for convocation)
+                                        const isConvoked = ev.attendance?.some(a => a.player_id === m.player_id && a.is_convoked);
+                                        return isConvoked;
+                                    }
+                                    return true; // Public events always count
+                                });
+
+                                const presentCount = relevantEvents.filter(ev => playerAtt[ev.id] === 'PRESENT' || playerAtt[ev.id] === 'RETARD').length;
+                                const ratio = relevantEvents.length > 0 ? Math.round((presentCount / relevantEvents.length) * 100) : 0;
 
                                 return (
                                     <tr key={m.player_id} className="border-b hover:bg-gray-50">
@@ -509,6 +522,14 @@ export default function Team() {
                                             if (status === 'MALADE') { color = "text-purple-500"; label = "M"; }
                                             if (status === 'BLESSE') { color = "text-orange-500"; label = "B"; }
                                             if (status === 'RETARD') { color = "text-yellow-600 font-bold"; label = "R"; }
+
+                                            // [MODIFIED] Check if irrelevant for this player (Gray Cell)
+                                            const isConvoked = ev.attendance?.some(a => a.player_id === m.player_id && a.is_convoked);
+                                            const isIrrelevant = ev.visibility_type === 'PRIVATE' && !isConvoked;
+
+                                            if (isIrrelevant) {
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-100"></td>;
+                                            }
 
                                             return (
                                                 <td key={ev.id} className="p-2 border-r text-center">
@@ -535,7 +556,7 @@ export default function Team() {
                                             <div className={`
                                                 px-2 py-1 rounded text-[10px]
                                                 ${ratio >= 80 ? 'bg-green-100 text-green-700' : ratio >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
-                                            `}>
+                                            `} title={`${presentCount} / ${relevantEvents.length}`}>
                                                 {ratio}%
                                             </div>
                                         </td>

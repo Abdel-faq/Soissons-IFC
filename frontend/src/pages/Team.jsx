@@ -107,7 +107,7 @@ export default function Team() {
             const session = sessionData?.session;
             if (!session) return;
 
-            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${teamId}`;
+            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${teamId}&range=season`;
             const response = await fetch(apiUrl, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });

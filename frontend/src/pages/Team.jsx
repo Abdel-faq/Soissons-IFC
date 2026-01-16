@@ -93,7 +93,12 @@ export default function Team() {
     const fetchMembers = async (teamId) => {
         const { data: teamMembers, error } = await supabase
             .from('team_members')
-            .select('player_id, players(id, full_name, position, parent_id)')
+            .select(`
+                player_id, 
+                user_id,
+                players(id, full_name, position, parent_id),
+                profiles:user_id(id, full_name, role)
+            `)
             .eq('team_id', teamId);
 
         if (!error) setMembers(teamMembers || []);
@@ -142,7 +147,7 @@ export default function Team() {
         }
     };
 
-    const handleAttendanceUpdate = async (playerId, eventId, status) => {
+    const handleAttendanceUpdate = async (playerId, eventId, status, memberUserId) => {
         const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id;
         const targetEvent = historyEvents.find(e => e.id === eventId);
         const isFuture = targetEvent && new Date(targetEvent.date) > new Date();
@@ -153,13 +158,23 @@ export default function Team() {
         if (!isUserCoach && (!isParent || !isFuture)) return;
 
         try {
-            const { error } = await supabase.from('attendance').upsert({
+            const upsertData = {
                 event_id: eventId,
-                player_id: playerId,
                 status: status,
                 is_locked: isUserCoach,
                 updated_at: new Date()
-            }, { onConflict: 'event_id, player_id' });
+            };
+
+            let onConflictStr = 'event_id, player_id';
+
+            if (playerId) {
+                upsertData.player_id = playerId;
+            } else {
+                upsertData.user_id = memberUserId || user.id;
+                onConflictStr = 'event_id, user_id';
+            }
+
+            const { error } = await supabase.from('attendance').upsert(upsertData, { onConflict: onConflictStr });
             if (error) throw error;
             fetchAttendanceHistory(team.id);
         } catch (err) {
@@ -440,12 +455,17 @@ export default function Team() {
                     <ul>
                         {members.length === 0 && <li className="p-4 text-gray-400 italic">Aucun membre</li>}
                         {members.map(m => (
-                            <li key={m.player_id} className="p-4 border-b last:border-0 flex justify-between items-center">
+                            <li key={m.player_id || m.user_id} className="p-4 border-b last:border-0 flex justify-between items-center">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
-                                        {m.players?.full_name?.[0] || '?'}
+                                        {m.players?.full_name?.[0] || m.profiles?.full_name?.[0] || '?'}
                                     </div>
-                                    <span>{m.players?.full_name || 'Joueur'} <span className="text-xs text-gray-400">({m.players?.position || 'Joueur'})</span></span>
+                                    <span>
+                                        {m.players?.full_name || m.profiles?.full_name || 'Membre'}
+                                        <span className="text-xs text-gray-400">
+                                            ({m.player_id ? (m.players?.position || 'Joueur') : (m.profiles?.role === 'COACH' ? 'Coach' : 'Administrateur')})
+                                        </span>
+                                    </span>
                                 </div>
                                 {isCoach && (
                                     <button
@@ -510,8 +530,8 @@ export default function Team() {
                                 const ratio = relevantEvents.length > 0 ? Math.round((presentCount / relevantEvents.length) * 100) : 0;
 
                                 return (
-                                    <tr key={m.player_id} className="border-b hover:bg-gray-50">
-                                        <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || 'Joueur'}</td>
+                                    <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
+                                        <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
                                         {historyEvents.map(ev => {
                                             const status = playerAtt[ev.id];
                                             let color = "text-gray-300";
@@ -537,7 +557,7 @@ export default function Team() {
                                                         <select
                                                             className={`bg-transparent outline-none ${color}`}
                                                             value={status || ''}
-                                                            onChange={(e) => handleAttendanceUpdate(m.player_id, ev.id, e.target.value)}
+                                                            onChange={(e) => handleAttendanceUpdate(m.player_id, ev.id, e.target.value, m.user_id)}
                                                         >
                                                             <option value="">-</option>
                                                             <option value="PRESENT">P</option>

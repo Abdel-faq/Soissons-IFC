@@ -54,44 +54,62 @@ export default function Dashboard() {
 
                 // 1. Fetch teams where I am the coach
                 const { data: ownedTeams } = await supabase.from('teams').select('*').eq('coach_id', user.id);
-                if (ownedTeams) allMyTeams = [...ownedTeams];
 
-                // 2. Fetch teams for each child
-                let memberships = [];
+                // 2. Fetch teams where I am a member (can be as a coach or through children)
+                const { data: userMemberships } = await supabase
+                    .from('team_members')
+                    .select('team_id, teams(*)')
+                    .eq('user_id', user.id);
+
+                const membershipTeams = (userMemberships || []).map(m => m.teams).filter(Boolean);
+
+                // 3. Fetch memberships for each child
+                let childrenMemberships = [];
                 if (childrenData && childrenData.length > 0) {
                     const childIds = childrenData.map(c => c.id);
                     const { data: mData } = await supabase
                         .from('team_members')
                         .select('team_id, player_id, teams(*)')
                         .in('player_id', childIds);
-                    memberships = mData || [];
+                    childrenMemberships = mData || [];
                 }
 
-                // 3. Build Contexts
+                // 4. Build Contexts
                 const availableContexts = [];
 
-                // Coach Contexts
-                if (ownedTeams) {
-                    ownedTeams.forEach(t => {
-                        availableContexts.push({
-                            id: `coach-${t.id}`,
-                            teamId: t.id,
-                            teamName: t.name,
-                            category: t.category,
-                            role: 'COACH',
-                            inviteCode: t.invite_code,
-                            label: `👨‍🏫 Coach - ${t.name} (${t.category || ''})`
-                        });
+                // Combine owned teams and membership teams (avoiding duplicates)
+                const teamMap = new Map();
+                (ownedTeams || []).forEach(t => teamMap.set(t.id, { ...t, role: 'COACH' }));
+
+                // If I'm a member and my profile role is COACH, I'm a coach in that team too
+                if (userRole === 'COACH') {
+                    membershipTeams.forEach(t => {
+                        if (!teamMap.has(t.id)) {
+                            teamMap.set(t.id, { ...t, role: 'COACH' });
+                        }
                     });
                 }
+
+                // Convert map to contexts
+                teamMap.forEach(t => {
+                    availableContexts.push({
+                        id: `coach-${t.id}`,
+                        teamId: t.id,
+                        teamName: t.name,
+                        category: t.category,
+                        role: 'COACH',
+                        inviteCode: t.invite_code,
+                        label: `👨‍🏫 Coach - ${t.name} (${t.category || ''})`
+                    });
+                });
 
                 // Player Contexts (Children)
                 if (childrenData) {
                     childrenData.forEach(child => {
-                        const childMemberships = memberships.filter(m => m.player_id === child.id);
+                        const childMembershipsList = childrenMemberships.filter(m => m.player_id === child.id);
 
-                        if (childMemberships.length > 0) {
-                            childMemberships.forEach(m => {
+                        if (childMembershipsList.length > 0) {
+                            childMembershipsList.forEach(m => {
                                 if (m.teams) {
                                     availableContexts.push({
                                         id: `player-${child.id}-${m.team_id}`,

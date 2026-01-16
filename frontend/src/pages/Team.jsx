@@ -36,6 +36,14 @@ export default function Team() {
             if (!currentUser) throw new Error("No user found");
             setUser(currentUser);
 
+            // Fetch Profile
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', currentUser.id)
+                .maybeSingle();
+            setProfile(profileData);
+
             // Read Context
             const savedCtx = localStorage.getItem('sb-active-context');
             let context = null;
@@ -49,18 +57,36 @@ export default function Team() {
                 const activeRole = context.role || 'PLAYER';
                 setIsCoach(activeRole === 'COACH');
 
-                // 1. Fetch ALL teams where user is coach (to allow switching)
+                // 1. Fetch ALL teams where user has coach rights (owner OR member coach)
                 if (activeRole === 'COACH') {
+                    // Fetch owned teams
                     const { data: ownedTeams } = await supabase
                         .from('teams')
                         .select('*')
                         .eq('coach_id', currentUser.id);
-                    setTeams(ownedTeams || []);
 
-                    // Use context team if present, else first owned team
-                    const targetTeamId = context.teamId || ownedTeams?.[0]?.id;
+                    // Fetch membership teams
+                    const { data: userMemberships } = await supabase
+                        .from('team_members')
+                        .select('team_id, teams(*)')
+                        .eq('user_id', currentUser.id);
+
+                    const membershipTeams = (userMemberships || []).map(m => m.teams).filter(Boolean);
+
+                    // Merge and unique
+                    const teamMap = new Map();
+                    (ownedTeams || []).forEach(t => teamMap.set(t.id, t));
+                    membershipTeams.forEach(t => {
+                        if (!teamMap.has(t.id)) teamMap.set(t.id, t);
+                    });
+
+                    const allCoachTeams = Array.from(teamMap.values());
+                    setTeams(allCoachTeams);
+
+                    // Use context team if present, else first team
+                    const targetTeamId = context.teamId || allCoachTeams?.[0]?.id;
                     if (targetTeamId) {
-                        const current = (ownedTeams || []).find(t => t.id === targetTeamId);
+                        const current = allCoachTeams.find(t => t.id === targetTeamId);
                         if (current) {
                             setTeam(current);
                             fetchMembers(current.id);

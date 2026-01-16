@@ -317,7 +317,7 @@ export default function Dashboard() {
                         </span>
                     </h1>
                     <p className="text-gray-500 font-medium font-bold">
-                        {team?.teamName ? `Saison ${team.teamName} — ` : ''}SOISSONS IFC — Espace {isAdmin ? 'Administration' : 'Sportif'}
+                        {team?.teamName ? `Saison ${team.teamName}` : 'SOISSONS IFC'}
                     </p>
                 </div>
 

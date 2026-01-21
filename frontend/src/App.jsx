@@ -30,10 +30,11 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user) {
-        window.OneSignalDeferred.push(Object.assign(async (OneSignal) => {
+      if (session?.user?.id) {
+        window.OneSignalDeferred.push(async (OneSignal) => {
           await OneSignal.login(session.user.id);
-        }));
+          console.log("OneSignal logged in for:", session.user.id);
+        });
       }
       setLoading(false);
     });
@@ -42,9 +43,10 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session?.user) {
+      if (session?.user?.id) {
         window.OneSignalDeferred.push(async (OneSignal) => {
           await OneSignal.login(session.user.id);
+          console.log("OneSignal auth change login:", session.user.id);
         });
       } else {
         window.OneSignalDeferred.push(async (OneSignal) => {

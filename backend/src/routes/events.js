@@ -651,11 +651,15 @@ router.post('/:id/reminders', requireAuth, async (req, res) => {
       data: { eventId: id }
     };
 
+    if (!process.env.ONESIGNAL_REST_API_KEY) {
+      throw new Error("La variable ONESIGNAL_REST_API_KEY n'est pas configurée dans Vercel.");
+    }
+
     const responseOneSignal = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Authorization': `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
+        'Authorization': `Key ${process.env.ONESIGNAL_REST_API_KEY}`
       },
       body: JSON.stringify(notificationBody)
     });

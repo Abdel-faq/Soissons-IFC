@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { User, Save, Phone, Mail, Camera } from 'lucide-react';
+import { User, Save, Phone, Mail, Camera, Bell, BellOff } from 'lucide-react';
 
 export default function Profile() {
     const [loading, setLoading] = useState(true);
@@ -14,12 +14,47 @@ export default function Profile() {
         // Schema checks: profiles table has: id, email, full_name, role, avatar_url. 
         // Let's add phone naturally to the state, but if it fails to save, we know why. 
         // Actually, let's assume we stick to full_name and avatar_url for now, and maybe role display.
-        avatar_url: ''
+        avatar_url: '',
+        push_supported: false,
+        is_subscribed: false
     });
 
     useEffect(() => {
         getProfile();
+        checkNotificationStatus();
     }, []);
+
+    const checkNotificationStatus = () => {
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        window.OneSignalDeferred.push(async (OneSignal) => {
+            const supported = OneSignal.Notifications.isPushSupported();
+            const subscribed = OneSignal.User.PushSubscription.optedIn;
+            setProfile(prev => ({ ...prev, push_supported: supported, is_subscribed: subscribed }));
+        });
+    };
+
+    const handleSubscription = async () => {
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        window.OneSignalDeferred.push(async (OneSignal) => {
+            try {
+                if (!OneSignal.Notifications.isPushSupported()) {
+                    alert("Les notifications ne sont pas supportées sur ce navigateur ou cet appareil. (iOS 16.4+ requis sur iPhone)");
+                    return;
+                }
+
+                if (OneSignal.User.PushSubscription.optedIn) {
+                    await OneSignal.User.PushSubscription.optOut();
+                    alert("Vous avez désactivé les notifications.");
+                } else {
+                    await OneSignal.Notifications.requestPermission();
+                    alert("Demande d'autorisation envoyée. Vérifiez les réglages de votre téléphone si rien ne s'affiche.");
+                }
+                checkNotificationStatus();
+            } catch (err) {
+                alert("Erreur: " + err.message);
+            }
+        });
+    };
 
     const getProfile = async () => {
         try {
@@ -272,6 +307,38 @@ export default function Profile() {
                         </button>
                     </div>
                 </form>
+            </div>
+
+            {/* NOTIFICATIONS SECTION */}
+            <div className="bg-white p-8 rounded-lg shadow-md border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Bell className="text-indigo-600" size={20} /> Notifications
+                </h3>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
+                        <div>
+                            <p className="font-medium">État des notifications</p>
+                            <p className="text-xs text-gray-500">
+                                {profile.push_supported
+                                    ? (profile.is_subscribed ? "Activées" : "Désactivées")
+                                    : "Non supportées sur cet appareil"}
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleSubscription}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${profile.is_subscribed
+                                    ? "bg-red-50 text-red-600 hover:bg-red-100"
+                                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                                }`}
+                        >
+                            {profile.is_subscribed ? (
+                                <span className="flex items-center gap-2"><BellOff size={16} /> Désactiver</span>
+                            ) : (
+                                <span className="flex items-center gap-2"><Bell size={16} /> Activer</span>
+                            )}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div className="p-4 bg-yellow-50 text-yellow-800 rounded-md border border-yellow-200 text-sm">

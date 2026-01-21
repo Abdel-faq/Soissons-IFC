@@ -23,7 +23,7 @@ export default function App() {
         appId: "49f496fd-5137-4256-a3ad-26333b3fb56d",
         safari_web_id: "web.onesignal.auto.0860f031-816f-4b4e-9724-08fcd0b320db",
         notifyButton: {
-          enable: true,
+          enable: false,
         },
       });
     });

@@ -600,6 +600,87 @@ router.post('/:id/convocations', requireAuth, async (req, res) => {
   }
 });
 
+// Trigger Reminders for Non-Responders
+router.post('/:id/reminders', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
+    const { id } = req.params;
+
+    // 1. Identify Target Players: Convoked AND (Status is NULL or INCONNU or UNKNOWN)
+    const { data: targets, error } = await supabase
+      .from('attendance')
+      .select(`
+        player_id,
+        status,
+        players!inner (
+          id,
+          first_name,
+          parent_id
+        )
+      `)
+      .eq('event_id', id)
+      .eq('is_convoked', true)
+      .or('status.eq.INCONNU,status.eq.UNKNOWN,status.is.null');
+
+    if (error) throw error;
+
+    if (!targets || targets.length === 0) {
+      return res.json({ message: 'Tous les joueurs convoqués ont déjà répondu !', count: 0 });
+    }
+
+    // 2. Extract Parent IDs to notify
+    const parentIds = [...new Set(targets.map(t => t.players?.parent_id).filter(Boolean))];
+
+    if (parentIds.length === 0) {
+      return res.json({ message: 'Aucun parent trouvé pour les joueurs non-répondants.', count: 0 });
+    }
+
+    // 4. SEND ONESIGNAL NOTIFICATIONS
+    // We target parents by their Supabase IDs (which we set as external_ids in OneSignal)
+    const notificationBody = {
+      app_id: process.env.ONESIGNAL_APP_ID,
+      include_aliases: {
+        external_id: parentIds
+      },
+      target_channel: "push",
+      headings: { en: "Action Requise : Présence Événement", fr: "Action Requise : Présence Événement" },
+      contents: {
+        en: "Don't forget to indicate attendance for the upcoming event!",
+        fr: "N'oubliez pas d'indiquer la présence pour l'événement à venir !"
+      },
+      data: { eventId: id }
+    };
+
+    const responseOneSignal = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Authorization': `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
+      },
+      body: JSON.stringify(notificationBody)
+    });
+
+    const onesignalData = await responseOneSignal.json();
+
+    if (!responseOneSignal.ok) {
+      console.error("OneSignal Error:", onesignalData);
+      throw new Error(onesignalData.errors?.[0] || "Erreur OneSignal");
+    }
+
+    // 5. Log actions or return success
+    res.json({
+      message: `Rappel envoyé à ${parentIds.length} parents (${targets.length} joueurs en attente).`,
+      count: parentIds.length,
+      onesignal_id: onesignalData.id,
+      details: targets.map(t => t.players?.first_name)
+    });
+
+  } catch (err) {
+    console.error("Reminder error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update event
 router.put('/:id', requireAuth, async (req, res) => {
   try {

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Calendar, MapPin, Clock, Plus, Trash2, Edit2, Users, X } from 'lucide-react';
+import { Calendar, MapPin, Clock, Plus, Trash2, Edit2, Users, X, Bell } from 'lucide-react';
 import EventCarpooling from '../components/EventCarpooling';
 
 export default function Events() {
@@ -336,6 +336,30 @@ export default function Events() {
 
             fetchEvents();
             alert(mode === 'series' ? 'Série supprimée' : 'Événement supprimé');
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        }
+    };
+
+    const sendReminders = async (eventId) => {
+        if (!confirm("Envoyer une notification de rappel aux parents des joueurs n'ayant pas encore répondu (INCONNU) ?")) return;
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/reminders`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Erreur d'envoi");
+
+            alert(data.message);
         } catch (err) {
             alert("Erreur: " + err.message);
         }
@@ -898,6 +922,14 @@ export default function Events() {
                                                 title="Modifier"
                                             >
                                                 <Edit2 size={16} />
+                                            </button>
+
+                                            <button
+                                                onClick={() => sendReminders(ev.id)}
+                                                className="text-gray-300 hover:text-amber-500 transition-colors"
+                                                title="Relancer les non-répondants (Notification)"
+                                            >
+                                                <Bell size={16} />
                                             </button>
 
                                             <button onClick={() => deleteEvent(ev.id, 'single')} className="text-gray-300 hover:text-red-500 transition-colors" title="Supprimer cet événement">

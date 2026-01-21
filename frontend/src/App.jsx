@@ -16,8 +16,25 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Initialize OneSignal (Web Push)
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async (OneSignal) => {
+      await OneSignal.init({
+        appId: "49f496fd-5137-4256-a3ad-26333b3fb56d",
+        safari_web_id: "web.onesignal.auto.0860f031-816f-4b4e-9724-08fcd0b320db",
+        notifyButton: {
+          enable: true,
+        },
+      });
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        window.OneSignalDeferred.push(Object.assign(async (OneSignal) => {
+          await OneSignal.login(session.user.id);
+        }));
+      }
       setLoading(false);
     });
 
@@ -25,6 +42,15 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) {
+        window.OneSignalDeferred.push(async (OneSignal) => {
+          await OneSignal.login(session.user.id);
+        });
+      } else {
+        window.OneSignalDeferred.push(async (OneSignal) => {
+          await OneSignal.logout();
+        });
+      }
     });
 
     return () => subscription.unsubscribe();

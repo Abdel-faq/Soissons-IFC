@@ -638,7 +638,7 @@ router.post('/:id/reminders', requireAuth, async (req, res) => {
     // 4. SEND ONESIGNAL NOTIFICATIONS
     // We target parents by their Supabase IDs (which we set as external_ids in OneSignal)
     const notificationBody = {
-      app_id: process.env.ONESIGNAL_APP_ID,
+      app_id: process.env.ONESIGNAL_APP_ID || "49f496fd-5137-4256-a3ad-26333b3fb56d",
       include_aliases: {
         external_id: parentIds
       },

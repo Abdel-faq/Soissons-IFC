@@ -651,6 +651,7 @@ router.post('/:id/reminders', requireAuth, async (req, res) => {
       data: { eventId: id }
     };
 
+    // Verify environment variables are loaded
     if (!process.env.ONESIGNAL_REST_API_KEY) {
       throw new Error("La variable ONESIGNAL_REST_API_KEY n'est pas configurée dans Vercel.");
     }

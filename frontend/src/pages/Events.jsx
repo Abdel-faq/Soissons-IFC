@@ -413,8 +413,9 @@ export default function Events() {
         // Fetch user_id AND player_id to handle both types of members
         const { data: attendanceData, error: attError } = await supabase
             .from('attendance')
-            .select('event_id, user_id, player_id, status, is_convoked')
-            .in('event_id', eventIds);
+            .select('event_id, user_id, player_id, status, is_convoked, updated_at')
+            .in('event_id', eventIds)
+            .order('updated_at', { ascending: true }); // Important: older records processed first, newer ones overwrite
 
         if (attError) {
             console.error(attError);
@@ -459,8 +460,9 @@ export default function Events() {
             if (!availabilityMap[row.event_id]) availabilityMap[row.event_id] = {};
             availabilityMap[row.event_id][entityId] = row.status;
 
-            if (!convocationsMap[row.event_id]) convocationsMap[row.event_id] = {};
-            if (row.is_convoked) convocationsMap[row.event_id][entityId] = true;
+            if (row.is_convoked !== undefined) {
+                convocationsMap[row.event_id][entityId] = !!row.is_convoked;
+            }
         });
 
         setMemberAvailability(availabilityMap);

@@ -21,61 +21,56 @@ export default function Team() {
     const [joinCode, setJoinCode] = useState('');
 
     const CATEGORIES = [
-        'Baby Foot', 'U6', 'U7', 'U8', 'U9', 'U10', 'U11', 'U12', 'U13', 'U14',
-        'U15', 'U16', 'U17', 'U18', 'Senior A', 'Senior B', 'Senior C', 'Féminine', 'Vétéran'
+        'U6 Soissons IFC', 'U7 Soissons IFC', 'U8 Soissons IFC', 'U9 Soissons IFC', 'U10 Soissons IFC',
+        'U11 Soissons IFC', 'U12 Soissons IFC', 'U13 Soissons IFC', 'U14 Soissons IFC', 'U15 Soissons IFC',
+        'U16 Soissons IFC', 'U17 Soissons IFC', 'U18 Soissons IFC', 'U19 Soissons IFC',
+        'Senior A', 'Senior B', 'Senior C', 'Coupe SENIOR A', 'Vétérans Soissons IFC', 'Féminine'
     ];
 
     const FFF_MAPPING = {
-        'U13': [
-            { label: 'U13-U12 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_13' },
-            { label: 'U13-U12 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_19' }
-        ],
-        'U12': [
-            { label: 'U13-U12 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_13' },
-            { label: 'U13-U12 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_19' }
-        ],
-        'U11': [
-            { label: 'Football d\'animation 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_FA_20' }
-        ],
-        'U15': [
-            { label: 'U15-U14 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_5' },
-            { label: 'U15-U14 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_11' },
-            { label: 'U15-U14 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_6' },
-            { label: 'U15-U14 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_24' }
-        ],
-        'U14': [
-            { label: 'U15-U14 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_5' },
-            { label: 'U15-U14 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_11' },
-            { label: 'U15-U14 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_6' },
-            { label: 'U15-U14 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_24' }
-        ],
-        'U17': [
-            { label: 'U17-U16 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_3' },
-            { label: 'U17-U16 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_4' },
-            { label: 'U17-U16 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_12' },
-            { label: 'U17-U16 30', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_26' }
-        ],
-        'U16': [
-            { label: 'U17-U16 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_3' },
-            { label: 'U17-U16 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_4' },
-            { label: 'U17-U16 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_12' },
-            { label: 'U17-U16 30', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_26' }
-        ],
-        'U18': [
-            { label: 'U19-U18 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U19_7' }
-        ],
         'Senior A': [
-            { label: 'Senior 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_2' }
+            { label: 'Senior 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_1' }
         ],
         'Senior B': [
-            { label: 'Senior 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_8' }
+            { label: 'Senior 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_2' }
         ],
         'Senior C': [
-            { label: 'Senior 3', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_18' }
+            { label: 'Senior 3', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_8' }
         ],
-        'Féminine': [
-            { label: 'Féminine U18-U16', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U18F_17' },
-            { label: 'Féminine U15-U14', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15F_9' }
+        'Coupe SENIOR A': [
+            { label: 'Senior 85', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_18' }
+        ],
+        'U19 Soissons IFC': [
+            { label: 'U19 - U18 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U19_7' }
+        ],
+        'U17 Soissons IFC': [
+            { label: 'U17 - U16 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_3' }
+        ],
+        'U16 Soissons IFC': [
+            { label: 'U17 - U16 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_4' },
+            { label: 'U17 - U16 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_12' }
+        ],
+        'U15 Soissons IFC': [
+            { label: 'U17 - U16 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_12' },
+            { label: 'U15 - U14 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_5' },
+            { label: 'U15 - U14 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_11' },
+            { label: 'U15 - U14 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_24' }
+        ],
+        'U14 Soissons IFC': [
+            { label: 'U15 - U14 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_6' },
+            { label: 'U15 - U14 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_11' }
+        ],
+        'U13 Soissons IFC': [
+            { label: 'U13 - U12 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_13' }
+        ],
+        'U12 Soissons IFC': [
+            { label: 'U13 - U12 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_19' }
+        ],
+        'U11 Soissons IFC': [
+            { label: 'Football d\'animation 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_FA_20' }
+        ],
+        'Vétérans Soissons IFC': [
+            { label: 'Foot Loisir 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_FL_10' }
         ]
     };
 

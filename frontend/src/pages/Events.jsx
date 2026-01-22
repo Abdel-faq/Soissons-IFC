@@ -738,11 +738,9 @@ export default function Events() {
                     const isConvoked = ev.attendance?.some(a => a.user_id === user.id && a.is_convoked);
 
                     // Statistics (Coach only)
+                    const memberIds = new Set(members.map(m => String(m.id)));
                     let stats = null;
                     if (isCoach) {
-                        // Use aggregated convocations map if available AND has content (more reliable for Coach view)
-                        // otherwise fallback to event.attendance (ensure to filter only valid player IDs)
-                        const memberIds = new Set(members.map(m => String(m.id)));
                         let convokedIds = [];
 
                         if (convocations[ev.id]) {
@@ -763,27 +761,30 @@ export default function Events() {
 
                         const totalConvoked = convokedIds.length;
 
-                        if (totalConvoked > 0) {
-                            const respondedCount = convokedIds.filter(uid => {
-                                const s = memberAvailability[ev.id]?.[uid];
-                                return s && s !== 'UNKNOWN' && s !== 'INCONNU';
-                            }).length;
+                        const respondedIds = new Set(convokedIds.filter(uid => {
+                            const s = memberAvailability[ev.id]?.[uid];
+                            return s && s !== 'UNKNOWN' && s !== 'INCONNU';
+                        }));
 
-                            const validCount = convokedIds.filter(uid => {
-                                const s = memberAvailability[ev.id]?.[uid];
-                                return s === 'PRESENT' || s === 'RETARD';
-                            }).length;
+                        const validIds = new Set(convokedIds.filter(uid => {
+                            const s = memberAvailability[ev.id]?.[uid];
+                            return s === 'PRESENT' || s === 'RETARD';
+                        }));
 
-                            stats = { total: totalConvoked, responded: respondedCount, valid: validCount };
-                        }
+                        stats = {
+                            total: totalConvoked,
+                            responded: respondedIds.size,
+                            valid: validIds.size
+                        };
                     }
 
                     // Dynamic styling based on event type and response
                     const isMatch = ev.type === 'MATCH';
                     const hasResponded = status?.status && status.status !== 'UNKNOWN' && status.status !== 'INCONNU';
 
-                    // New: Team Riders Stats
-                    const ridersCount = ev.attendance?.filter(a => a.player_id && a.has_ride && memberIds.has(String(a.player_id))).length || 0;
+                    // New: Team Riders Stats (Unique players only)
+                    const ridersWithRide = new Set(ev.attendance?.filter(a => a.player_id && a.has_ride && memberIds.has(String(a.player_id))).map(a => a.player_id));
+                    const ridersCount = ridersWithRide.size;
                     const convokedCount = stats?.total || 0;
 
                     const getFrameColor = () => {
@@ -916,7 +917,7 @@ export default function Events() {
                                                         notes: ev.notes,
                                                         visibility_type: ev.visibility_type,
                                                         is_recurring: ev.is_recurring,
-                                                        selected_players: ev.attendance?.filter(a => a.is_convoked).map(a => a.user_id) || [],
+                                                        selected_players: Array.from(new Set(ev.attendance?.filter(a => a.is_convoked && a.player_id).map(a => a.player_id) || [])),
                                                         match_location: ev.match_location || 'DOMICILE'
                                                     });
                                                     setShowForm(true);

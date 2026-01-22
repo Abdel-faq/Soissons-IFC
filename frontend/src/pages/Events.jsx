@@ -742,19 +742,23 @@ export default function Events() {
                     if (isCoach) {
                         // Use aggregated convocations map if available AND has content (more reliable for Coach view)
                         // otherwise fallback to event.attendance (ensure to filter only valid player IDs)
+                        const memberIds = new Set(members.map(m => String(m.id)));
                         let convokedIds = [];
 
-                        const mapConvocations = convocations[ev.id]
-                            ? Object.keys(convocations[ev.id]).filter(uid => convocations[ev.id][uid])
-                            : [];
-
-                        if (mapConvocations.length > 0) {
-                            convokedIds = mapConvocations;
+                        if (convocations[ev.id]) {
+                            convokedIds = Object.keys(convocations[ev.id]).filter(uid =>
+                                convocations[ev.id][uid] && memberIds.has(String(uid))
+                            );
                         } else {
-                            // Fallback to ev.attendance if map is empty/initialized but not populated
-                            convokedIds = ev.attendance
-                                ?.filter(a => a.is_convoked && a.player_id)
-                                .map(a => a.player_id) || [];
+                            // Fallback to ev.attendance if map is not yet populated
+                            // We use a Set to avoid counting duplicates if they exist in DB
+                            const seen = new Set();
+                            (ev.attendance || []).forEach(a => {
+                                if (a.is_convoked && a.player_id && memberIds.has(String(a.player_id))) {
+                                    seen.add(String(a.player_id));
+                                }
+                            });
+                            convokedIds = Array.from(seen);
                         }
 
                         const totalConvoked = convokedIds.length;
@@ -779,8 +783,8 @@ export default function Events() {
                     const hasResponded = status?.status && status.status !== 'UNKNOWN' && status.status !== 'INCONNU';
 
                     // New: Team Riders Stats
-                    const ridersCount = ev.attendance?.filter(a => a.player_id && a.has_ride).length || 0;
-                    const convokedCount = ev.attendance?.filter(a => a.player_id && a.is_convoked).length || 0;
+                    const ridersCount = ev.attendance?.filter(a => a.player_id && a.has_ride && memberIds.has(String(a.player_id))).length || 0;
+                    const convokedCount = stats?.total || 0;
 
                     const getFrameColor = () => {
                         if (isCoach && stats && stats.total > 0 && stats.responded === stats.total) {
@@ -955,7 +959,7 @@ export default function Events() {
                                 <div className="px-4 pb-2 border-t border-gray-100 bg-gray-50/50">
                                     <details className="text-sm group">
                                         <summary className="py-2 text-indigo-600 font-semibold cursor-pointer hover:underline flex items-center gap-2">
-                                            <Users size={14} /> Gérer la convocation ({Object.values(convocations[ev.id] || {}).filter(Boolean).length} convoqués)
+                                            <Users size={14} /> Gérer la convocation ({members.filter(m => convocations[ev.id]?.[m.id]).length} convoqués)
                                         </summary>
                                         <div className="py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                             {members.map(m => {

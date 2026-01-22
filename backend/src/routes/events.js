@@ -119,7 +119,7 @@ async function ensureRecurringEvents(team_id) {
             }));
 
           if (convocations.length > 0) {
-            await supabase.from('attendance').insert(convocations);
+            await supabase.from('attendance').upsert(convocations, { onConflict: 'event_id, player_id' });
           }
         }
       }
@@ -395,7 +395,7 @@ router.post('/', requireAuth, async (req, res) => {
         player_id: pid,
         is_convoked: true
       }));
-      await supabase.from('attendance').insert(convocations);
+      await supabase.from('attendance').upsert(convocations, { onConflict: 'event_id, player_id' });
     }
 
     res.status(201).json(event);

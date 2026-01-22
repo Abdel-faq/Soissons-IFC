@@ -25,6 +25,62 @@ export default function Team() {
         'U15', 'U16', 'U17', 'U18', 'Senior A', 'Senior B', 'Senior C', 'Féminine', 'Vétéran'
     ];
 
+    const FFF_MAPPING = {
+        'U13': [
+            { label: 'U13-U12 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_13' },
+            { label: 'U13-U12 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_19' }
+        ],
+        'U12': [
+            { label: 'U13-U12 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_13' },
+            { label: 'U13-U12 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U13_19' }
+        ],
+        'U11': [
+            { label: 'Football d\'animation 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_FA_20' }
+        ],
+        'U15': [
+            { label: 'U15-U14 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_5' },
+            { label: 'U15-U14 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_11' },
+            { label: 'U15-U14 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_6' },
+            { label: 'U15-U14 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_24' }
+        ],
+        'U14': [
+            { label: 'U15-U14 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_5' },
+            { label: 'U15-U14 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_11' },
+            { label: 'U15-U14 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_6' },
+            { label: 'U15-U14 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15_24' }
+        ],
+        'U17': [
+            { label: 'U17-U16 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_3' },
+            { label: 'U17-U16 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_4' },
+            { label: 'U17-U16 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_12' },
+            { label: 'U17-U16 30', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_26' }
+        ],
+        'U16': [
+            { label: 'U17-U16 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_3' },
+            { label: 'U17-U16 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_4' },
+            { label: 'U17-U16 22', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_12' },
+            { label: 'U17-U16 30', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U17_26' }
+        ],
+        'U18': [
+            { label: 'U19-U18 21', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U19_7' }
+        ],
+        'Senior A': [
+            { label: 'Senior 1', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_2' }
+        ],
+        'Senior B': [
+            { label: 'Senior 2', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_8' }
+        ],
+        'Senior C': [
+            { label: 'Senior 3', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_SEM_18' }
+        ],
+        'Féminine': [
+            { label: 'Féminine U18-U16', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U18F_17' },
+            { label: 'Féminine U15-U14', url: 'https://epreuves.fff.fr/competition/club/560424-soissons-inter-football-club/equipe/2025_196931_U15F_9' }
+        ]
+    };
+
+    const fffTabs = team ? (FFF_MAPPING[team.category] || []) : [];
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -472,6 +528,15 @@ export default function Team() {
                 >
                     Assiduité
                 </button>
+                {fffTabs.map(tab => (
+                    <button
+                        key={tab.label}
+                        onClick={() => setView(`fff-${tab.label}`)}
+                        className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === `fff-${tab.label}` ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             {view === 'members' ? (
@@ -515,7 +580,7 @@ export default function Team() {
                         ))}
                     </ul>
                 </div>
-            ) : (
+            ) : view === 'attendance' ? (
                 /* Attendance matrix view */
                 <div className="bg-white rounded shadow-sm border overflow-x-auto">
                     <table className="w-full text-left text-xs">
@@ -612,6 +677,11 @@ export default function Team() {
                         </tbody>
                     </table>
                 </div>
+            ) : view.startsWith('fff-') ? (
+                <FffResults url={fffTabs.find(t => `fff-${t.label}` === view)?.url} />
+            ) : (
+                /* Original view logic fallback (should not happen with the dynamic tabs) */
+                null
             )}
 
             {/* Event Options Modal */}
@@ -652,3 +722,88 @@ export default function Team() {
         </div>
     );
 }
+
+function FffResults({ url }) {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!url) return;
+        fetchData();
+    }, [url]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/fff/results?url=${encodeURIComponent(url)}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error("Impossible de charger les résultats FFF");
+            const json = await response.json();
+            setData(json);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) return <div className="p-8 text-center text-gray-500">Chargement des données FFF...</div>;
+    if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+
+    return (
+        <div className="space-y-6">
+            {data?.lastMatch && (
+                <div className="bg-white p-6 rounded shadow-sm border">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">🏆 Dernier Match</h3>
+                    <div className="flex justify-between items-center text-center">
+                        <div className="flex-1">
+                            <div className="font-bold text-sm md:text-base">{data.lastMatch.homeTeam}</div>
+                        </div>
+                        <div className="px-4">
+                            <div className="bg-indigo-600 text-white font-black px-4 py-2 rounded text-xl">
+                                {data.lastMatch.score || 'VS'}
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-1 uppercase font-bold">{data.lastMatch.date}</div>
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-bold text-sm md:text-base">{data.lastMatch.awayTeam}</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-white rounded shadow-sm border overflow-hidden">
+                <div className="p-4 border-b bg-gray-50 font-bold flex items-center gap-2">📅 Calendrier & Résultats</div>
+                <div className="divide-y">
+                    {data?.upcomingMatches?.length > 0 ? (
+                        data.upcomingMatches.map((match, i) => (
+                            <div key={i} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="text-[10px] text-indigo-600 font-bold uppercase mb-1">{match.competition}</div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm">{match.homeTeam}</span>
+                                        <span className="text-gray-400 font-black px-2">{match.score || '-'}</span>
+                                        <span className="font-bold text-sm">{match.awayTeam}</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block">{match.date}</div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="p-8 text-center text-gray-400 italic">Aucun match trouvé</div>
+                    )}
+                </div>
+            </div>
+
+            <div className="text-center">
+                <a href={url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">
+                    Voir tous les détails sur le site FFF →
+                </a>
+            </div>
+        </div>
+    );
+}
+

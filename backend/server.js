@@ -20,6 +20,7 @@ const usersRoutes = require('./src/routes/users');
 const eventsRoutes = require('./src/routes/events');
 const carpoolingRoutes = require('./src/routes/carpooling');
 const messagesRoutes = require('./src/routes/messages');
+const fffRoutes = require('./src/routes/fff');
 
 // Use Routes
 const mountRoutes = (basePath) => {
@@ -27,6 +28,7 @@ const mountRoutes = (basePath) => {
     app.use(`${basePath}/events`, eventsRoutes);
     app.use(`${basePath}/carpooling`, carpoolingRoutes);
     app.use(`${basePath}/messages`, messagesRoutes);
+    app.use(`${basePath}/fff`, fffRoutes);
 };
 
 // Mount both with and without /api prefix for maximum compatibility

@@ -443,8 +443,8 @@ export default function Events() {
         }
         // -----------------------
 
-        const availabilityMap = {}; // event_id -> { member_id -> status }
-        const convocationsMap = {}; // event_id -> { member_id -> boolean }
+        const availabilityMap = {}; // event_id -> { entity_id -> status }
+        const convocationsMap = {}; // event_id -> { entity_id -> boolean }
 
         // Start with empty maps for all events
         events.forEach(ev => {
@@ -452,16 +452,40 @@ export default function Events() {
             convocationsMap[ev.id] = {};
         });
 
+        // Create a mapping from user_id to player_id for our team members
+        // This handles cases where old attendance is linked to user_id (profil id) instead of player_id
+        const userToPlayerMap = {};
+        members.forEach(m => {
+            if (m.id) userToPlayerMap[m.id] = m.id; // Many players have id = user_id from migration
+            // If we have parent_id or other links, we could add them, 
+            // but the migration made player.id = profile.id for old players.
+        });
+
         // Loop attendance to build basic maps
         attendanceData?.forEach(row => {
-            const entityId = row.player_id || row.user_id;
+            // Priority to player_id, fallback to userToPlayerMap[user_id], then just user_id
+            let entityId = row.player_id;
+            if (!entityId && row.user_id && userToPlayerMap[row.user_id]) {
+                entityId = userToPlayerMap[row.user_id];
+            } else if (!entityId) {
+                entityId = row.user_id;
+            }
+
             if (!entityId) return;
 
             if (!availabilityMap[row.event_id]) availabilityMap[row.event_id] = {};
-            availabilityMap[row.event_id][entityId] = row.status;
+
+            // Only overwrite if status is not 'INCONNU' or if the current entry is 'INCONNU'
+            // This ensures we keep a real response if multiple records exist
+            const currentStatus = availabilityMap[row.event_id][entityId];
+            if (row.status && row.status !== 'INCONNU' || !currentStatus || currentStatus === 'INCONNU') {
+                availabilityMap[row.event_id][entityId] = row.status;
+            }
 
             if (row.is_convoked !== undefined) {
-                convocationsMap[row.event_id][entityId] = !!row.is_convoked;
+                if (!convocationsMap[row.event_id]) convocationsMap[row.event_id] = {};
+                // If ANY record for this player/user says they are convoked, mark it true
+                if (row.is_convoked) convocationsMap[row.event_id][entityId] = true;
             }
         });
 

@@ -714,25 +714,31 @@ export default function Team() {
 function FffResults({ url }) {
     return (
         <div className="space-y-4">
-            <div className="bg-white rounded shadow-sm border overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 font-bold flex items-center justify-between">
-                    <span>📊 Résultats et Classement FFF</span>
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg shadow-sm border border-indigo-200 p-8">
+                <div className="text-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-800">Résultats et Classement FFF</h3>
+                    <p className="text-gray-600 max-w-md mx-auto">
+                        Consultez les résultats officiels, le calendrier complet et le classement de votre équipe sur le site de la FFF.
+                    </p>
                     <a
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-indigo-600 hover:underline"
+                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-4 rounded-lg transition-all transform hover:scale-105 shadow-lg"
                     >
-                        Ouvrir dans un nouvel onglet →
+                        <span>Voir sur le site FFF</span>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
                     </a>
-                </div>
-                <div className="relative" style={{ height: '800px' }}>
-                    <iframe
-                        src={url}
-                        className="w-full h-full border-0"
-                        title="Résultats FFF"
-                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                    />
+                    <p className="text-xs text-gray-500 mt-4">
+                        🔗 S'ouvre dans un nouvel onglet
+                    </p>
                 </div>
             </div>
         </div>

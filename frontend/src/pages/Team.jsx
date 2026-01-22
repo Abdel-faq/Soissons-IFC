@@ -712,84 +712,28 @@ export default function Team() {
 }
 
 function FffResults({ url }) {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        if (!url) return;
-        fetchData();
-    }, [url]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/fff/results?url=${encodeURIComponent(url)}`;
-            const response = await fetch(apiUrl);
-            if (!response.ok) throw new Error("Impossible de charger les résultats FFF");
-            const json = await response.json();
-            setData(json);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) return <div className="p-8 text-center text-gray-500">Chargement des données FFF...</div>;
-    if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
-
     return (
-        <div className="space-y-6">
-            {data?.lastMatch && (
-                <div className="bg-white p-6 rounded shadow-sm border">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">🏆 Dernier Match</h3>
-                    <div className="flex justify-between items-center text-center">
-                        <div className="flex-1">
-                            <div className="font-bold text-sm md:text-base">{data.lastMatch.homeTeam}</div>
-                        </div>
-                        <div className="px-4">
-                            <div className="bg-indigo-600 text-white font-black px-4 py-2 rounded text-xl">
-                                {data.lastMatch.score || 'VS'}
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-1 uppercase font-bold">{data.lastMatch.date}</div>
-                        </div>
-                        <div className="flex-1">
-                            <div className="font-bold text-sm md:text-base">{data.lastMatch.awayTeam}</div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
+        <div className="space-y-4">
             <div className="bg-white rounded shadow-sm border overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 font-bold flex items-center gap-2">📅 Calendrier & Résultats</div>
-                <div className="divide-y">
-                    {data?.upcomingMatches?.length > 0 ? (
-                        data.upcomingMatches.map((match, i) => (
-                            <div key={i} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-indigo-600 font-bold uppercase mb-1">{match.competition}</div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm">{match.homeTeam}</span>
-                                        <span className="text-gray-400 font-black px-2">{match.score || '-'}</span>
-                                        <span className="font-bold text-sm">{match.awayTeam}</span>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block">{match.date}</div>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center text-gray-400 italic">Aucun match trouvé</div>
-                    )}
+                <div className="p-4 border-b bg-gray-50 font-bold flex items-center justify-between">
+                    <span>📊 Résultats et Classement FFF</span>
+                    <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-indigo-600 hover:underline"
+                    >
+                        Ouvrir dans un nouvel onglet →
+                    </a>
                 </div>
-            </div>
-
-            <div className="text-center">
-                <a href={url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-xs font-bold hover:underline">
-                    Voir tous les détails sur le site FFF →
-                </a>
+                <div className="relative" style={{ height: '800px' }}>
+                    <iframe
+                        src={url}
+                        className="w-full h-full border-0"
+                        title="Résultats FFF"
+                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    />
+                </div>
             </div>
         </div>
     );

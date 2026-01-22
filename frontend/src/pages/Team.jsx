@@ -9,7 +9,7 @@ export default function Team() {
     const [teams, setTeams] = useState([]); // List of teams for coach
     const [team, setTeam] = useState(null); // Currently selected team
     const [members, setMembers] = useState([]);
-    const [category, setCategory] = useState('U10'); // Default category
+
     const [profile, setProfile] = useState(null);
     const [view, setView] = useState('members'); // 'members' or 'attendance'
     const [historyEvents, setHistoryEvents] = useState([]);
@@ -20,12 +20,7 @@ export default function Team() {
     const [newTeamName, setNewTeamName] = useState('');
     const [joinCode, setJoinCode] = useState('');
 
-    const CATEGORIES = [
-        'U6 Soissons IFC', 'U7 Soissons IFC', 'U8 Soissons IFC', 'U9 Soissons IFC', 'U10 Soissons IFC',
-        'U11 Soissons IFC', 'U12 Soissons IFC', 'U13 Soissons IFC', 'U14 Soissons IFC', 'U15 Soissons IFC',
-        'U16 Soissons IFC', 'U17 Soissons IFC', 'U18 Soissons IFC', 'U19 Soissons IFC',
-        'Senior A', 'Senior B', 'Senior C', 'Coupe SENIOR A', 'Vétérans Soissons IFC', 'Féminine'
-    ];
+
 
     const FFF_MAPPING = {
         'Senior A': [
@@ -74,7 +69,7 @@ export default function Team() {
         ]
     };
 
-    const fffTabs = team ? (FFF_MAPPING[team.category] || []) : [];
+    const fffTabs = team ? (FFF_MAPPING[team.name] || []) : [];
 
     useEffect(() => {
         fetchData();
@@ -261,7 +256,7 @@ export default function Team() {
 
     const createTeam = async (e) => {
         e.preventDefault();
-        // if (!newTeamName.trim()) return; // Name is now auto-derived
+        if (!newTeamName.trim()) return;
 
         try {
             // Ensure Profile Exists
@@ -272,14 +267,12 @@ export default function Team() {
                 ]);
             }
 
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase() || 'ABCDEF'; // Fallback
-            const finalName = `Soissons-IFC ${category}`;
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase() || 'ABCDEF';
 
             const { data, error } = await supabase.from('teams').insert([{
-                name: finalName,
+                name: newTeamName,
                 invite_code: code,
-                coach_id: user.id,
-                category: category
+                coach_id: user.id
             }]).select().single();
 
             if (error) throw error;
@@ -477,7 +470,7 @@ export default function Team() {
             <div className="bg-white p-6 rounded shadow-sm border flex justify-between items-start">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5 rounded uppercase">{team.category || 'Général'}</span>
+
                         <h1 className="text-2xl font-bold leading-none">{team.name}</h1>
                     </div>
                     {isCoach && (

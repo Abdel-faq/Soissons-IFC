@@ -761,21 +761,31 @@ export default function Events() {
 
                         const totalConvoked = convokedIds.length;
 
-                        const respondedIds = new Set(convokedIds.filter(uid => {
-                            const s = memberAvailability[ev.id]?.[uid];
-                            return s && s !== 'UNKNOWN' && s !== 'INCONNU';
-                        }));
+                        if (totalConvoked > 0) {
+                            const respondedIds = new Set();
+                            const validIds = new Set();
+                            const absentIds = new Set();
 
-                        const validIds = new Set(convokedIds.filter(uid => {
-                            const s = memberAvailability[ev.id]?.[uid];
-                            return s === 'PRESENT' || s === 'RETARD';
-                        }));
+                            convokedIds.forEach(uid => {
+                                const s = memberAvailability[ev.id]?.[uid];
+                                if (s && s !== 'UNKNOWN' && s !== 'INCONNU') {
+                                    respondedIds.add(String(uid));
+                                    if (s === 'PRESENT' || s === 'RETARD') {
+                                        validIds.add(String(uid));
+                                    } else {
+                                        absentIds.add(String(uid));
+                                    }
+                                }
+                            });
 
-                        stats = {
-                            total: totalConvoked,
-                            responded: respondedIds.size,
-                            valid: validIds.size
-                        };
+                            stats = {
+                                total: totalConvoked,
+                                responded: respondedIds.size,
+                                valid: validIds.size,
+                                absent: absentIds.size,
+                                waiting: totalConvoked - respondedIds.size
+                            };
+                        }
                     }
 
                     // Dynamic styling based on event type and response
@@ -838,7 +848,7 @@ export default function Events() {
                                                     📊 {stats.responded} / {stats.total} réponses
                                                 </span>
                                                 <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200" title="Joueurs valides (Présents/Retard)">
-                                                    ✅ {stats.valid} / {stats.total} valides ({stats.total - stats.valid} abs/blessés)
+                                                    ✅ {stats.valid} / {stats.total} valides ({stats.absent} abs, {stats.waiting} attente)
                                                 </span>
                                             </div>
                                         )}

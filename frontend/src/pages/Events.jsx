@@ -1022,8 +1022,8 @@ export default function Events() {
                                                             <span className="text-xs font-semibold">{m.full_name}</span>
                                                         </div>
                                                         <div className="text-[10px]">
-                                                            {mStatus === 'PRESENT' && <span className="text-green-600 font-bold">✅</span>}
-                                                            {mStatus === 'ABSENT' && <span className="text-red-600 font-bold">❌</span>}
+                                                            {(mStatus === 'PRESENT' || mStatus === 'RETARD') && <span className="text-green-600 font-bold">✅</span>}
+                                                            {(mStatus === 'ABSENT' || mStatus === 'MALADE' || mStatus === 'BLESSE') && <span className="text-red-600 font-bold">❌</span>}
                                                         </div>
                                                     </label>
                                                 );

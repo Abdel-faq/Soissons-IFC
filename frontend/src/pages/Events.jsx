@@ -838,7 +838,8 @@ export default function Events() {
                     // New: Team Riders Stats (Unique players only)
                     const ridersWithRide = new Set(ev.attendance?.filter(a => a.player_id && a.has_ride && memberIds.has(String(a.player_id))).map(a => a.player_id));
                     const ridersCount = ridersWithRide.size;
-                    const convokedCount = stats?.total || 0;
+                    // CHANGED: Denominator now excludes absent/sick/injured players
+                    const convokedCount = (stats?.total || 0) - (stats?.absent || 0);
 
                     const getFrameColor = () => {
                         if (isCoach && stats && stats.total > 0 && stats.responded === stats.total) {

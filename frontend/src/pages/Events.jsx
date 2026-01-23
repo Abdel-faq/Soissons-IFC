@@ -430,16 +430,30 @@ export default function Events() {
             .in('event_id', eventIds);
 
         const rideIds = eventRides?.map(r => r.id) || [];
+        const rideToEventMap = {};
+        eventRides?.forEach(r => {
+            rideToEventMap[r.id] = r.event_id;
+        });
 
         // 2. Get passengers for these rides
-        let playersWithRides = new Set();
+        // CHANGED: We now map players to SPECIFIC events, not just a global set
+        const playersWithRidesByEvent = {}; // event_id -> Set(player_id)
+
         if (rideIds.length > 0) {
             const { data: passengers } = await supabase
                 .from('ride_passengers')
-                .select('player_id')
+                .select('player_id, ride_id')
                 .in('ride_id', rideIds);
 
-            passengers?.forEach(p => playersWithRides.add(p.player_id));
+            passengers?.forEach(p => {
+                const eId = rideToEventMap[p.ride_id];
+                if (eId && p.player_id) {
+                    if (!playersWithRidesByEvent[eId]) {
+                        playersWithRidesByEvent[eId] = new Set();
+                    }
+                    playersWithRidesByEvent[eId].add(p.player_id);
+                }
+            });
         }
         // -----------------------
 
@@ -502,9 +516,12 @@ export default function Events() {
             // Let's rely on `attData` to REBUILD `ev.attendance` or just update the flag.
 
             // Simplest: Just inject has_ride into the existing attendance list if it matches
+            // CHANGED: Use the event-specific set
+            const eventRiders = playersWithRidesByEvent[ev.id] || new Set();
+
             const updatedAttendance = ev.attendance?.map(att => ({
                 ...att,
-                has_ride: playersWithRides.has(att.player_id)
+                has_ride: eventRiders.has(att.player_id)
             }));
 
             return {

@@ -762,4 +762,45 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Submit RPE rating for an event
+ * Player MUST be present or late to submit RPE
+ */
+router.post('/:id/rpe', requireAuth, async (req, res) => {
+  try {
+    const { id: event_id } = req.params;
+    const { rpe, player_id } = req.body; // player_id if parent is doing it for child
+
+    if (rpe < 1 || rpe > 10) {
+      return res.status(400).json({ error: "La note RPE doit être entre 1 et 10" });
+    }
+
+    // 1. Verify existence and status
+    const { data: attendance, error: attError } = await supabase
+      .from('attendance')
+      .select('status')
+      .eq('event_id', event_id)
+      .eq('player_id', player_id)
+      .maybeSingle();
+
+    if (attError) throw attError;
+    if (!attendance || !['PRESENT', 'RETARD'].includes(attendance.status)) {
+      return res.status(400).json({ error: "Vous devez être marqué comme présent pour noter la séance." });
+    }
+
+    // 2. Update RPE
+    const { error: updateError } = await supabase
+      .from('attendance')
+      .update({ rpe, updated_at: new Date() })
+      .eq('event_id', event_id)
+      .eq('player_id', player_id);
+
+    if (updateError) throw updateError;
+
+    res.json({ message: "Note RPE enregistrée !" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -29,6 +29,11 @@ export default function Events() {
         match_location: 'DOMICILE'
     });
 
+    // RPE states
+    const [showRpeModal, setShowRpeModal] = useState(false);
+    const [rpeEvent, setRpeEvent] = useState(null); // { id, player_id, name }
+    const [submittingRpe, setSubmittingRpe] = useState(false);
+
     useEffect(() => {
         fetchEvents();
     }, []);
@@ -118,7 +123,7 @@ export default function Events() {
                     if (relevantPlayerIds.length > 0) {
                         const { data } = await supabase
                             .from('attendance')
-                            .select('event_id, player_id, status, is_locked')
+                            .select('event_id, player_id, status, is_locked, rpe')
                             .in('player_id', relevantPlayerIds)
                             .in('event_id', activeEvents.map(e => e.id));
                         if (data) attData = [...attData, ...data];
@@ -128,7 +133,7 @@ export default function Events() {
                     if (context.role === 'COACH') {
                         const { data } = await supabase
                             .from('attendance')
-                            .select('event_id, user_id, status, is_locked')
+                            .select('event_id, user_id, status, is_locked, rpe')
                             .eq('user_id', user.id)
                             .in('event_id', activeEvents.map(e => e.id));
 
@@ -141,7 +146,7 @@ export default function Events() {
                         // Key by player_id OR user_id (if coach)
                         const key = a.player_id || a.user_id;
                         if (!attMap[key]) attMap[key] = {};
-                        attMap[key][a.event_id] = { status: a.status, is_locked: a.is_locked };
+                        attMap[key][a.event_id] = { status: a.status, is_locked: a.is_locked, rpe: a.rpe };
                     });
                     setMyAttendance(attMap);
                 }
@@ -362,6 +367,53 @@ export default function Events() {
             alert(data.message);
         } catch (err) {
             alert("Erreur: " + err.message);
+        }
+    };
+
+    const handleRPESubmit = async (rpe) => {
+        if (!rpeEvent) return;
+        setSubmittingRpe(true);
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${rpeEvent.id}/rpe`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rpe: parseInt(rpe),
+                    player_id: rpeEvent.player_id
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur lors de l'enregistrement du RPE");
+            }
+
+            // Update local state to reflect RPE change
+            setMyAttendance(prev => {
+                const playerAtt = prev[rpeEvent.player_id] || {};
+                return {
+                    ...prev,
+                    [rpeEvent.player_id]: {
+                        ...playerAtt,
+                        [rpeEvent.id]: { ...playerAtt[rpeEvent.id], rpe }
+                    }
+                };
+            });
+
+            alert("Note RPE enregistrée !");
+            setShowRpeModal(false);
+            setRpeEvent(null);
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        } finally {
+            setSubmittingRpe(false);
         }
     };
 
@@ -954,6 +1006,21 @@ export default function Events() {
                                                         </button>
                                                     ))}
                                                 </div>
+                                                {/* RPE Button */}
+                                                {!isCoach && ['PRESENT', 'RETARD'].includes(cStatus?.status) && new Date(ev.date).toDateString() === new Date().toDateString() && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setRpeEvent({ id: ev.id, player_id: child.id, name: child.first_name, current: cStatus?.rpe });
+                                                            setShowRpeModal(true);
+                                                        }}
+                                                        className={`mt-2 px-3 py-1 text-[10px] font-bold rounded-lg border-2 transition-all active:scale-95 ${cStatus?.rpe
+                                                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                            : 'border-indigo-600 bg-white text-indigo-600 hover:bg-indigo-50'
+                                                            }`}
+                                                    >
+                                                        {cStatus?.rpe ? `Note RPE : ${cStatus.rpe}/10` : 'Noter la séance (RPE)'}
+                                                    </button>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1081,6 +1148,53 @@ export default function Events() {
                     );
                 })}
             </div >
+
+            {/* RPE MODAL */}
+            {showRpeModal && rpeEvent && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-xl text-indigo-900 tracking-tight">RPE - {rpeEvent.name}</h3>
+                            <button onClick={() => setShowRpeModal(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={24} /></button>
+                        </div>
+
+                        <p className="text-sm text-gray-500 mb-6 font-medium">
+                            Quelle était la difficulté de la séance pour toi aujourd'hui ?
+                            <br /><span className="text-[10px] uppercase font-bold text-gray-400">(1 = Facile, 10 = Extrême)</span>
+                        </p>
+
+                        <div className="grid grid-cols-5 gap-3 mb-8">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => (
+                                <button
+                                    key={val}
+                                    disabled={submittingRpe}
+                                    onClick={() => handleRPESubmit(val)}
+                                    className={`
+                                        h-14 flex items-center justify-center rounded-xl font-black text-lg transition-all transform active:scale-90
+                                        ${submittingRpe ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}
+                                        ${rpeEvent.current === val
+                                            ? 'bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-200'
+                                            : 'bg-indigo-50 text-indigo-900 border-2 border-transparent hover:border-indigo-300'
+                                        }
+                                    `}
+                                >
+                                    {val}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2">Échelle de ressenti</h4>
+                            <div className="flex justify-between text-[10px] font-bold">
+                                <span className="text-green-600">FACILE</span>
+                                <span className="text-yellow-600">MOYEN</span>
+                                <span className="text-red-600">DUR</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 rounded-full mt-1" />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

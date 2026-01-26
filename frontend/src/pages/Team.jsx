@@ -15,6 +15,7 @@ export default function Team() {
     const [historyEvents, setHistoryEvents] = useState([]);
     const [attendanceMatrix, setAttendanceMatrix] = useState({}); // { user_id: { event_id: status } }
     const [isCoach, setIsCoach] = useState(false);
+    const [showRpeView, setShowRpeView] = useState(false);
 
     // Form states
     const [newTeamName, setNewTeamName] = useState('');
@@ -208,7 +209,7 @@ export default function Team() {
                     const entityId = row.player_id || row.user_id;
                     if (!entityId) return;
                     if (!matrix[entityId]) matrix[entityId] = {};
-                    matrix[entityId][row.event_id] = row.status;
+                    matrix[entityId][row.event_id] = { status: row.status, rpe: row.rpe };
                 });
                 setAttendanceMatrix(matrix);
             } else {
@@ -571,6 +572,23 @@ export default function Team() {
             ) : view === 'attendance' ? (
                 /* Attendance matrix view */
                 <div className="bg-white rounded shadow-sm border overflow-x-auto">
+                    <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                        <span className="font-bold text-gray-700">Tableau d'assiduité</span>
+                        <div className="flex bg-white border rounded-lg p-1">
+                            <button
+                                onClick={() => setShowRpeView(false)}
+                                className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${!showRpeView ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                Présence
+                            </button>
+                            <button
+                                onClick={() => setShowRpeView(true)}
+                                className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${showRpeView ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                RPE (Intensité)
+                            </button>
+                        </div>
+                    </div>
                     <table className="w-full text-left text-xs">
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
                             <tr>
@@ -605,14 +623,17 @@ export default function Team() {
                                     return true; // Public events always count
                                 });
 
-                                const presentCount = relevantEvents.filter(ev => playerAtt[ev.id] === 'PRESENT' || playerAtt[ev.id] === 'RETARD').length;
+                                const presentCount = relevantEvents.filter(ev => playerAtt[ev.id]?.status === 'PRESENT' || playerAtt[ev.id]?.status === 'RETARD').length;
                                 const ratio = relevantEvents.length > 0 ? Math.round((presentCount / relevantEvents.length) * 100) : 0;
 
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
                                         {historyEvents.map(ev => {
-                                            const status = playerAtt[ev.id];
+                                            const attData = playerAtt[ev.id];
+                                            const status = attData?.status;
+                                            const rpe = attData?.rpe;
+
                                             let color = "text-gray-300";
                                             let label = "-";
 
@@ -628,6 +649,26 @@ export default function Team() {
 
                                             if (isIrrelevant) {
                                                 return <td key={ev.id} className="p-2 border-r bg-gray-100"></td>;
+                                            }
+
+                                            if (showRpeView) {
+                                                const getRpeColor = (val) => {
+                                                    if (!val) return 'text-gray-300';
+                                                    if (val <= 3) return 'bg-green-100 text-green-700';
+                                                    if (val <= 7) return 'bg-yellow-100 text-yellow-700';
+                                                    return 'bg-red-100 text-red-700';
+                                                };
+                                                return (
+                                                    <td key={ev.id} className="p-2 border-r text-center">
+                                                        {rpe ? (
+                                                            <div className={`w-8 h-8 flex items-center justify-center mx-auto rounded-lg font-black text-[14px] ${getRpeColor(rpe)}`}>
+                                                                {rpe}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-300">-</span>
+                                                        )}
+                                                    </td>
+                                                );
                                             }
 
                                             return (

@@ -15,7 +15,6 @@ export default function Team() {
     const [historyEvents, setHistoryEvents] = useState([]);
     const [attendanceMatrix, setAttendanceMatrix] = useState({}); // { user_id: { event_id: status } }
     const [isCoach, setIsCoach] = useState(false);
-    const [showRpeView, setShowRpeView] = useState(false);
 
     // Form states
     const [newTeamName, setNewTeamName] = useState('');
@@ -517,6 +516,12 @@ export default function Team() {
                 >
                     Assiduité
                 </button>
+                <button
+                    onClick={() => setView('rpe')}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'rpe' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                >
+                    Note RPE
+                </button>
                 {fffTabs.map(tab => (
                     <button
                         key={tab.label}
@@ -574,20 +579,6 @@ export default function Team() {
                 <div className="bg-white rounded shadow-sm border overflow-x-auto">
                     <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                         <span className="font-bold text-gray-700">Tableau d'assiduité</span>
-                        <div className="flex bg-white border rounded-lg p-1">
-                            <button
-                                onClick={() => setShowRpeView(false)}
-                                className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${!showRpeView ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-                            >
-                                Présence
-                            </button>
-                            <button
-                                onClick={() => setShowRpeView(true)}
-                                className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${showRpeView ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-                            >
-                                RPE (Intensité)
-                            </button>
-                        </div>
                     </div>
                     <table className="w-full text-left text-xs">
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
@@ -651,26 +642,6 @@ export default function Team() {
                                                 return <td key={ev.id} className="p-2 border-r bg-gray-100"></td>;
                                             }
 
-                                            if (showRpeView) {
-                                                const getRpeColor = (val) => {
-                                                    if (!val) return 'text-gray-300';
-                                                    if (val <= 3) return 'bg-green-100 text-green-700';
-                                                    if (val <= 7) return 'bg-yellow-100 text-yellow-700';
-                                                    return 'bg-red-100 text-red-700';
-                                                };
-                                                return (
-                                                    <td key={ev.id} className="p-2 border-r text-center">
-                                                        {rpe ? (
-                                                            <div className={`w-8 h-8 flex items-center justify-center mx-auto rounded-lg font-black text-[14px] ${getRpeColor(rpe)}`}>
-                                                                {rpe}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-300">-</span>
-                                                        )}
-                                                    </td>
-                                                );
-                                            }
-
                                             return (
                                                 <td key={ev.id} className="p-2 border-r text-center">
                                                     {(isCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date())) ? (
@@ -699,6 +670,86 @@ export default function Team() {
                                             `} title={`${presentCount} / ${relevantEvents.length}`}>
                                                 {ratio}%
                                             </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            ) : view === 'rpe' ? (
+                /* RPE matrix view */
+                <div className="bg-white rounded shadow-sm border overflow-x-auto">
+                    <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                        <span className="font-bold text-gray-700">Notes d'intensité (RPE)</span>
+                    </div>
+                    <table className="w-full text-left text-xs">
+                        <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
+                            <tr>
+                                <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
+                                {historyEvents.map(ev => (
+                                    <th
+                                        key={ev.id}
+                                        className="p-2 min-w-[60px] text-center border-r"
+                                    >
+                                        {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                                        <div className="text-[8px] opacity-70">{ev.type === 'MATCH' ? 'Match' : 'Entr.'}</div>
+                                    </th>
+                                ))}
+                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Moyenne</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {members.filter(m => isCoach || m.players?.parent_id === user?.id).map(m => {
+                                const playerAtt = attendanceMatrix[m.player_id] || {};
+
+                                const relevantEvents = historyEvents.filter(ev => {
+                                    if (ev.visibility_type === 'PRIVATE') {
+                                        const isConvoked = ev.attendance?.some(a => a.player_id === m.player_id && a.is_convoked);
+                                        return isConvoked;
+                                    }
+                                    return true;
+                                });
+
+                                const rpeValues = relevantEvents.map(ev => playerAtt[ev.id]?.rpe).filter(Boolean);
+                                const avgRpe = rpeValues.length > 0 ? (rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length).toFixed(1) : '-';
+
+                                return (
+                                    <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
+                                        <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
+                                        {historyEvents.map(ev => {
+                                            const attData = playerAtt[ev.id];
+                                            const rpe = attData?.rpe;
+
+                                            // Check if irrelevant
+                                            const isConvoked = ev.attendance?.some(a => a.player_id === m.player_id && a.is_convoked);
+                                            const isIrrelevant = ev.visibility_type === 'PRIVATE' && !isConvoked;
+
+                                            if (isIrrelevant) {
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-100"></td>;
+                                            }
+
+                                            const getRpeColor = (val) => {
+                                                if (!val) return 'text-gray-300';
+                                                if (val <= 3) return 'bg-green-100 text-green-700';
+                                                if (val <= 7) return 'bg-yellow-100 text-yellow-700';
+                                                return 'bg-red-100 text-red-700';
+                                            };
+
+                                            return (
+                                                <td key={ev.id} className="p-2 border-r text-center">
+                                                    {rpe ? (
+                                                        <div className={`w-8 h-8 flex items-center justify-center mx-auto rounded-lg font-black text-[14px] ${getRpeColor(rpe)}`}>
+                                                            {rpe}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-300">-</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="p-4 text-center font-black bg-indigo-50/50">
+                                            {avgRpe}
                                         </td>
                                     </tr>
                                 );

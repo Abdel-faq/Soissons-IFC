@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Users, Copy, UserPlus, AlertCircle } from 'lucide-react';
+import { Users, Copy, UserPlus, AlertCircle, Share } from 'lucide-react';
 
 export default function Team() {
     const [loading, setLoading] = useState(true);
@@ -251,6 +251,58 @@ export default function Team() {
             fetchAttendanceHistory(team.id);
         } catch (err) {
             alert(err.message);
+        }
+    };
+
+    const handleSyncToGoogleSheets = async () => {
+        try {
+            setLoading(true);
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            // Prepare data: filter historical events to avoid huge sheets if needed, 
+            // but the request was "update his sheet", so we'll send everything in attendanceMatrix
+            const sheetData = members.map(m => {
+                const playerAtt = attendanceMatrix[m.player_id] || {};
+                const row = {
+                    "Joueur": m.players?.full_name || m.profiles?.full_name || 'Membre'
+                };
+
+                // Add attendance for each event
+                historyEvents.forEach(ev => {
+                    const dateStr = new Date(ev.date).toLocaleDateString('fr-FR');
+                    const status = playerAtt[ev.id]?.status || '-';
+                    row[dateStr] = status;
+                });
+
+                return row;
+            });
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/sync/google-sheets`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    teamName: team.name,
+                    data: sheetData
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur sync");
+            }
+
+            const result = await response.json();
+            alert(result.message || "Synchronisation réussie !");
+        } catch (err) {
+            console.error(err);
+            alert("Erreur: " + err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -579,6 +631,15 @@ export default function Team() {
                 <div className="bg-white rounded shadow-sm border overflow-x-auto">
                     <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                         <span className="font-bold text-gray-700">Tableau d'assiduité</span>
+                        {user?.email === 'Yassine.bekka0202@gmail.com' && (
+                            <button
+                                onClick={handleSyncToGoogleSheets}
+                                className="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-green-700 transition flex items-center gap-2"
+                                title="Mettre à jour le Google Sheet"
+                            >
+                                <Share size={14} /> Synchroniser Google Sheet
+                            </button>
+                        )}
                     </div>
                     <table className="w-full text-left text-xs">
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">

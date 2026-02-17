@@ -457,16 +457,20 @@ router.post('/generate-recurring', requireAuth, async (req, res) => {
   }
 });
 
-// Delete old events
+// Delete old events (Manual Cleanup - now soft delete to preserve history)
 router.delete('/cleanup', requireAuth, async (req, res) => {
   try {
     if (req.user.role !== 'COACH') return res.status(403).json({ error: 'Unauthorized' });
     const { team_id } = req.body;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const { error } = await supabase.from('events').delete().eq('team_id', team_id).lt('date', yesterday.toISOString());
+    const { error } = await supabase
+      .from('events')
+      .update({ is_deleted: true, updated_at: new Date() })
+      .eq('team_id', team_id)
+      .lt('date', yesterday.toISOString());
     if (error) throw error;
-    res.json({ message: 'Past events cleaned up' });
+    res.json({ message: 'Past events cleaned up (soft deleted)' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -502,13 +506,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
       // 2. Any future event (date >= targetDate) of same team & type & recurrence_pattern
       // 3. The recurring template (is_recurring=true) if it exists, to stop future generation
 
-      // Step A: Delete current and future matching events
+      // Step A: Soft delete current and future matching events
       const { error: deleteError } = await supabase
         .from('events')
-        .delete()
+        .update({ is_deleted: true, updated_at: new Date() })
         .eq('team_id', targetEvent.team_id)
         .eq('type', targetEvent.type)
-        .gte('date', targetEvent.date); // Delete this and all future
+        .gte('date', targetEvent.date); // Soft delete this and all future
 
       if (deleteError) throw deleteError;
 
@@ -547,8 +551,11 @@ router.delete('/:id', requireAuth, async (req, res) => {
       res.json({ message: 'Série supprimée (séances futures et récurrence arrêtée)' });
 
     } else {
-      // Mode SINGLE
-      const { error } = await supabase.from('events').delete().eq('id', id);
+      // Mode SINGLE - Soft Delete
+      const { error } = await supabase
+        .from('events')
+        .update({ is_deleted: true, updated_at: new Date() })
+        .eq('id', id);
       if (error) throw error;
       res.json({ message: 'Événement supprimé' });
     }

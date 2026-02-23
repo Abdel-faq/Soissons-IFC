@@ -20,3 +20,18 @@ body {
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* Rich Text Formatting Support */
+.rich-text-rendered b, 
+.rich-text-rendered strong { 
+  font-weight: 800 !important; 
+}
+
+.rich-text-rendered i, 
+.rich-text-rendered em { 
+  font-style: italic !important; 
+}
+
+.rich-text-rendered u { 
+  text-decoration: underline !important; 
+}

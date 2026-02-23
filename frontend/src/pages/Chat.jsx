@@ -28,7 +28,7 @@ export default function Chat() {
     const [selectedColor, setSelectedColor] = useState('#4f46e5'); // Indigo 600
     const [isMobile, setIsMobile] = useState(false);
     const messagesEndRef = useRef(null);
-    const textareaRef = useRef(null);
+    const editorRef = useRef(null);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -170,32 +170,22 @@ export default function Chat() {
     };
 
     const applyFormatting = (type, value = null) => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
+        const editor = editorRef.current;
+        if (!editor) return;
 
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selectedText = newMessage.substring(start, end);
+        editor.focus();
 
-        if (!selectedText) return;
-
-        let formatted = '';
         switch (type) {
-            case 'bold': formatted = `<b>${selectedText}</b>`; break;
-            case 'italic': formatted = `<i>${selectedText}</i>`; break;
-            case 'underline': formatted = `<u>${selectedText}</u>`; break;
-            case 'color': formatted = `<span style="color:${value}">${selectedText}</span>`; break;
-            default: formatted = selectedText;
+            case 'bold': document.execCommand('bold', false, null); break;
+            case 'italic': document.execCommand('italic', false, null); break;
+            case 'underline': document.execCommand('underline', false, null); break;
+            case 'color': document.execCommand('foreColor', false, value); break;
+            default: break;
         }
 
-        const news = newMessage.substring(0, start) + formatted + newMessage.substring(end);
-        setNewMessage(news);
-
-        setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(start + formatted.length, start + formatted.length);
-        }, 0);
+        setNewMessage(editor.innerHTML);
     };
+
 
     const fetchOneMessage = async (id) => {
         const { data } = await supabase
@@ -265,24 +255,31 @@ export default function Chat() {
 
     const sendMessage = async (e) => {
         if (e) e.preventDefault();
-        if (!newMessage.trim() || !team) return;
+
+        const editor = editorRef.current;
+        const content = editor ? editor.innerHTML.trim() : newMessage.trim();
+
+        if (!content || content === '<br>' || !team) return;
 
         try {
             const { data, error } = await supabase.from('messages').insert({
                 team_id: team,
                 sender_id: user.id,
                 player_id: activePlayerId,
-                content: newMessage.trim(),
+                content: content,
                 group_id: activeRoom?.id || null
             }).select().single();
 
             if (error) throw error;
+
+            if (editor) editor.innerHTML = '';
             setNewMessage('');
             if (data) fetchOneMessage(data.id);
         } catch (error) {
             alert("Erreur envoi: " + error.message);
         }
     };
+
 
     const deleteRoom = async (roomId) => {
         if (!confirm("Supprimer ce salon définitivement ? Tous les messages seront perdus.")) return;
@@ -574,21 +571,6 @@ export default function Chat() {
                             </div>
                         )}
 
-                        {/* Live Preview Bubble */}
-                        {newMessage.trim() && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 px-1">
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                                    Aperçu du message
-                                </p>
-                                <div className="bg-white border-2 border-indigo-100 rounded-2xl px-4 py-3 shadow-md inline-block max-w-[95%] mb-2">
-                                    <div
-                                        className="text-sm break-words leading-relaxed rich-text-rendered"
-                                        dangerouslySetInnerHTML={{ __html: newMessage.replace(/\n/g, '<br/>') || '...' }}
-                                    />
-                                </div>
-                            </div>
-                        )}
 
 
 
@@ -606,16 +588,12 @@ export default function Chat() {
                                 </button>
                             </div>
 
-                            <textarea
-                                ref={textareaRef}
-                                className="flex-1 bg-transparent px-2 py-2 focus:outline-none text-sm font-medium resize-none max-h-32 min-h-[40px]"
+                            <div
+                                ref={editorRef}
+                                contentEditable
+                                className="flex-1 bg-transparent px-2 py-2 focus:outline-none text-sm font-medium min-h-[40px] max-h-48 overflow-y-auto rich-text-rendered empty:before:content-[attr(placeholder)] empty:before:text-gray-400"
                                 placeholder={activeRoom ? `Message dans #${activeRoom.name}...` : "Écrivez un message..."}
-                                value={newMessage}
-                                onChange={e => {
-                                    setNewMessage(e.target.value);
-                                    e.target.style.height = 'inherit';
-                                    e.target.style.height = `${e.target.scrollHeight}px`;
-                                }}
+                                onInput={e => setNewMessage(e.currentTarget.innerHTML)}
                                 onKeyDown={e => {
                                     if (e.key === 'Enter') {
                                         if (isMobile) {
@@ -633,17 +611,17 @@ export default function Chat() {
                                         }
                                     }
                                 }}
-                                rows={1}
                             />
 
                             <button
                                 onClick={sendMessage}
-                                disabled={!newMessage.trim() || uploading}
+                                disabled={(!newMessage.trim() || newMessage === '<br>') || uploading}
                                 className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100 active:scale-90 mb-0.5"
                             >
                                 <Send size={18} />
                             </button>
                         </div>
+
                     </div>
                 )}
             </div>

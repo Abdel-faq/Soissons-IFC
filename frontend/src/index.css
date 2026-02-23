@@ -22,16 +22,25 @@ body {
 }
 
 /* Rich Text Formatting Support */
-.rich-text-rendered b, 
-.rich-text-rendered strong { 
-  font-weight: 800 !important; 
+.rich-text-rendered b,
+.rich-text-rendered strong {
+  font-weight: 800 !important;
 }
 
-.rich-text-rendered i, 
-.rich-text-rendered em { 
-  font-style: italic !important; 
+.rich-text-rendered i,
+.rich-text-rendered em {
+  font-style: italic !important;
 }
 
-.rich-text-rendered u { 
-  text-decoration: underline !important; 
+.rich-text-rendered u {
+  text-decoration: underline !important;
+}
+
+/* Contenteditable Placeholder */
+[contenteditable="true"]:empty:before {
+  content: attr(placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+  display: block;
+  /* For some browsers */
 }

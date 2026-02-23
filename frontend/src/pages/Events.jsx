@@ -1106,9 +1106,27 @@ export default function Events() {
                                                             </div>
                                                             <span className="text-xs font-semibold">{m.full_name}</span>
                                                         </div>
-                                                        <div className="text-[10px]">
-                                                            {(mStatus === 'PRESENT' || mStatus === 'RETARD') && <span className="text-green-600 font-bold">✅</span>}
-                                                            {(mStatus === 'ABSENT' || mStatus === 'MALADE' || mStatus === 'BLESSE') && <span className="text-red-600 font-bold">❌</span>}
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-[10px]">
+                                                                {(mStatus === 'PRESENT' || mStatus === 'RETARD') && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-green-600 font-bold">✅</span>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                const rpeValue = memberAvailability[ev.id]?.[m.id]?.rpe || myAttendance[m.id]?.[ev.id]?.rpe;
+                                                                                setRpeEvent({ id: ev.id, player_id: m.id, name: m.full_name, current: rpeValue });
+                                                                                setShowRpeModal(true);
+                                                                            }}
+                                                                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${(memberAvailability[ev.id]?.[m.id]?.rpe || myAttendance[m.id]?.[ev.id]?.rpe) ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-indigo-600 border-indigo-200'}`}
+                                                                        >
+                                                                            {(memberAvailability[ev.id]?.[m.id]?.rpe || myAttendance[m.id]?.[ev.id]?.rpe) ? `RPE: ${memberAvailability[ev.id]?.[m.id]?.rpe || myAttendance[m.id]?.[ev.id]?.rpe}` : 'RPE ?'}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                {(mStatus === 'ABSENT' || mStatus === 'MALADE' || mStatus === 'BLESSE') && <span className="text-red-600 font-bold">❌</span>}
+                                                            </div>
                                                         </div>
                                                     </label>
                                                 );

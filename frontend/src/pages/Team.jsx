@@ -254,6 +254,36 @@ export default function Team() {
         }
     };
 
+    const handleRPEUpdate = async (playerId, eventId, rpeValue) => {
+        if (!isCoach) return;
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/rpe`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rpe: parseInt(rpeValue),
+                    player_id: playerId
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur lors de l'enregistrement du RPE");
+            }
+
+            fetchAttendanceHistory(team.id); // Refresh
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
     const handleSyncToGoogleSheets = async () => {
         try {
             setLoading(true);
@@ -799,7 +829,18 @@ export default function Team() {
 
                                             return (
                                                 <td key={ev.id} className="p-2 border-r text-center">
-                                                    {rpe ? (
+                                                    {isCoach ? (
+                                                        <select
+                                                            className={`bg-transparent outline-none font-black text-[14px] ${getRpeColor(rpe)}`}
+                                                            value={rpe || ''}
+                                                            onChange={(e) => handleRPEUpdate(m.player_id, ev.id, e.target.value)}
+                                                        >
+                                                            <option value="">-</option>
+                                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => (
+                                                                <option key={val} value={val}>{val}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : rpe ? (
                                                         <div className={`w-8 h-8 flex items-center justify-center mx-auto rounded-lg font-black text-[14px] ${getRpeColor(rpe)}`}>
                                                             {rpe}
                                                         </div>

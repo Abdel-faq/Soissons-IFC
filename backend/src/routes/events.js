@@ -778,21 +778,23 @@ router.post('/:id/rpe', requireAuth, async (req, res) => {
     const { id: event_id } = req.params;
     const { rpe, player_id } = req.body; // player_id if parent is doing it for child
 
-    if (rpe < 1 || rpe > 10) {
-      return res.status(400).json({ error: "La note RPE doit être entre 1 et 10" });
-    }
-
     // 1. Verify existence and status
-    const { data: attendance, error: attError } = await supabase
-      .from('attendance')
-      .select('status')
-      .eq('event_id', event_id)
-      .eq('player_id', player_id)
-      .maybeSingle();
+    // If user is coach/admin, they can always set RPE for any player in their team
+    const isCoachOrAdmin = req.user.role === 'COACH' || req.user.role === 'ADMIN';
 
-    if (attError) throw attError;
-    if (!attendance || !['PRESENT', 'RETARD'].includes(attendance.status)) {
-      return res.status(400).json({ error: "Vous devez être marqué comme présent pour noter la séance." });
+    if (!isCoachOrAdmin) {
+      // Regular player check: only for themselves and must be present
+      const { data: attendance, error: attError } = await supabase
+        .from('attendance')
+        .select('status, player_id')
+        .eq('event_id', event_id)
+        .eq('player_id', player_id)
+        .maybeSingle();
+
+      if (attError) throw attError;
+      if (!attendance || !['PRESENT', 'RETARD'].includes(attendance.status)) {
+        return res.status(400).json({ error: "Vous devez être marqué comme présent pour noter la séance." });
+      }
     }
 
     // 2. Update RPE

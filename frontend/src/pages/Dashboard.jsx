@@ -301,7 +301,7 @@ export default function Dashboard() {
             if (fetchErr || !teamToJoin) throw new Error("Équipe introuvable avec ce code");
 
             const { error: joinErr } = await supabase.from('team_members').insert([
-                { team_id: teamToJoin.id, player_id: joinData.childId, user_id: user.id }
+                { team_id: teamToJoin.id, player_id: joinData.childId || null, user_id: user.id }
             ]);
             if (joinErr) throw joinErr;
 
@@ -355,60 +355,65 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6 flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-                        Bonjour, {team?.playerName || profile?.full_name || user?.email?.split('@')[0]} 👋
-                        <span className="ml-3 text-xs font-black px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="w-full">
+                    <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight flex flex-wrap items-center gap-2">
+                        <span>Bonjour {team?.playerName || profile?.full_name || user?.email?.split('@')[0]},</span>
+                        <span className="text-[10px] font-black px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">
                             {team?.role || profile?.role || 'Joueur'}
                         </span>
                     </h1>
-                    <p className="text-gray-500 font-medium font-bold">
-                        {team?.teamName ? `Saison ${team.teamName}` : 'SOISSONS IFC'}
+                    <p className="text-gray-500 font-bold mt-1">
+                        {team?.teamName ? `Equipe : ${team.teamName}` : 'SOISSONS IFC'}
                     </p>
                 </div>
 
                 {!isAdmin && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
                         {teams.length > 0 && (
-                            <>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Équipe :</label>
+                            <div className="flex flex-col gap-1 flex-1 sm:flex-none">
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Changer d'équipe :</label>
                                 <select
                                     value={team?.id || ''}
                                     onChange={(e) => handleTeamSwitch(e.target.value)}
-                                    className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                                 >
                                     {teams.map(t => (
                                         <option key={t.id} value={t.id}>{t.label}</option>
                                     ))}
                                 </select>
-                            </>
+                            </div>
                         )}
 
-                        <div className="flex gap-1">
+                        <div className="flex gap-2">
                             {isCoach && (
                                 <button
                                     onClick={() => setShowForm(!showForm)}
-                                    className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                                    className="flex-1 bg-indigo-600 text-white p-3 md:p-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
                                     title="Créer une nouvelle équipe"
                                 >
                                     <Plus size={20} />
+                                    <span className="md:hidden font-bold text-sm">Créer</span>
                                 </button>
                             )}
                             <button
                                 onClick={() => {
-                                    if (children.length === 0) {
+                                    if (isCoach) {
+                                        setShowJoinModal(true);
+                                        setJoinData({ ...joinData, childId: null, code: '' });
+                                    } else if (children.length === 0) {
                                         alert("Veuillez d'abord ajouter un enfant.");
                                         setShowChildForm(true);
                                     } else {
                                         setShowJoinModal(true);
-                                        setJoinData({ ...joinData, childId: children[0].id });
+                                        setJoinData({ ...joinData, childId: children[0].id, code: '' });
                                     }
                                 }}
-                                className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                                className="flex-1 bg-emerald-600 text-white p-3 md:p-2 rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
                                 title="Rejoindre une équipe (Code)"
                             >
                                 <Users size={20} />
+                                <span className="md:hidden font-bold text-sm">Rejoindre</span>
                             </button>
                         </div>
                     </div>
@@ -689,19 +694,22 @@ export default function Dashboard() {
                             <button onClick={() => setShowJoinModal(false)} className="hover:bg-white/10 p-1 rounded-lg"><X size={20} /></button>
                         </div>
                         <form onSubmit={handleJoinTeam} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Choisir l'enfant</label>
-                                <select
-                                    className="w-full border-2 border-gray-100 rounded-lg p-3 focus:border-emerald-500 focus:outline-none bg-gray-50 font-bold"
-                                    value={joinData.childId}
-                                    onChange={e => setJoinData({ ...joinData, childId: e.target.value })}
-                                    required
-                                >
-                                    {children.map(c => (
-                                        <option key={c.id} value={c.id}>{c.full_name} ({c.position})</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {!isCoach && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Choisir l'enfant</label>
+                                    <select
+                                        className="w-full border-2 border-gray-100 rounded-lg p-3 focus:border-emerald-500 focus:outline-none bg-gray-50 font-bold"
+                                        value={joinData.childId}
+                                        onChange={e => setJoinData({ ...joinData, childId: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">-- Sélectionner un profil --</option>
+                                        {children.map(c => (
+                                            <option key={c.id} value={c.id}>{c.full_name} ({c.position})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Code d'invitation</label>

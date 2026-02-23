@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Stats from '../components/Stats';
-import { Plus, X, Users } from 'lucide-react';
+import { Plus, X, Users, Edit2, Trash2 } from 'lucide-react';
 
 export default function Dashboard() {
     const [newTeamName, setNewTeamName] = useState('');
@@ -26,6 +26,9 @@ export default function Dashboard() {
     const [joiningTeam, setJoiningTeam] = useState(null); // { childId, inviteCode }
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [joinData, setJoinData] = useState({ childId: '', code: '' });
+    const [adminTeams, setAdminTeams] = useState([]); // All teams for admin management
+    const [editingTeamId, setEditingTeamId] = useState(null);
+    const [editingName, setEditingName] = useState('');
 
     useEffect(() => {
         fetchDashboardData();
@@ -176,6 +179,15 @@ export default function Dashboard() {
                         setNextEvent(null);
                     }
                 }
+
+                // If ADMIN, fetch ALL teams for management
+                if (userRole === 'ADMIN') {
+                    const { data: allTeamsData } = await supabase
+                        .from('teams')
+                        .select('*, coach:coach_id(full_name)')
+                        .order('name');
+                    setAdminTeams(allTeamsData || []);
+                }
             }
         } catch (error) {
             console.error("Dashboard error:", error);
@@ -302,6 +314,41 @@ export default function Dashboard() {
         }
     };
 
+    const handleUpdateTeamName = async (teamId) => {
+        if (!editingName.trim()) return;
+        try {
+            const { error } = await supabase
+                .from('teams')
+                .update({ name: editingName })
+                .eq('id', teamId);
+
+            if (error) throw error;
+
+            setAdminTeams(adminTeams.map(t => t.id === teamId ? { ...t, name: editingName } : t));
+            setEditingTeamId(null);
+        } catch (err) {
+            alert("Erreur lors de la modification : " + err.message);
+        }
+    };
+
+    const handleDeleteTeam = async (teamId) => {
+        if (!confirm("VOULEZ-VOUS VRAIMENT SUPPRIMER CETTE ÉQUIPE ?\nCette action est irréversible et supprimera également tous les membres et événements associés.")) return;
+
+        try {
+            const { error } = await supabase
+                .from('teams')
+                .delete()
+                .eq('id', teamId);
+
+            if (error) throw error;
+
+            setAdminTeams(adminTeams.filter(t => t.id !== teamId));
+            alert("Équipe supprimée avec succès.");
+        } catch (err) {
+            alert("Erreur lors de la suppression : " + err.message);
+        }
+    };
+
     if (loading) return <div className="p-10 text-center">Chargement...</div>;
 
     const isAdmin = profile?.role === 'ADMIN';
@@ -370,9 +417,64 @@ export default function Dashboard() {
 
             {/* View: ADMIN */}
             {isAdmin && (
-                <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl">
+                <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl space-y-8">
                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">🛡️ Panneau d'Administration</h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Team Management */}
+                        <div className="bg-white/10 p-6 rounded-xl border border-white/10">
+                            <h3 className="font-bold mb-4 flex items-center gap-2"><Users size={18} /> Gérer les Équipes</h3>
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                {adminTeams.length === 0 && <p className="text-gray-400 italic text-sm">Aucune équipe créée.</p>}
+                                {adminTeams.map(t => (
+                                    <div key={t.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
+                                        <div className="flex-1 mr-4">
+                                            <div className="flex items-center gap-2">
+                                                {editingTeamId === t.id ? (
+                                                    <input
+                                                        type="text"
+                                                        className="bg-slate-800 text-white px-2 py-1 rounded border border-indigo-500 outline-none text-sm w-full"
+                                                        value={editingName}
+                                                        onChange={e => setEditingName(e.target.value)}
+                                                        onKeyDown={e => e.key === 'Enter' && handleUpdateTeamName(t.id)}
+                                                        onBlur={() => setEditingTeamId(null)}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <span className="font-bold text-sm">{t.name}</span>
+                                                        <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-mono uppercase">
+                                                            {t.invite_code}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 mt-1">
+                                                Coach: <span className="text-indigo-300">{t.coach?.full_name || 'Non assigné'}</span>
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-1 shrink-0">
+                                            <button
+                                                onClick={() => { setEditingTeamId(t.id); setEditingName(t.name); }}
+                                                className="p-1.5 hover:bg-white/10 rounded transition-colors text-gray-400 hover:text-white"
+                                                title="Modifier le nom"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteTeam(t.id)}
+                                                className="p-1.5 hover:bg-red-500/20 rounded transition-colors text-gray-400 hover:text-red-400"
+                                                title="Supprimer l'équipe"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Coach Creation */}
                         <div className="bg-white/10 p-6 rounded-xl border border-white/10">
                             <h3 className="font-bold mb-4">Créer un nouveau compte Coach</h3>
                             <form onSubmit={handleCreateCoach} className="space-y-4 text-gray-900">
@@ -403,9 +505,12 @@ export default function Dashboard() {
                                 </div>
                             )}
                         </div>
-                        <div className="flex flex-col justify-center text-center p-6 border-l border-white/10">
-                            <p className="text-indigo-200 mb-4 font-medium italic">"En tant qu'administrateur, vous créez les comptes pour les éducateurs du club. Ils pourront ensuite créer leurs équipes respectives."</p>
-                        </div>
+                    </div>
+
+                    <div className="text-center pt-4 border-t border-white/10">
+                        <p className="text-indigo-200 text-sm font-medium italic">
+                            "En tant qu'administrateur, vous gérez les coachs et l'ensemble des équipes du club."
+                        </p>
                     </div>
                 </div>
             )}

@@ -19,6 +19,8 @@ export default function Dashboard() {
     const [lastCreatedCoach, setLastCreatedCoach] = useState(null);
 
     const [teams, setTeams] = useState([]); // Add teams state
+    const [unreadCount, setUnreadCount] = useState(0);
+
 
     const [children, setChildren] = useState([]);
     const [showChildForm, setShowChildForm] = useState(false);
@@ -175,8 +177,21 @@ export default function Dashboard() {
                             .limit(1)
                             .maybeSingle();
                         setNextEvent(event);
+
+                        // Fetch Unread Count
+                        try {
+                            const { data: session } = await supabase.auth.getSession();
+                            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/messages/unread-count/${activeContext.teamId}`, {
+                                headers: { 'Authorization': `Bearer ${session.session?.access_token}` }
+                            });
+                            const counts = await res.json();
+                            setUnreadCount(counts.total || 0);
+                        } catch (e) {
+                            console.error("Error fetching unread count", e);
+                        }
                     } else {
                         setNextEvent(null);
+                        setUnreadCount(0);
                     }
                 }
 
@@ -678,8 +693,13 @@ export default function Dashboard() {
                                 <h2 className="font-black text-xs uppercase tracking-widest text-gray-400 mb-4">Communication</h2>
                                 <p className="text-gray-700 font-medium">Venez discuter avec l'équipe et organiser les covoiturages directement sur le chat.</p>
                             </div>
-                            <button onClick={() => window.location.href = '/dashboard/chat'} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-center font-bold text-sm hover:bg-indigo-600 hover:text-white transition-all mt-6">
+                            <button onClick={() => window.location.href = '/dashboard/chat'} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-center font-bold text-sm hover:bg-indigo-600 hover:text-white transition-all mt-6 relative group/chat">
                                 Ouvrir le Vestiaire 🏟️
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                                        {unreadCount}
+                                    </span>
+                                )}
                             </button>
                         </div>
                     </div>

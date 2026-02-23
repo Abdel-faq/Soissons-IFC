@@ -1,7 +1,10 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Send, MessageSquare, User, Paperclip, ShieldCheck, FileText, Image as ImageIcon, Trash2, Plus, Users, Radio, Lock, X, Settings } from 'lucide-react';
+import {
+    Send, MessageSquare, User, Paperclip, ShieldCheck, FileText,
+    Image as ImageIcon, Trash2, Plus, Users, Radio, Lock, X, Settings,
+    Bold, Italic, Underline, Palette, Type, CheckCheck
+} from 'lucide-react';
 
 export default function Chat() {
     const [messages, setMessages] = useState([]);
@@ -20,9 +23,18 @@ export default function Chat() {
     const [editingRoomData, setEditingRoomData] = useState({ id: '', name: '', is_broadcast: false, members: [] });
     const [teamMembers, setTeamMembers] = useState([]);
     const [activePlayerId, setActivePlayerId] = useState(null);
+    const [readReceipts, setReadReceipts] = useState({}); // { messageId: [readers] }
+    const [showFormatting, setShowFormatting] = useState(false);
+    const [selectedColor, setSelectedColor] = useState('#4f46e5'); // Indigo 600
+    const [isMobile, setIsMobile] = useState(false);
     const messagesEndRef = useRef(null);
+    const textareaRef = useRef(null);
 
     useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+        };
+        checkMobile();
         fetchChatData();
 
         const channel = supabase
@@ -37,10 +49,12 @@ export default function Chat() {
             })
             .subscribe();
 
+        if (team) markAsRead();
+
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeRoom]); // Re-subscribe when filtered room changes
+    }, [activeRoom, team]);
 
     const fetchChatData = async () => {
         try {
@@ -67,9 +81,7 @@ export default function Chat() {
             if (context.teamId) {
                 const { data: t } = await supabase.from('teams').select('is_chat_locked').eq('id', context.teamId).single();
                 setIsChatLocked(t?.is_chat_locked);
-            }
 
-            if (context.teamId) {
                 // Fetch Messages
                 const query = supabase
                     .from('messages')
@@ -90,6 +102,7 @@ export default function Chat() {
                 const { data: msgs, error } = await query;
                 if (error) throw error;
                 setMessages(msgs || []);
+                if (isUserCoach) fetchReadReceipts(msgs?.map(m => m.id) || []);
 
                 // Fetch Rooms (Salons)
                 const { data: myRooms } = await supabase
@@ -119,6 +132,71 @@ export default function Chat() {
         }
     };
 
+    const markAsRead = async () => {
+        if (!team) return;
+        try {
+            const { data: session } = await supabase.auth.getSession();
+            await fetch(`${import.meta.env.VITE_API_URL || '/api'}/messages/read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.session?.access_token}`
+                },
+                body: JSON.stringify({
+                    team_id: team,
+                    group_id: activeRoom?.id || null
+                })
+            });
+        } catch (e) { console.error("Error marking as read", e); }
+    };
+
+    const fetchReadReceipts = async (messageIds) => {
+        if (!messageIds.length || !isCoach) return;
+        try {
+            const { data, error } = await supabase
+                .from('message_reads')
+                .select('message_id, user_id, profiles(full_name)')
+                .in('message_id', messageIds);
+
+            if (error) throw error;
+
+            const mapping = {};
+            data.forEach(r => {
+                if (!mapping[r.message_id]) mapping[r.message_id] = [];
+                mapping[r.message_id].push(r.profiles?.full_name || 'Inconnu');
+            });
+            setReadReceipts(prev => ({ ...prev, ...mapping }));
+        } catch (e) { console.error("Error fetching read receipts", e); }
+    };
+
+    const applyFormatting = (type, value = null) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = newMessage.substring(start, end);
+
+        if (!selectedText) return;
+
+        let formatted = '';
+        switch (type) {
+            case 'bold': formatted = `<b>${selectedText}</b>`; break;
+            case 'italic': formatted = `<i>${selectedText}</i>`; break;
+            case 'underline': formatted = `<u>${selectedText}</u>`; break;
+            case 'color': formatted = `<span style="color:${value}">${selectedText}</span>`; break;
+            default: formatted = selectedText;
+        }
+
+        const news = newMessage.substring(0, start) + formatted + newMessage.substring(end);
+        setNewMessage(news);
+
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(start + formatted.length, start + formatted.length);
+        }, 0);
+    };
+
     const fetchOneMessage = async (id) => {
         const { data } = await supabase
             .from('messages')
@@ -134,6 +212,7 @@ export default function Chat() {
                 if (prev.some(m => m.id === data.id)) return prev;
                 return [...prev, data];
             });
+            if (isCoach) fetchReadReceipts([data.id]);
         }
     };
 
@@ -166,7 +245,6 @@ export default function Chat() {
                 file_type: file.type.includes('image') ? 'IMAGE' : 'PDF',
                 group_id: activeRoom?.id || null
             });
-
         } catch (error) {
             alert("Erreur upload: " + error.message);
         } finally {
@@ -186,7 +264,7 @@ export default function Chat() {
     };
 
     const sendMessage = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!newMessage.trim() || !team) return;
 
         try {
@@ -441,7 +519,16 @@ export default function Chat() {
                                             )}
                                         </div>
                                     )}
-                                    <p className="text-sm break-words leading-relaxed">{msg.content}</p>
+                                    <div
+                                        className="text-sm break-words leading-relaxed rich-text-content"
+                                        dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>') }}
+                                    />
+                                    {isCoach && readReceipts[msg.id] && readReceipts[msg.id].length > 0 && (
+                                        <div className={`text-[8px] mt-1 flex items-center gap-1 font-bold ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
+                                            <CheckCheck size={10} /> Lu par : {readReceipts[msg.id].join(', ')}
+                                        </div>
+                                    )}
+
                                     <div className={`text-[9px] font-bold mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         {isMe && <ShieldCheck size={10} className="text-indigo-300" />}
@@ -469,26 +556,76 @@ export default function Chat() {
                         <Lock size={14} /> Salon en mode diffusion seule (Lecture seule)
                     </div>
                 ) : (
-                    <form onSubmit={sendMessage} className="flex items-center gap-2 bg-gray-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-indigo-300 focus-within:bg-white transition-all">
-                        <label className="cursor-pointer p-2 hover:bg-gray-200 rounded-full transition-colors relative">
-                            {uploading ? <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent animate-spin rounded-full" /> : <Paperclip size={20} className="text-gray-500" />}
-                            <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} accept="image/*,.pdf" />
-                        </label>
-                        <input
-                            type="text"
-                            className="flex-1 bg-transparent px-2 py-1.5 focus:outline-none text-sm font-medium"
-                            placeholder={activeRoom ? `Message dans #${activeRoom.name}...` : "Écrivez un message..."}
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                        />
-                        <button
-                            type="submit"
-                            disabled={!newMessage.trim() || uploading}
-                            className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100 active:scale-90"
-                        >
-                            <Send size={18} />
-                        </button>
-                    </form>
+                    <div className="space-y-2">
+                        {showFormatting && (
+                            <div className="flex items-center gap-2 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100 flex-wrap animate-in slide-in-from-bottom-2">
+                                <button onClick={() => applyFormatting('bold')} className="p-1.5 hover:bg-white rounded-lg text-indigo-600 transition-colors" title="Gras"><Bold size={16} /></button>
+                                <button onClick={() => applyFormatting('italic')} className="p-1.5 hover:bg-white rounded-lg text-indigo-600 transition-colors" title="Italique"><Italic size={16} /></button>
+                                <button onClick={() => applyFormatting('underline')} className="p-1.5 hover:bg-white rounded-lg text-indigo-600 transition-colors" title="Souligné"><Underline size={16} /></button>
+                                <div className="w-[1px] h-4 bg-indigo-200 mx-1" />
+                                <input
+                                    type="color"
+                                    value={selectedColor}
+                                    onChange={e => setSelectedColor(e.target.value)}
+                                    className="w-6 h-6 rounded border-0 bg-transparent cursor-pointer"
+                                />
+                                <button onClick={() => applyFormatting('color', selectedColor)} className="p-1.5 hover:bg-white rounded-lg text-indigo-600 transition-colors" title="Appliquer couleur"><Palette size={16} /></button>
+                            </div>
+                        )}
+
+                        <div className="flex items-end gap-2 bg-gray-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-indigo-300 focus-within:bg-white transition-all">
+                            <div className="flex flex-col gap-1 items-center">
+                                <label className="cursor-pointer p-2 hover:bg-gray-200 rounded-full transition-colors relative">
+                                    {uploading ? <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent animate-spin rounded-full" /> : <Paperclip size={20} className="text-gray-500" />}
+                                    <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} accept="image/*,.pdf" />
+                                </label>
+                                <button
+                                    onClick={() => setShowFormatting(!showFormatting)}
+                                    className={`p-2 rounded-full transition-colors ${showFormatting ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-200 text-gray-500'}`}
+                                >
+                                    <Type size={18} />
+                                </button>
+                            </div>
+
+                            <textarea
+                                ref={textareaRef}
+                                className="flex-1 bg-transparent px-2 py-2 focus:outline-none text-sm font-medium resize-none max-h-32 min-h-[40px]"
+                                placeholder={activeRoom ? `Message dans #${activeRoom.name}...` : "Écrivez un message..."}
+                                value={newMessage}
+                                onChange={e => {
+                                    setNewMessage(e.target.value);
+                                    e.target.style.height = 'inherit';
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                }}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        if (isMobile) {
+                                            // On mobile, Enter is always a newline
+                                            return;
+                                        } else {
+                                            if (e.shiftKey) {
+                                                // On desktop, Shift+Enter is a newline
+                                                return;
+                                            } else {
+                                                // On desktop, Enter sends the message
+                                                e.preventDefault();
+                                                sendMessage();
+                                            }
+                                        }
+                                    }
+                                }}
+                                rows={1}
+                            />
+
+                            <button
+                                onClick={sendMessage}
+                                disabled={!newMessage.trim() || uploading}
+                                className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100 active:scale-90 mb-0.5"
+                            >
+                                <Send size={18} />
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
 

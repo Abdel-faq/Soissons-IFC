@@ -573,6 +573,20 @@ export default function Chat() {
                             </div>
                         )}
 
+                        {/* Live Preview Bubble */}
+                        {newMessage.trim() && (newMessage.includes('<') || newMessage.includes('\n')) && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Aperçu du message :</p>
+                                <div className="bg-white border-2 border-indigo-100 rounded-2xl px-4 py-2.5 shadow-sm inline-block max-w-[85%] mb-2">
+                                    <div
+                                        className="text-sm break-words leading-relaxed rich-text-content uppercase-none"
+                                        dangerouslySetInnerHTML={{ __html: newMessage.replace(/\n/g, '<br/>') }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+
                         <div className="flex items-end gap-2 bg-gray-100 p-2 rounded-2xl border-2 border-transparent focus-within:border-indigo-300 focus-within:bg-white transition-all">
                             <div className="flex flex-col gap-1 items-center">
                                 <label className="cursor-pointer p-2 hover:bg-gray-200 rounded-full transition-colors relative">

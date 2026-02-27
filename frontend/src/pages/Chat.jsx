@@ -24,6 +24,7 @@ export default function Chat() {
     const [teamMembers, setTeamMembers] = useState([]);
     const [activePlayerId, setActivePlayerId] = useState(null);
     const [readReceipts, setReadReceipts] = useState({}); // { messageId: [readers] }
+    const [selectedMessageForReads, setSelectedMessageForReads] = useState(null);
     const [showFormatting, setShowFormatting] = useState(false);
     const [selectedColor, setSelectedColor] = useState('#4f46e5'); // Indigo 600
     const [isMobile, setIsMobile] = useState(false);
@@ -82,6 +83,20 @@ export default function Chat() {
                 const { data: t } = await supabase.from('teams').select('is_chat_locked').eq('id', context.teamId).single();
                 setIsChatLocked(t?.is_chat_locked);
 
+                // Fetch Team Members (Players + Coaches) - ALWAYS for read modal
+                const { data: members } = await supabase
+                    .from('team_members')
+                    .select('player_id, user_id, players(id, full_name)')
+                    .eq('team_id', context.teamId);
+
+                const richMembers = members?.filter(m => m.players).map(m => ({
+                    id: m.player_id,
+                    user_id: m.user_id,
+                    full_name: m.players.full_name
+                })) || [];
+
+                setTeamMembers(richMembers);
+
                 // Fetch Messages
                 const query = supabase
                     .from('messages')
@@ -99,10 +114,15 @@ export default function Chat() {
                     query.is('group_id', null);
                 }
 
-                const { data: msgs, error } = await query;
-                if (error) throw error;
+                const { data: msgs, error: msgError } = await query;
+                if (msgError) throw msgError;
                 setMessages(msgs || []);
-                if (isUserCoach) fetchReadReceipts(msgs?.map(m => m.id) || []);
+
+                // Fetch Read Receipts for all messages
+                if (msgs?.length) {
+                    // We need to pass richMembers directly because state update is async
+                    fetchReadReceipts(msgs.map(m => m.id), richMembers);
+                }
 
                 // Fetch Rooms (Salons)
                 const { data: myRooms } = await supabase
@@ -110,20 +130,6 @@ export default function Chat() {
                     .select('*')
                     .eq('team_id', context.teamId);
                 setRooms(myRooms || []);
-
-                // Fetch Team Members (Players + Coaches)
-                if (isUserCoach) {
-                    const { data: members } = await supabase
-                        .from('team_members')
-                        .select('player_id, user_id, players(id, full_name)')
-                        .eq('team_id', context.teamId);
-                    // Store the richer member objects
-                    setTeamMembers(members?.filter(m => m.players).map(m => ({
-                        id: m.player_id,
-                        user_id: m.user_id,
-                        full_name: m.players.full_name
-                    })) || []);
-                }
             }
         } catch (error) {
             console.error("Chat Error:", error);
@@ -150,20 +156,42 @@ export default function Chat() {
         } catch (e) { console.error("Error marking as read", e); }
     };
 
-    const fetchReadReceipts = async (messageIds) => {
-        if (!messageIds.length || !isCoach) return;
+    const fetchReadReceipts = async (messageIds, membersList = null) => {
+        if (!messageIds.length) return;
+        const members = membersList || teamMembers;
         try {
+            // Join with team_members to get player names for the specific team
             const { data, error } = await supabase
                 .from('message_reads')
-                .select('message_id, user_id, profiles(full_name)')
+                .select(`
+                    message_id, 
+                    user_id, 
+                    profiles(full_name, role)
+                `)
                 .in('message_id', messageIds);
 
             if (error) throw error;
 
+            // Enrich with player names from teamMembers (which we already have)
             const mapping = {};
             data.forEach(r => {
                 if (!mapping[r.message_id]) mapping[r.message_id] = [];
-                mapping[r.message_id].push(r.profiles?.full_name || 'Inconnu');
+
+                // Find player name(s) for this user in this team
+                const usersPlayers = members.filter(m => m.user_id === r.user_id);
+                if (usersPlayers.length > 0) {
+                    usersPlayers.forEach(p => mapping[r.message_id].push({
+                        id: p.id,
+                        user_id: r.user_id,
+                        full_name: p.full_name
+                    }));
+                } else {
+                    // Fallback to profile name if no player linked (e.g. Coach)
+                    mapping[r.message_id].push({
+                        user_id: r.user_id,
+                        full_name: r.profiles?.full_name || 'Inconnu'
+                    });
+                }
             });
             setReadReceipts(prev => ({ ...prev, ...mapping }));
         } catch (e) { console.error("Error fetching read receipts", e); }
@@ -521,10 +549,13 @@ export default function Chat() {
                                         dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>') }}
                                     />
 
-                                    {isCoach && readReceipts[msg.id] && readReceipts[msg.id].length > 0 && (
-                                        <div className={`text-[8px] mt-1 flex items-center gap-1 font-bold ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
-                                            <CheckCheck size={10} /> Lu par : {readReceipts[msg.id].join(', ')}
-                                        </div>
+                                    {readReceipts[msg.id] && readReceipts[msg.id].length > 0 && (
+                                        <button
+                                            onClick={() => setSelectedMessageForReads(msg)}
+                                            className={`text-[8px] mt-2 flex items-center gap-1 font-bold underline underline-offset-2 hover:opacity-80 transition-opacity ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}
+                                        >
+                                            <CheckCheck size={10} /> Voir qui a lu ce message ({readReceipts[msg.id].length})
+                                        </button>
                                     )}
 
                                     <div className={`text-[9px] font-bold mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
@@ -544,8 +575,52 @@ export default function Chat() {
                         );
                     })
                 }
-                < div ref={messagesEndRef} />
+                <div ref={messagesEndRef} />
             </div>
+
+            {/* Read Receipts Modal */}
+            {selectedMessageForReads && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[60] backdrop-blur-md">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-10">
+                        <div className="bg-indigo-600 p-6 text-white text-center">
+                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <CheckCheck size={32} />
+                            </div>
+                            <h2 className="text-xl font-black">Lectures du message</h2>
+                            <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-widest mt-1">Détails de consultation</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 border-b">
+                            <div className="text-xs text-gray-500 line-clamp-2 italic bg-white p-3 rounded-xl border border-gray-100 italic" dangerouslySetInnerHTML={{ __html: selectedMessageForReads.content }} />
+                        </div>
+                        <div className="max-h-[350px] overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                            {teamMembers.map(member => {
+                                const hasRead = readReceipts[selectedMessageForReads.id]?.some(r => r.id === member.id || r.user_id === member.user_id);
+                                return (
+                                    <div key={member.id} className="flex items-center justify-between p-3 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
+                                                {member.full_name?.[0]}
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700">{member.full_name}</span>
+                                        </div>
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${hasRead ? 'bg-emerald-500 border-emerald-500 text-white scale-110' : 'border-gray-200 text-transparent'}`}>
+                                            <CheckCheck size={14} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="p-4">
+                            <button
+                                onClick={() => setSelectedMessageForReads(null)}
+                                className="w-full bg-gray-100 text-gray-800 font-black py-4 rounded-2xl hover:bg-gray-200 transition-all active:scale-95"
+                            >
+                                FERMER
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Input Area */}
             <div className="bg-white p-4 border-t sticky bottom-0">

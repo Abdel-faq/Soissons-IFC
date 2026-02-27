@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { LogOut, Home, Users, Calendar, MessageSquare, User, Layers } from 'lucide-react';
@@ -6,17 +6,43 @@ import { LogOut, Home, Users, Calendar, MessageSquare, User, Layers } from 'luci
 export default function Layout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
         navigate('/');
     };
 
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) return;
+
+                const activeTeamId = localStorage.getItem('active_team_id');
+                if (!activeTeamId) return;
+
+                const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/messages/unread-count/${activeTeamId}`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                if (!res.ok) return;
+                const counts = await res.json();
+                setUnreadCount(counts.total || 0);
+            } catch (e) {
+                console.error("Error fetching unread count in layout", e);
+            }
+        };
+
+        fetchUnreadCount();
+        const interval = setInterval(fetchUnreadCount, 30000); // Polling every 30s
+        return () => clearInterval(interval);
+    }, [location.pathname]);
+
     const navItems = [
         { path: '/dashboard', label: 'Accueil', icon: Home },
         { path: '/dashboard/team', label: 'Équipe', icon: Users },
         { path: '/dashboard/events', label: 'Events', icon: Calendar },
-        { path: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
+        { path: '/dashboard/chat', label: 'Chat', icon: MessageSquare, badge: unreadCount },
         { path: '/dashboard/profile', label: 'Profil', icon: User },
     ];
 
@@ -34,8 +60,16 @@ export default function Layout() {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`text-sm font-medium hover:text-indigo-600 ${location.pathname === item.path ? 'text-indigo-600' : 'text-gray-600'}`}
+                                className={`text-sm font-medium hover:text-indigo-600 flex items-center gap-1.5 ${location.pathname === item.path ? 'text-indigo-600' : 'text-gray-600'}`}
                             >
+                                <div className="relative">
+                                    <item.icon size={18} />
+                                    {item.badge > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm">
+                                            {item.badge}
+                                        </span>
+                                    )}
+                                </div>
                                 {item.label}
                             </Link>
                         ))}
@@ -72,7 +106,14 @@ export default function Layout() {
                             to={item.path}
                             className={`flex flex-col items-center gap-1 min-w-[64px] ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}
                         >
-                            <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                            <div className="relative">
+                                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                                {item.badge > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                                        {item.badge}
+                                    </span>
+                                )}
+                            </div>
                             <span className="text-[10px] font-medium">{item.label}</span>
                         </Link>
                     );

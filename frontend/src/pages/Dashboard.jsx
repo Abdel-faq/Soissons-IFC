@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Stats from '../components/Stats';
-import { Plus, X, Users, Edit2, Trash2 } from 'lucide-react';
+import { Plus, X, Users, Edit2, Trash2, Image, Send, Layout, ChevronLeft, ChevronRight, MessageSquare, Info } from 'lucide-react';
 
 export default function Dashboard() {
     const [newTeamName, setNewTeamName] = useState('');
@@ -31,6 +31,14 @@ export default function Dashboard() {
     const [adminTeams, setAdminTeams] = useState([]); // All teams for admin management
     const [editingTeamId, setEditingTeamId] = useState(null);
     const [editingName, setEditingName] = useState('');
+
+    // Team Posts (Infos Equipe)
+    const [posts, setPosts] = useState([]);
+    const [loadingPosts, setLoadingPosts] = useState(false);
+    const [showPostModal, setShowPostModal] = useState(false);
+    const [newPost, setNewPost] = useState({ content: '', images: [], visibility_type: 'PUBLIC', recipient_ids: [] });
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [teamMembers, setTeamMembers] = useState([]); // For targeted visibility
 
     useEffect(() => {
         fetchDashboardData();
@@ -195,7 +203,6 @@ export default function Dashboard() {
                     }
                 }
 
-                // If ADMIN, fetch ALL teams for management
                 if (userRole === 'ADMIN') {
                     const { data: allTeamsData } = await supabase
                         .from('teams')
@@ -203,12 +210,49 @@ export default function Dashboard() {
                         .order('name');
                     setAdminTeams(allTeamsData || []);
                 }
+
+                // Fetch Posts if team is active
+                if (activeContext?.teamId) {
+                    fetchPosts(activeContext.teamId);
+                    if (activeContext.role === 'COACH') {
+                        fetchTeamMembers(activeContext.teamId);
+                    }
+                }
             }
         } catch (error) {
             console.error("Dashboard error:", error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchPosts = async (teamId) => {
+        try {
+            setLoadingPosts(true);
+            const { data: session } = await supabase.auth.getSession();
+            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/posts/${teamId}`, {
+                headers: { 'Authorization': `Bearer ${session.session?.access_token}` }
+            });
+            const data = await res.json();
+            setPosts(data || []);
+        } catch (e) {
+            console.error("Error fetching posts", e);
+        } finally {
+            setLoadingPosts(false);
+        }
+    };
+
+    const fetchTeamMembers = async (teamId) => {
+        const { data } = await supabase
+            .from('team_members')
+            .select(`
+                player_id, 
+                players(id, full_name, position)
+            `)
+            .eq('team_id', teamId)
+            .not('player_id', 'is', null);
+
+        setTeamMembers(data?.map(m => m.players).filter(Boolean) || []);
     };
 
     const handleAddChild = async (e) => {
@@ -536,64 +580,101 @@ export default function Dashboard() {
             )}
 
             {/* Mes Enfants Section */}
-            {!isAdmin && (
+            {/* View: Infos Equipe (Feed) */}
+            {team && (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            👨‍👩‍👧‍👦 Mes Enfants
-                        </h2>
-                        <button
-                            onClick={() => setShowChildForm(!showChildForm)}
-                            className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
-                        >
-                            <Plus size={14} /> Ajouter un enfant
-                        </button>
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-indigo-600 text-white p-2 rounded-lg">
+                                <Info size={18} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">Infos Équipe</h2>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Actualités du vestiaire</p>
+                            </div>
+                        </div>
+                        {isCoach && (
+                            <button
+                                onClick={() => setShowPostModal(true)}
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2"
+                            >
+                                <Plus size={14} /> PUBLIER UNE INFO
+                            </button>
+                        )}
                     </div>
 
-                    {showChildForm && (
-                        <form onSubmit={handleAddChild} className="bg-indigo-50 p-4 rounded-xl mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <input
-                                placeholder="Prénom" className="p-2 rounded border" required
-                                value={newChild.first_name} onChange={e => setNewChild({ ...newChild, first_name: e.target.value })}
-                            />
-                            <input
-                                placeholder="Nom" className="p-2 rounded border" required
-                                value={newChild.last_name} onChange={e => setNewChild({ ...newChild, last_name: e.target.value })}
-                            />
-                            <div className="flex gap-2">
-                                <select
-                                    className="flex-1 p-2 rounded border font-medium"
-                                    value={newChild.position}
-                                    onChange={e => setNewChild({ ...newChild, position: e.target.value })}
-                                >
-                                    <option value="Gardien">Gardien</option>
-                                    <option value="Défenseur">Défenseur</option>
-                                    <option value="Milieu">Milieu</option>
-                                    <option value="Attaquant">Attaquant</option>
-                                    <option value="Remplaçant">Remplaçant</option>
-                                </select>
-                                <button className="bg-indigo-600 text-white px-4 rounded font-bold">OK</button>
+                    <div className="space-y-6">
+                        {loadingPosts ? (
+                            <div className="py-10 text-center text-gray-400 italic text-sm">Chargement des actus...</div>
+                        ) : posts.length === 0 ? (
+                            <div className="py-10 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 italic text-gray-400 text-sm">
+                                Aucune info publiée pour le moment.
                             </div>
-                        </form>
-                    )}
+                        ) : (
+                            <div className="grid grid-cols-1 gap-6">
+                                {posts.map(post => (
+                                    <div key={post.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+                                        <div className="p-4 flex items-center justify-between border-b border-gray-50 bg-gray-50/30">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                                                    {post.author?.full_name?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">{post.author?.full_name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(post.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
+                                                </div>
+                                            </div>
+                                            {post.visibility_type === 'PRIVATE' && (
+                                                <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase">Privé 🔒</span>
+                                            )}
+                                        </div>
 
-                    {children.length === 0 ? (
-                        <p className="text-gray-400 italic text-sm">Aucun profil d'enfant configuré.</p>
-                    ) : (
-                        <div className="flex flex-wrap gap-3">
-                            {children.map(child => (
-                                <div key={child.id} className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
-                                        {child.first_name?.[0]}
+                                        <div className="p-5">
+                                            <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+                                        </div>
+
+                                        {post.images && post.images.length > 0 && (
+                                            <div className={`grid gap-1 px-4 pb-4 ${post.images.length === 1 ? 'grid-cols-1' : post.images.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                                                {post.images.map((img, idx) => (
+                                                    <div key={idx} className={`relative rounded-xl overflow-hidden bg-gray-100 aspect-video ${post.images.length === 3 && idx === 0 ? 'col-span-2' : ''}`}>
+                                                        <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" />
+                                                        {img.caption && (
+                                                            <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm p-2 text-white text-[10px] font-medium">
+                                                                {img.caption}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {isCoach && (
+                                            <div className="px-4 py-3 bg-gray-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (confirm('Supprimer cette publication ?')) {
+                                                            const session = await supabase.auth.getSession();
+                                                            await fetch(`${import.meta.env.VITE_API_URL || '/api'}/posts/${post.id}`, {
+                                                                method: 'DELETE',
+                                                                headers: { 'Authorization': `Bearer ${session.data.session?.access_token}` }
+                                                            });
+                                                            fetchPosts(team.teamId);
+                                                        }
+                                                    }}
+                                                    className="text-gray-400 hover:text-red-500 p-1"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800">{child.full_name}</p>
-                                        <p className="text-[10px] text-gray-500 uppercase font-bold">{child.position || 'Joueur'}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                        <p className="text-[9px] text-gray-400 text-center font-bold uppercase tracking-widest opacity-60 italic">
+                            Les publications sont automatiquement supprimées après 15 jours.
+                        </p>
+                    </div>
                 </div>
             )}
 
@@ -705,6 +786,72 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+
+            {/* Mes Enfants Section (MOVED TO BOTTOM) */}
+            {!isAdmin && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-20 overflow-hidden">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-emerald-100 text-emerald-700 p-1.5 rounded-lg">
+                                <Users size={16} />
+                            </div>
+                            <h2 className="text-lg font-bold text-gray-800">Mes Enfants</h2>
+                        </div>
+                        <button
+                            onClick={() => setShowChildForm(!showChildForm)}
+                            className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full transition-colors flex items-center gap-1"
+                        >
+                            <Plus size={12} /> Ajouter un enfant
+                        </button>
+                    </div>
+
+                    {showChildForm && (
+                        <form onSubmit={handleAddChild} className="bg-indigo-50 p-4 rounded-xl mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input
+                                placeholder="Prénom" className="p-2 rounded border" required
+                                value={newChild.first_name} onChange={e => setNewChild({ ...newChild, first_name: e.target.value })}
+                            />
+                            <input
+                                placeholder="Nom" className="p-2 rounded border" required
+                                value={newChild.last_name} onChange={e => setNewChild({ ...newChild, last_name: e.target.value })}
+                            />
+                            <div className="flex gap-2">
+                                <select
+                                    className="flex-1 p-2 rounded border font-medium"
+                                    value={newChild.position}
+                                    onChange={e => setNewChild({ ...newChild, position: e.target.value })}
+                                >
+                                    <option value="Gardien">Gardien</option>
+                                    <option value="Défenseur">Défenseur</option>
+                                    <option value="Milieu">Milieu</option>
+                                    <option value="Attaquant">Attaquant</option>
+                                    <option value="Remplaçant">Remplaçant</option>
+                                </select>
+                                <button className="bg-indigo-600 text-white px-4 rounded font-bold">OK</button>
+                            </div>
+                        </form>
+                    )}
+
+                    {children.length === 0 ? (
+                        <p className="text-gray-400 italic text-sm">Aucun profil d'enfant configuré.</p>
+                    ) : (
+                        <div className="flex flex-wrap gap-3">
+                            {children.map(child => (
+                                <div key={child.id} className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
+                                        {child.first_name?.[0]}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-800">{child.first_name}</p>
+                                        <p className="text-[10px] text-gray-500 uppercase font-bold">{child.position || 'Joueur'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Modal: Rejoindre une équipe */}
             {showJoinModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
@@ -749,6 +896,173 @@ export default function Dashboard() {
                                 Valider l'inscription
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Publish Post */}
+            {showPostModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="bg-indigo-600 p-6 text-white flex justify-between items-center shrink-0">
+                            <div>
+                                <h3 className="text-xl font-black uppercase tracking-tight">Publier une Info</h3>
+                                <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-widest">Flux d'actualité de l'équipe</p>
+                            </div>
+                            <button onClick={() => setShowPostModal(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
+                            {/* Content */}
+                            <textarea
+                                className="w-full h-32 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100 focus:border-indigo-500 focus:outline-none font-medium text-gray-700 resize-none transition-all"
+                                placeholder="De quoi voulez-vous informer l'équipe ?"
+                                value={newPost.content}
+                                onChange={e => setNewPost({ ...newPost, content: e.target.value })}
+                            ></textarea>
+
+                            {/* Images */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-black uppercase text-gray-400 tracking-widest">Photos (Max 3)</label>
+                                    {newPost.images.length < 3 && (
+                                        <label className="cursor-pointer bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black hover:bg-indigo-100 transition-colors flex items-center gap-1">
+                                            <Plus size={12} /> AJOUTER
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        setUploadingImage(true);
+                                                        const fileExt = file.name.split('.').pop();
+                                                        const fileName = `${Math.random()}.${fileExt}`;
+                                                        const filePath = `posts/${team.teamId}/${fileName}`;
+                                                        await supabase.storage.from('chat_attachments').upload(filePath, file);
+                                                        const { data: { publicUrl } } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+                                                        setNewPost(prev => ({
+                                                            ...prev,
+                                                            images: [...prev.images, { url: publicUrl, caption: '' }]
+                                                        }));
+                                                    } finally {
+                                                        setUploadingImage(false);
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {newPost.images.map((img, idx) => (
+                                        <div key={idx} className="relative group rounded-xl overflow-hidden aspect-square shadow-sm bg-gray-100">
+                                            <img src={img.url} className="w-full h-full object-cover" />
+                                            <input
+                                                className="absolute bottom-0 inset-x-0 bg-black/50 p-1 text-[8px] text-white focus:outline-none"
+                                                placeholder="Légende..."
+                                                value={img.caption}
+                                                onChange={e => {
+                                                    const imgs = [...newPost.images];
+                                                    imgs[idx].caption = e.target.value;
+                                                    setNewPost({ ...newPost, images: imgs });
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => setNewPost(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
+                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {uploadingImage && (
+                                        <div className="aspect-square bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center animate-pulse">
+                                            <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Visibility */}
+                            <div className="space-y-3">
+                                <label className="text-xs font-black uppercase text-gray-400 tracking-widest">Visibilité</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setNewPost({ ...newPost, visibility_type: 'PUBLIC' })}
+                                        className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all ${newPost.visibility_type === 'PUBLIC' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-md' : 'border-gray-100 text-gray-400'}`}
+                                    >
+                                        🌍 Toute l'équipe
+                                    </button>
+                                    <button
+                                        onClick={() => setNewPost({ ...newPost, visibility_type: 'PRIVATE' })}
+                                        className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all ${newPost.visibility_type === 'PRIVATE' ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-md' : 'border-gray-100 text-gray-400'}`}
+                                    >
+                                        🔒 Joueurs spécifiques
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Targeted Players */}
+                            {newPost.visibility_type === 'PRIVATE' && (
+                                <div className="space-y-2 animate-in slide-in-from-top-2">
+                                    <label className="text-xs font-black uppercase text-gray-400 tracking-widest">Sélectionnez les joueurs</label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        {teamMembers.map(player => (
+                                            <label
+                                                key={player.id}
+                                                className={`flex items-center gap-2 p-2 rounded-xl border text-[10px] font-bold cursor-pointer transition-all ${newPost.recipient_ids.includes(player.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-gray-50 text-gray-600 border-gray-100'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={newPost.recipient_ids.includes(player.id)}
+                                                    onChange={e => {
+                                                        const ids = e.target.checked
+                                                            ? [...newPost.recipient_ids, player.id]
+                                                            : newPost.recipient_ids.filter(id => id !== player.id);
+                                                        setNewPost({ ...newPost, recipient_ids: ids });
+                                                    }}
+                                                />
+                                                {player.full_name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 bg-gray-50 border-t border-gray-100 shrink-0">
+                            <button
+                                onClick={async () => {
+                                    if (!newPost.content && newPost.images.length === 0) return;
+                                    try {
+                                        const session = await supabase.auth.getSession();
+                                        const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/posts`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${session.data.session?.access_token}`
+                                            },
+                                            body: JSON.stringify({
+                                                ...newPost,
+                                                team_id: team.teamId
+                                            })
+                                        });
+                                        if (!res.ok) throw new Error('Erreur publication');
+
+                                        setShowPostModal(false);
+                                        setNewPost({ content: '', images: [], visibility_type: 'PUBLIC', recipient_ids: [] });
+                                        fetchPosts(team.teamId);
+                                    } catch (err) { alert(err.message); }
+                                }}
+                                className="w-full bg-indigo-600 text-white p-4 rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Send size={20} /> PUBLIER L'INFORMATION
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

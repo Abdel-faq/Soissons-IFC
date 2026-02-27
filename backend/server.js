@@ -22,6 +22,7 @@ const carpoolingRoutes = require('./src/routes/carpooling');
 const messagesRoutes = require('./src/routes/messages');
 const fffRoutes = require('./src/routes/fff');
 const syncRoutes = require('./src/routes/sync');
+const postsRoutes = require('./src/routes/posts');
 
 // Use Routes
 const mountRoutes = (basePath) => {
@@ -31,6 +32,7 @@ const mountRoutes = (basePath) => {
     app.use(`${basePath}/messages`, messagesRoutes);
     app.use(`${basePath}/fff`, fffRoutes);
     app.use(`${basePath}/sync`, syncRoutes);
+    app.use(`${basePath}/posts`, postsRoutes);
 };
 
 // Mount both with and without /api prefix for maximum compatibility

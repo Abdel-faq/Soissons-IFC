@@ -5,6 +5,8 @@ const eventsRoutes = require('../backend/src/routes/events');
 const carpoolingRoutes = require('../backend/src/routes/carpooling');
 const messagesRoutes = require('../backend/src/routes/messages');
 const fffRoutes = require('../backend/src/routes/fff');
+const syncRoutes = require('../backend/src/routes/sync');
+const postsRoutes = require('../backend/src/routes/posts');
 
 const app = express();
 
@@ -24,6 +26,8 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/carpooling', carpoolingRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/fff', fffRoutes);
+app.use('/api/sync', syncRoutes);
+app.use('/api/posts', postsRoutes);
 
 app.get('/api/health', (req, res) => {
     res.json({

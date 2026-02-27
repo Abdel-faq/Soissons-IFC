@@ -20,6 +20,9 @@ export default function Team() {
     const [newTeamName, setNewTeamName] = useState('');
     const [joinCode, setJoinCode] = useState('');
 
+    // Pagination/Filtering
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
+
 
 
     const FFF_MAPPING = {
@@ -615,6 +618,51 @@ export default function Team() {
                 ))}
             </div>
 
+            {/* Month Selector for Stats Views */}
+            {(view === 'attendance' || view === 'rpe') && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-indigo-50 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-md">
+                            <Calendar size={18} />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-gray-800 uppercase text-xs tracking-wider">Période d'affichage</h3>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Filtrer par mois</p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                        {(() => {
+                            // Extract unique months from history
+                            const monthSet = new Set();
+                            historyEvents.forEach(e => monthSet.add(new Date(e.date).toISOString().substring(0, 7)));
+                            // Always include current month
+                            monthSet.add(new Date().toISOString().substring(0, 7));
+
+                            return Array.from(monthSet).sort().reverse().map(m => {
+                                const [year, month] = m.split('-');
+                                const date = new Date(year, month - 1);
+                                const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                                const isActive = selectedMonth === m;
+
+                                return (
+                                    <button
+                                        key={m}
+                                        onClick={() => setSelectedMonth(m)}
+                                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 whitespace-nowrap uppercase tracking-tighter ${isActive
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg scale-105'
+                                                : 'bg-white border-gray-100 text-gray-500 hover:border-indigo-200 hover:text-indigo-600'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            });
+                        })()}
+                    </div>
+                </div>
+            )}
+
             {view === 'members' ? (
                 /* Members List view */
                 <div className="bg-white rounded shadow-sm border overflow-hidden">
@@ -675,18 +723,18 @@ export default function Team() {
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
                             <tr>
                                 <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
-                                {historyEvents.map(ev => (
+                                {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => (
                                     <th
                                         key={ev.id}
                                         onClick={() => isCoach && setSelectedEvent(ev)}
                                         className={`p-2 min-w-[60px] text-center border-r select-none ${ev.is_deleted ? 'bg-red-50 text-red-400 line-through' : ''} ${isCoach ? 'cursor-pointer hover:bg-gray-100 text-indigo-600' : ''}`}
                                         title={isCoach ? "Cliquez pour gérer" : `${ev.type} - ${ev.location}`}
                                     >
-                                        {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                                        {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit' })}
                                         <div className="text-[8px] opacity-70">{ev.type === 'MATCH' ? 'Match' : 'Entr.'}</div>
                                     </th>
                                 ))}
-                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Assiduité</th>
+                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Total Saison</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -711,7 +759,7 @@ export default function Team() {
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
-                                        {historyEvents.map(ev => {
+                                        {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
                                             const attData = playerAtt[ev.id];
                                             const status = attData?.status;
                                             const rpe = attData?.rpe;
@@ -778,16 +826,16 @@ export default function Team() {
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
                             <tr>
                                 <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
-                                {historyEvents.map(ev => (
+                                {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => (
                                     <th
                                         key={ev.id}
                                         className="p-2 min-w-[60px] text-center border-r"
                                     >
-                                        {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                                        {new Date(ev.date).toLocaleDateString('fr-FR', { day: '2-digit' })}
                                         <div className="text-[8px] opacity-70">{ev.type === 'MATCH' ? 'Match' : 'Entr.'}</div>
                                     </th>
                                 ))}
-                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Moyenne</th>
+                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Moyenne Saison</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -808,7 +856,7 @@ export default function Team() {
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
-                                        {historyEvents.map(ev => {
+                                        {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
                                             const attData = playerAtt[ev.id];
                                             const rpe = attData?.rpe;
 

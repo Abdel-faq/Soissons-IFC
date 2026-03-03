@@ -172,7 +172,7 @@ export default function Team() {
                 player_id, 
                 user_id,
                 players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number),
-                profiles:user_id(id, full_name, role)
+                profiles:user_id(id, full_name, first_name, last_name, role)
             `)
             .eq('team_id', teamId);
 
@@ -676,6 +676,9 @@ export default function Team() {
                                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">{members.length} Membres enregistrés</p>
                             </div>
                         </div>
+                        <div className="md:hidden text-[10px] font-black text-indigo-500 animate-pulse bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 uppercase tracking-widest">
+                            Défilé horizontal →
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -686,7 +689,7 @@ export default function Team() {
                                     <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">N° Licence</th>
                                     <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">Naissance</th>
                                     <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Poste</th>
-                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden lg:table-cell text-center">Pied</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-center whitespace-nowrap">Pied</th>
                                     {isCoach && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>}
                                 </tr>
                             </thead>
@@ -701,7 +704,8 @@ export default function Team() {
                                 {members.map(m => {
                                     const isAmical = !m.player_id; // Coach or Admin usually
                                     const p = m.players || {};
-                                    const fullName = p.full_name || m.profiles?.full_name || 'Membre';
+                                    const prof = m.profiles || {};
+                                    const fullName = p.full_name || prof.full_name || (prof.first_name ? `${prof.first_name} ${prof.last_name}`.trim() : 'Membre');
                                     const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
                                     return (
@@ -745,11 +749,11 @@ export default function Team() {
                                             </td>
 
                                             {/* PIED FORT */}
-                                            <td className="px-4 py-4 hidden lg:table-cell text-center">
-                                                <div className="text-xs font-bold text-gray-600 uppercase tracking-tighter">
-                                                    {p.strong_foot === 'DROIT' && '🦶 Droit'}
-                                                    {p.strong_foot === 'GAUCHE' && '🦶 Gauche'}
-                                                    {p.strong_foot === 'AMBIDEXTRE' && '🦶🦶 Ambi'}
+                                            <td className="px-4 py-4 text-center">
+                                                <div className="text-xs font-bold text-gray-600 uppercase tracking-tighter whitespace-nowrap">
+                                                    {p.strong_foot === 'DROIT' && 'Droit'}
+                                                    {p.strong_foot === 'GAUCHE' && 'Gauche'}
+                                                    {p.strong_foot === 'AMBIDEXTRE' && 'Ambi'}
                                                     {!p.strong_foot && !isAmical && <span className="text-gray-200">-</span>}
                                                 </div>
                                             </td>

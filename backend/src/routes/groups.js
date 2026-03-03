@@ -29,7 +29,11 @@ router.post('/', requireAuth, async (req, res) => {
 
         const { data: group, error: groupError } = await supabase
             .from('custom_groups')
-            .insert([{ team_id, name }])
+            .insert([{
+                team_id,
+                name,
+                created_by: req.user.id
+            }])
             .select()
             .single();
 

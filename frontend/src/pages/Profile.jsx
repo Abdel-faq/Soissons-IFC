@@ -20,6 +20,14 @@ export default function Profile() {
         weight: '',
         strong_foot: 'DROIT',
         license_number: '',
+        country: 'FR',
+        stats_pac: 50,
+        stats_sho: 50,
+        stats_pas: 50,
+        stats_dri: 50,
+        stats_def: 50,
+        stats_phy: 50,
+        stats_overall: 50,
         push_supported: false,
         is_subscribed: false
     });
@@ -113,8 +121,24 @@ export default function Profile() {
                             fName = parts[0];
                             lName = parts.slice(1).join(' ') || '';
                         }
-                        setProfile({ ...data, first_name: fName, last_name: lName, email: user.email });
+                        setProfile({
+                            ...data,
+                            first_name: fName,
+                            last_name: lName,
+                            email: user.email,
+                            country: data.country || 'FR',
+                            stats_pac: data.stats_pac || 50,
+                            stats_sho: data.stats_sho || 50,
+                            stats_pas: data.stats_pas || 50,
+                            stats_dri: data.stats_dri || 50,
+                            stats_def: data.stats_def || 50,
+                            stats_phy: data.stats_phy || 50,
+                            stats_overall: data.stats_overall || 50
+                        });
                     }
+                }
+                if (context && context.role === 'COACH') {
+                    setProfile(prev => ({ ...prev, is_coach: true, role: 'COACH' }));
                 }
             }
         } catch (error) {
@@ -123,6 +147,8 @@ export default function Profile() {
             setLoading(false);
         }
     };
+
+    const isCoach = (profile.role === 'COACH' || profile.is_coach === true);
 
     const updateProfile = async (e) => {
         e.preventDefault();
@@ -146,10 +172,17 @@ export default function Profile() {
                 position: profile.position,
                 avatar_url: profile.avatar_url,
                 birth_date: profile.birth_date || null,
-                height: profile.height ? parseInt(profile.height) : null,
                 weight: profile.weight ? parseInt(profile.weight) : null,
                 strong_foot: profile.strong_foot,
-                license_number: profile.license_number
+                license_number: profile.license_number,
+                country: profile.country,
+                stats_pac: parseInt(profile.stats_pac) || 50,
+                stats_sho: parseInt(profile.stats_sho) || 50,
+                stats_pas: parseInt(profile.stats_pas) || 50,
+                stats_dri: parseInt(profile.stats_dri) || 50,
+                stats_def: parseInt(profile.stats_def) || 50,
+                stats_phy: parseInt(profile.stats_phy) || 50,
+                stats_overall: parseInt(profile.stats_overall) || 50
             };
 
             if (context && context.playerId) {
@@ -326,28 +359,83 @@ export default function Profile() {
                                     <option value="AMBIDEXTRE">Ambi 👐</option>
                                 </select>
                             </div>
+                            {/* POSITION */}
+                            <div className="space-y-1.5 pt-4">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Poste sur le terrain</label>
+                                {profile.role === 'COACH' ? (
+                                    <div className="w-full px-5 py-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl text-sm font-black text-indigo-600 shadow-sm flex items-center gap-2">
+                                        🛡️ COACH PRINCIPAL
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={profile.position || ''}
+                                        onChange={(e) => setProfile({ ...profile, position: e.target.value })}
+                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
+                                    >
+                                        <option value="">Sélectionner un poste...</option>
+                                        <option value="Gardien">🧤 Gardien</option>
+                                        <option value="Défenseur">🛡️ Défenseur</option>
+                                        <option value="Milieu">⚡ Milieu</option>
+                                        <option value="Attaquant">🎯 Attaquant</option>
+                                    </select>
+                                )}
+                            </div>
                         </div>
 
-                        {/* POSITION */}
-                        <div className="space-y-1.5">
-                            <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Poste sur le terrain</label>
-                            {profile.role === 'COACH' ? (
-                                <div className="w-full px-5 py-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl text-sm font-black text-indigo-600 shadow-sm flex items-center gap-2">
-                                    🛡️ COACH PRINCIPAL
+                        {/* SECTION STATS FIFA (COACH ONLY EDIT) */}
+                        <div className="pt-6 border-t border-gray-100 pb-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                                    <span className="bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded text-[10px]">FIFA</span> Statistiques Techniques
+                                </h3>
+                                {!isCoach && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl uppercase tracking-wider italic">Lecture seule (Coach uniquement)</span>}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Pays (Code ISO: FR, BE...)</label>
+                                    <input
+                                        type="text"
+                                        value={profile.country || ''}
+                                        onChange={(e) => setProfile({ ...profile, country: e.target.value.toUpperCase().substring(0, 2) })}
+                                        disabled={!isCoach}
+                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 placeholder:text-gray-300 disabled:opacity-50 transition-all focus:bg-white focus:border-indigo-500/20 shadow-inner"
+                                        placeholder="EX: FR"
+                                    />
                                 </div>
-                            ) : (
-                                <select
-                                    value={profile.position || ''}
-                                    onChange={(e) => setProfile({ ...profile, position: e.target.value })}
-                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
-                                >
-                                    <option value="">Sélectionner un poste...</option>
-                                    <option value="Gardien">🧤 Gardien</option>
-                                    <option value="Défenseur">🛡️ Défenseur</option>
-                                    <option value="Milieu">⚡ Milieu</option>
-                                    <option value="Attaquant">🎯 Attaquant</option>
-                                </select>
-                            )}
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Note Globale (OVR)</label>
+                                    <input
+                                        type="number"
+                                        value={profile.stats_overall || ''}
+                                        onChange={(e) => setProfile({ ...profile, stats_overall: e.target.value })}
+                                        disabled={!isCoach}
+                                        className="w-full px-5 py-4 bg-yellow-50/50 border-2 border-transparent rounded-2xl text-sm font-black text-yellow-700 disabled:opacity-50 transition-all focus:bg-white focus:border-yellow-400/20 shadow-inner"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {[
+                                    { key: 'stats_pac', label: 'Allure (PAC)' },
+                                    { key: 'stats_sho', label: 'Tir (SHO)' },
+                                    { key: 'stats_pas', label: 'Passe (PAS)' },
+                                    { key: 'stats_dri', label: 'Dribble (DRI)' },
+                                    { key: 'stats_def', label: 'Défense (DEF)' },
+                                    { key: 'stats_phy', label: 'Physique (PHY)' }
+                                ].map((stat) => (
+                                    <div key={stat.key} className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{stat.label}</label>
+                                        <input
+                                            type="number"
+                                            value={profile[stat.key] || ''}
+                                            onChange={(e) => setProfile({ ...profile, [stat.key]: e.target.value })}
+                                            disabled={!isCoach}
+                                            className="w-full px-4 py-3 bg-gray-50/50 border-2 border-transparent rounded-xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 transition-all disabled:opacity-50 shadow-inner"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 

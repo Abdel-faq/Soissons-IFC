@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Users, Copy, UserPlus, AlertCircle, Share, Calendar } from 'lucide-react';
+import { Users, Copy, UserPlus, AlertCircle, Share, Calendar, Sparkles } from 'lucide-react';
+import PlayerCard from '../components/PlayerCard';
 
 export default function Team() {
     const [loading, setLoading] = useState(true);
@@ -22,6 +23,8 @@ export default function Team() {
 
     // Pagination/Filtering
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [showCard, setShowCard] = useState(false);
 
 
 
@@ -171,7 +174,7 @@ export default function Team() {
             .select(`
                 player_id, 
                 user_id,
-                players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number),
+                players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number, country, stats_pac, stats_sho, stats_pas, stats_dri, stats_def, stats_phy, stats_overall),
                 profiles:user_id(id, full_name, first_name, last_name, role)
             `)
             .eq('team_id', teamId);
@@ -716,12 +719,21 @@ export default function Team() {
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm border-2 border-white ${isAmical ? 'bg-gray-100 text-gray-600' : 'bg-indigo-100 text-indigo-700'}`}>
                                                         {initials}
                                                     </div>
-                                                    <div>
-                                                        <div className="text-sm font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors uppercase">
+                                                    <div
+                                                        onClick={() => {
+                                                            if (!isAmical) {
+                                                                setSelectedPlayer({ ...p, full_name: fullName });
+                                                                setShowCard(true);
+                                                            }
+                                                        }}
+                                                        className={`cursor-pointer group/name`}
+                                                    >
+                                                        <div className="text-sm font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors uppercase flex items-center gap-1.5">
                                                             {fullName}
+                                                            {!isAmical && <Sparkles size={12} className="text-yellow-500 opacity-0 group-hover/name:opacity-100 transition-opacity" />}
                                                         </div>
                                                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                            {isAmical ? (m.profiles?.role || 'Membre') : 'Joueur'}
+                                                            {isAmical ? (prof.role || 'Membre') : 'Joueur'}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1035,6 +1047,12 @@ export default function Team() {
                         </div>
                     </div>
                 </div>
+            )}
+            {showCard && selectedPlayer && (
+                <PlayerCard
+                    player={selectedPlayer}
+                    onClose={() => { setShowCard(false); setSelectedPlayer(null); }}
+                />
             )}
         </div>
     );

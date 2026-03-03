@@ -563,12 +563,18 @@ export default function Chat() {
                                         {isMe && <ShieldCheck size={10} className="text-indigo-300" />}
                                     </div>
                                     {isCoach && (
-                                        <button
-                                            onClick={() => deleteMessage(msg.id)}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                        >
-                                            <Trash2 size={10} />
-                                        </button>
+                                        <div className={`mt-2 pt-2 border-t ${isMe ? 'border-indigo-500/30' : 'border-gray-100'} flex justify-end`}>
+                                            <button
+                                                onClick={() => deleteMessage(msg.id)}
+                                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${isMe
+                                                    ? 'bg-indigo-700/50 text-indigo-100 hover:bg-indigo-800'
+                                                    : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                                    }`}
+                                            >
+                                                <Trash2 size={12} />
+                                                <span>Supprimer</span>
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>

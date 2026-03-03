@@ -38,9 +38,14 @@ export default function Dashboard() {
     const [showPostModal, setShowPostModal] = useState(false);
     const [newPost, setNewPost] = useState({ content: '', images: [], visibility_type: 'PUBLIC', recipient_ids: [] });
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const [teamMembers, setTeamMembers] = useState([]); // For targeted visibility
 
     useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+        };
+        checkMobile();
         fetchDashboardData();
     }, []);
 
@@ -649,7 +654,7 @@ export default function Dashboard() {
                                         )}
 
                                         {isCoach && (
-                                            <div className="px-4 py-3 bg-gray-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className={`px-4 py-3 bg-gray-50 flex justify-end ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                                                 <button
                                                     onClick={async () => {
                                                         if (confirm('Supprimer cette publication ?')) {
@@ -661,9 +666,10 @@ export default function Dashboard() {
                                                             fetchPosts(team.teamId);
                                                         }
                                                     }}
-                                                    className="text-gray-400 hover:text-red-500 p-1"
+                                                    className="flex items-center gap-1 text-red-500 font-bold text-xs p-2 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                                                 >
                                                     <Trash2 size={16} />
+                                                    {isMobile && <span>Supprimer</span>}
                                                 </button>
                                             </div>
                                         )}

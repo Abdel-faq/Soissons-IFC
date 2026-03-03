@@ -44,19 +44,22 @@ export default function Login() {
 
         // --- Role Verification ---
         if (session?.user) {
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', session.user.id)
-                .single();
-
             const targetRole = role; // The role from location.state.role
 
-            if (profile && targetRole && profile.role !== targetRole) {
-                await supabase.auth.signOut();
-                setError(`Accès refusé : vous n'avez pas le rôle requis pour cet espace (${targetRole === 'COACH' ? 'Coach' : 'Joueur'}).`);
-                setLoading(false);
-                return;
+            // Only perform strict role check if a targetRole was specified (from LandingPage)
+            if (targetRole) {
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (profile && profile.role !== targetRole) {
+                    await supabase.auth.signOut();
+                    setError(`Accès refusé : vous n'avez pas le rôle requis pour cet espace (${targetRole === 'COACH' ? 'Coach' : 'Joueur'}).`);
+                    setLoading(false);
+                    return;
+                }
             }
         }
 

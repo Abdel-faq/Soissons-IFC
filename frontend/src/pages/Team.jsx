@@ -169,17 +169,45 @@ export default function Team() {
     };
 
     const fetchMembers = async (teamId) => {
-        const { data: teamMembers, error } = await supabase
-            .from('team_members')
-            .select(`
-                player_id, 
-                user_id,
-                players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number, country, stats_pac, stats_sho, stats_pas, stats_dri, stats_def, stats_phy, stats_overall),
-                profiles:user_id(id, full_name, first_name, last_name, role)
-            `)
-            .eq('team_id', teamId);
+        try {
+            // Tentative de récupération complète (avec stats FIFA)
+            const { data: teamMembers, error } = await supabase
+                .from('team_members')
+                .select(`
+                    player_id, 
+                    user_id,
+                    players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number, country, stats_pac, stats_sho, stats_pas, stats_dri, stats_def, stats_phy, stats_overall),
+                    profiles:user_id(id, full_name, first_name, last_name, role)
+                `)
+                .eq('team_id', teamId);
 
-        if (!error) setMembers(teamMembers || []);
+            if (error) {
+                // Si erreur 400 (colonnes manquantes), on tente un fallback sans les stats
+                if (error.code === '42703' || error.status === 400) {
+                    console.warn("⚠️ FIFA stats columns missing. Falling back to basic query.");
+                    const { data: basicMembers, error: basicError } = await supabase
+                        .from('team_members')
+                        .select(`
+                            player_id, 
+                            user_id,
+                            players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number),
+                            profiles:user_id(id, full_name, first_name, last_name, role)
+                        `)
+                        .eq('team_id', teamId);
+
+                    if (basicError) throw basicError;
+                    setMembers(basicMembers || []);
+                    setError("⚠️ Base de données non à jour : Les statistiques FIFA ne sont pas disponibles. Exécutez le script SQL de migration.");
+                    return;
+                }
+                throw error;
+            }
+            setMembers(teamMembers || []);
+            setError(null); // Clear previous errors if successful
+        } catch (err) {
+            console.error("Failed to fetch members:", err.message);
+            setError("Erreur de chargement des membres : " + err.message);
+        }
 
         fetchAttendanceHistory(teamId);
     };
@@ -552,6 +580,18 @@ export default function Team() {
                     >
                         + Créer
                     </button>
+                </div>
+            )}
+
+            {error && (
+                <div className="bg-orange-50 border-2 border-orange-200 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
+                    <AlertCircle className="text-orange-600 shrink-0" />
+                    <div>
+                        <p className="text-sm font-black text-orange-900 uppercase tracking-tight">Attention : Base de données non synchronisée</p>
+                        <p className="text-[10px] font-bold text-orange-700/70 uppercase tracking-widest leading-tight">
+                            Veuillez exécuter le script SQL de migration (v8) dans Supabase pour activer les cartes FIFA.
+                        </p>
+                    </div>
                 </div>
             )}
 

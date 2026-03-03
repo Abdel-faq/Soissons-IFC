@@ -388,7 +388,7 @@ export default function Profile() {
                                 <h3 className="text-sm font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
                                     <span className="bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded text-[10px]">FIFA</span> Statistiques Techniques
                                 </h3>
-                                {!isCoach && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl uppercase tracking-wider italic">Lecture seule (Coach uniquement)</span>}
+                                {!isCoach && <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl uppercase tracking-wider italic">Notes en lecture seule (Coach uniquement)</span>}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -398,8 +398,7 @@ export default function Profile() {
                                         type="text"
                                         value={profile.country || ''}
                                         onChange={(e) => setProfile({ ...profile, country: e.target.value.toUpperCase().substring(0, 2) })}
-                                        disabled={!isCoach}
-                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 placeholder:text-gray-300 disabled:opacity-50 transition-all focus:bg-white focus:border-indigo-500/20 shadow-inner"
+                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 placeholder:text-gray-300 transition-all focus:bg-white focus:border-indigo-500/20 shadow-inner"
                                         placeholder="EX: FR"
                                     />
                                 </div>

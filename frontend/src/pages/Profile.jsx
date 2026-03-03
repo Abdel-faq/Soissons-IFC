@@ -8,13 +8,18 @@ export default function Profile() {
     const [profile, setProfile] = useState({
         id: '',
         full_name: '',
+        first_name: '',
+        last_name: '',
         email: '',
         role: '',
-        phone: '', // We might need to add this column if it doesn't exist, checking schema... schema.sql didn't have phone, let's stick to standard fields first or add it.
-        // Schema checks: profiles table has: id, email, full_name, role, avatar_url. 
-        // Let's add phone naturally to the state, but if it fails to save, we know why. 
-        // Actually, let's assume we stick to full_name and avatar_url for now, and maybe role display.
+        phone: '',
+        position: '',
         avatar_url: '',
+        birth_date: '',
+        height: '',
+        weight: '',
+        strong_foot: 'DROIT',
+        license_number: '',
         push_supported: false,
         is_subscribed: false
     });
@@ -82,14 +87,12 @@ export default function Profile() {
                     if (error) throw error;
                     if (data) {
                         setProfile({
-                            id: data.id,
+                            ...data,
                             full_name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
-                            first_name: data.first_name,
-                            last_name: data.last_name,
                             email: user.email, // Child doesn't have email, show parent's
                             role: 'PLAYER',
-                            position: data.position,
-                            avatar_url: data.avatar_url || ''
+                            push_supported: false, // Default placeholders will be updated by OneSignal
+                            is_subscribed: false
                         });
                     }
                 } else {
@@ -129,40 +132,36 @@ export default function Profile() {
                 } catch (e) { }
             }
 
+            const updates = {
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                position: profile.position,
+                avatar_url: profile.avatar_url,
+                birth_date: profile.birth_date || null,
+                height: profile.height ? parseInt(profile.height) : null,
+                weight: profile.weight ? parseInt(profile.weight) : null,
+                strong_foot: profile.strong_foot,
+                license_number: profile.license_number
+            };
+
             if (context && context.playerId) {
                 // Update Player
-                let fName = profile.first_name;
-                let lName = profile.last_name;
-
-                // Ensure we split the full_name if it was edited
-                if (profile.full_name) {
-                    const parts = profile.full_name.trim().split(' ');
-                    fName = parts[0];
-                    lName = parts.slice(1).join(' ') || '';
-                }
-
                 const { error } = await supabase
                     .from('players')
-                    .update({
-                        first_name: fName,
-                        last_name: lName,
-                        position: profile.position,
-                        avatar_url: profile.avatar_url
-                    })
+                    .update(updates)
                     .eq('id', context.playerId);
 
                 if (error) throw error;
             } else {
                 // Update Profile
-                const updates = {
+                const profileUpdates = {
+                    ...updates,
                     id: user.id,
                     email: user.email,
-                    full_name: profile.full_name,
-                    position: profile.position,
-                    avatar_url: profile.avatar_url,
+                    full_name: `${profile.first_name} ${profile.last_name}`.trim(),
                 };
 
-                const { error } = await supabase.from('profiles').upsert(updates);
+                const { error } = await supabase.from('profiles').upsert(profileUpdates);
                 if (error) throw error;
             }
 
@@ -175,22 +174,22 @@ export default function Profile() {
     };
 
     if (loading) {
-        return <div className="p-10 text-center">Chargement...</div>;
+        return <div className="p-10 text-center text-indigo-600 font-bold">Chargement...</div>;
     }
 
     return (
-        <div className="max-w-xl mx-auto space-y-6">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-                <User className="text-indigo-600" /> Mon Profil
+        <div className="max-w-xl mx-auto space-y-6 pb-20">
+            <h1 className="text-2xl font-black flex items-center gap-2 text-indigo-900 tracking-tight">
+                <User size={28} className="text-indigo-600" /> MON PROFIL
             </h1>
 
-            <div className="bg-white p-8 rounded-lg shadow-md border">
-                <form onSubmit={updateProfile} className="space-y-6">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl shadow-indigo-900/5 border border-gray-100">
+                <form onSubmit={updateProfile} className="space-y-8">
 
                     {/* AVATAR SECTION */}
                     <div className="flex justify-center">
                         <div className="relative group">
-                            <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-3xl font-bold text-indigo-700 overflow-hidden border-4 border-white shadow-sm">
+                            <div className="w-32 h-32 bg-indigo-50 rounded-[40px] flex items-center justify-center text-4xl font-black text-indigo-700 overflow-hidden border-4 border-white shadow-2xl transform transition-all duration-300 group-hover:scale-105 group-hover:rotate-1">
                                 {profile.avatar_url ? (
                                     <img
                                         src={profile.avatar_url}
@@ -199,13 +198,13 @@ export default function Profile() {
                                         onError={(e) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/150?text=Error"; }}
                                     />
                                 ) : (
-                                    profile.full_name ? profile.full_name[0].toUpperCase() : <User size={40} />
+                                    profile.first_name ? profile.first_name[0].toUpperCase() : <User size={56} />
                                 )}
                             </div>
 
                             {/* File Input Overlay */}
-                            <label className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white cursor-pointer hover:bg-indigo-700 transition-colors shadow-sm">
-                                <Camera size={14} />
+                            <label className="absolute -bottom-2 -right-2 bg-indigo-600 text-white p-3 rounded-2xl border-4 border-white cursor-pointer hover:bg-indigo-700 transition-all shadow-xl active:scale-90 z-10">
+                                <Camera size={20} />
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -213,8 +212,8 @@ export default function Profile() {
                                     onChange={(e) => {
                                         const file = e.target.files[0];
                                         if (file) {
-                                            if (file.size > 500000) { // Limit 500kb
-                                                alert("L'image est trop volumineuse (max 500ko). Utilisez un lien ou une image plus petite.");
+                                            if (file.size > 500000) {
+                                                alert("Image trop lourde (max 500ko)");
                                                 return;
                                             }
                                             const reader = new FileReader();
@@ -229,120 +228,171 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    <div className="grid gap-6">
-                        {/* EMAIL (Read only) */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                                <Mail size={16} /> Email
-                            </label>
-                            <input
-                                type="text"
-                                value={profile.email}
-                                disabled
-                                className="block w-full rounded-md border-gray-200 bg-gray-50 p-2 text-gray-500 shadow-sm"
-                            />
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* PRÉNOM */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Prénom</label>
+                                <input
+                                    type="text"
+                                    value={profile.first_name || ''}
+                                    onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
+                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all placeholder:text-gray-300 shadow-inner"
+                                    placeholder="Ex: Théo"
+                                    required
+                                />
+                            </div>
+
+                            {/* NOM */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Nom</label>
+                                <input
+                                    type="text"
+                                    value={profile.last_name || ''}
+                                    onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
+                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all placeholder:text-gray-300 shadow-inner"
+                                    placeholder="Ex: Martin"
+                                    required
+                                />
+                            </div>
                         </div>
 
-                        {/* FULL NAME */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Nom complet
-                            </label>
-                            <input
-                                type="text"
-                                value={profile.full_name || ''}
-                                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
-                                placeholder="Ex: Zinedine Zidane"
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* DATE NAISSANCE */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Date de naissance</label>
+                                <input
+                                    type="date"
+                                    value={profile.birth_date || ''}
+                                    onChange={(e) => setProfile({ ...profile, birth_date: e.target.value })}
+                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
+                                />
+                            </div>
+
+                            {/* LICENCE */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">N° Licence FFF</label>
+                                <input
+                                    type="text"
+                                    value={profile.license_number || ''}
+                                    onChange={(e) => setProfile({ ...profile, license_number: e.target.value })}
+                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all placeholder:text-gray-300 shadow-inner"
+                                    placeholder="10 chiffres"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                            {/* TAILLE */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Taille (cm)</label>
+                                <input
+                                    type="number"
+                                    value={profile.height || ''}
+                                    onChange={(e) => setProfile({ ...profile, height: e.target.value })}
+                                    className="w-full px-4 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 text-center focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
+                                    placeholder="170"
+                                />
+                            </div>
+                            {/* POIDS */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Poids (kg)</label>
+                                <input
+                                    type="number"
+                                    value={profile.weight || ''}
+                                    onChange={(e) => setProfile({ ...profile, weight: e.target.value })}
+                                    className="w-full px-4 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 text-center focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
+                                    placeholder="65"
+                                />
+                            </div>
+                            {/* PIED FORT */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Pied Fort</label>
+                                <select
+                                    value={profile.strong_foot || 'DROIT'}
+                                    onChange={(e) => setProfile({ ...profile, strong_foot: e.target.value })}
+                                    className="w-full px-2 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-[10px] font-black text-indigo-900 uppercase focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
+                                >
+                                    <option value="DROIT">Droitier 🤜</option>
+                                    <option value="GAUCHE">Gaucher 🤛</option>
+                                    <option value="AMBIDEXTRE">Ambi 👐</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* POSITION */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Poste
-                            </label>
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Poste sur le terrain</label>
                             {profile.role === 'COACH' ? (
-                                <div className="flex items-center gap-2 p-2 bg-indigo-50 border border-indigo-100 rounded text-indigo-700 font-medium">
-                                    🛡️ Coach
-                                    <input type="hidden" value="Coach" />
+                                <div className="w-full px-5 py-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl text-sm font-black text-indigo-600 shadow-sm flex items-center gap-2">
+                                    🛡️ COACH PRINCIPAL
                                 </div>
                             ) : (
                                 <select
                                     value={profile.position || ''}
                                     onChange={(e) => setProfile({ ...profile, position: e.target.value })}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
                                 >
-                                    <option value="">Choisir un poste...</option>
-                                    <option value="Gardien">Gardien</option>
-                                    <option value="Défenseur">Défenseur</option>
-                                    <option value="Milieu">Milieu</option>
-                                    <option value="Attaquant">Attaquant</option>
+                                    <option value="">Sélectionner un poste...</option>
+                                    <option value="Gardien">🧤 Gardien</option>
+                                    <option value="Défenseur">🛡️ Défenseur</option>
+                                    <option value="Milieu">⚡ Milieu</option>
+                                    <option value="Attaquant">🎯 Attaquant</option>
                                 </select>
                             )}
                         </div>
-
-                        {/* AVATAR URL */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                URL Avatar (ou mettre un lien d'image)
-                            </label>
-                            <input
-                                type="url"
-                                value={profile.avatar_url || ''}
-                                onChange={(e) => setProfile({ ...profile, avatar_url: e.target.value })}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
-                                placeholder="https://..."
-                            />
-                        </div>
                     </div>
 
-                    <div className="pt-4">
-                        <button
-                            type="submit"
-                            disabled={updating}
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                        >
-                            {updating ? 'Enregistrement...' : <span className="flex items-center gap-2"><Save size={18} /> Enregistrer</span>}
-                        </button>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={updating}
+                        className="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-[24px] text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/40 hover:-translate-y-1 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                    >
+                        {updating ? (
+                            "Synchronisation..."
+                        ) : (
+                            <>
+                                <Save size={20} />
+                                Enregistrer mon profil
+                            </>
+                        )}
+                    </button>
                 </form>
             </div>
 
-            {/* NOTIFICATIONS SECTION */}
-            <div className="bg-white p-8 rounded-lg shadow-md border">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Bell className="text-indigo-600" size={20} /> Notifications
-                </h3>
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
-                        <div>
-                            <p className="font-medium">État des notifications</p>
-                            <p className="text-xs text-gray-500">
-                                {profile.push_supported
-                                    ? (profile.is_subscribed ? "Activées" : "Désactivées")
-                                    : "Non supportées sur cet appareil"}
-                            </p>
-                        </div>
-                        <button
-                            onClick={handleSubscription}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${profile.is_subscribed
-                                    ? "bg-red-50 text-red-600 hover:bg-red-100"
-                                    : "bg-indigo-600 text-white hover:bg-indigo-700"
-                                }`}
-                        >
-                            {profile.is_subscribed ? (
-                                <span className="flex items-center gap-2"><BellOff size={16} /> Désactiver</span>
-                            ) : (
-                                <span className="flex items-center gap-2"><Bell size={16} /> Activer</span>
-                            )}
-                        </button>
+            {/* NOTIFICATIONS */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl shadow-indigo-900/5 border border-gray-100 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0 shadow-inner">
+                        <Bell size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-[11px] font-black text-indigo-900/40 uppercase tracking-widest mb-0.5">Push Notifications</h3>
+                        <p className="text-sm font-bold text-indigo-900">
+                            {profile.push_supported
+                                ? (profile.is_subscribed ? "Statut : ACTIVÉ ✅" : "Statut : DÉSACTIVÉ ❌")
+                                : "NON SUPPORTÉ 🛡️"}
+                        </p>
                     </div>
                 </div>
+                <button
+                    onClick={handleSubscription}
+                    className={`h-12 px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${profile.is_subscribed
+                        ? "bg-red-50 text-red-600 hover:bg-red-100 shadow-sm"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20"
+                        }`}
+                >
+                    {profile.is_subscribed ? "Couper" : "Activer"}
+                </button>
             </div>
 
-            <div className="p-4 bg-yellow-50 text-yellow-800 rounded-md border border-yellow-200 text-sm">
-                <p>💡 <strong>Astuce :</strong> Mettez un vrai nom pour que vos coéquipiers vous reconnaissent facilement sur le terrain et pour le covoiturage !</p>
+            <div className="p-5 bg-yellow-50 rounded-[32px] border-2 border-yellow-100 flex gap-4 items-center">
+                <div className="w-10 h-10 bg-yellow-400 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-yellow-400/20">
+                    💡
+                </div>
+                <p className="text-[11px] font-bold text-yellow-800 leading-relaxed uppercase tracking-tight">
+                    Complétez votre <strong>taille</strong> et votre <strong>poids</strong> pour permettre au coach de suivre votre évolution physique !
+                </p>
             </div>
         </div>
     );

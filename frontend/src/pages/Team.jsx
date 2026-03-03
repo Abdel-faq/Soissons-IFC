@@ -171,7 +171,7 @@ export default function Team() {
             .select(`
                 player_id, 
                 user_id,
-                players(id, full_name, position, parent_id),
+                players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number),
                 profiles:user_id(id, full_name, role)
             `)
             .eq('team_id', teamId);
@@ -664,45 +664,128 @@ export default function Team() {
             )}
 
             {view === 'members' ? (
-                /* Members List view */
-                <div className="bg-white rounded shadow-sm border overflow-hidden">
-                    <div className="p-4 border-b bg-gray-50 font-semibold flex gap-2 items-center"><Users size={18} /> Membres ({members.length})</div>
-                    <ul>
-                        {members.length === 0 && <li className="p-4 text-gray-400 italic">Aucun membre</li>}
-                        {members.map(m => (
-                            <li key={m.player_id || m.user_id} className="p-4 border-b last:border-0 flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
-                                        {m.players?.full_name?.[0] || m.profiles?.full_name?.[0] || '?'}
-                                    </div>
-                                    <span>
-                                        {m.players?.full_name || m.profiles?.full_name || 'Membre'}
-                                        <span className="text-xs text-gray-400">
-                                            ({m.player_id ? (m.players?.position || 'Joueur') : (m.profiles?.role === 'COACH' ? 'Coach' : 'Administrateur')})
-                                        </span>
-                                    </span>
-                                </div>
-                                {isCoach && (
-                                    <button
-                                        onClick={async () => {
-                                            if (confirm('Supprimer ce joueur de l\'équipe ?')) {
-                                                const { error: deleteError } = await supabase.from('team_members').delete().eq('team_id', team.id).eq('player_id', m.player_id);
-                                                if (deleteError) {
-                                                    alert("Erreur lors de la suppression : " + deleteError.message);
-                                                } else {
-                                                    fetchMembers(team.id);
-                                                }
-                                            }
-                                        }}
-                                        className="text-gray-400 hover:text-red-600 p-2"
-                                        title="Supprimer du club"
-                                    >
-                                        <AlertCircle size={16} />
-                                    </button>
+                /* Members List view - REVAMPED TABLE */
+                <div className="bg-white rounded-[24px] shadow-xl shadow-indigo-900/5 border border-gray-100 overflow-hidden">
+                    <div className="p-5 border-b bg-gray-50/50 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-600/20">
+                                <Users size={18} />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Effectif de l'équipe</h2>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">{members.length} Membres enregistrés</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto no-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-white border-b border-gray-100">
+                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Joueur</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden md:table-cell">N° Licence</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden sm:table-cell">Naissance</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Poste</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden lg:table-cell text-center">Pied</th>
+                                    {isCoach && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {members.length === 0 && (
+                                    <tr>
+                                        <td colSpan={isCoach ? 6 : 5} className="p-10 text-center text-gray-400 italic text-sm">
+                                            Aucun membre dans cette équipe pour le moment.
+                                        </td>
+                                    </tr>
                                 )}
-                            </li>
-                        ))}
-                    </ul>
+                                {members.map(m => {
+                                    const isAmical = !m.player_id; // Coach or Admin usually
+                                    const p = m.players || {};
+                                    const fullName = p.full_name || m.profiles?.full_name || 'Membre';
+                                    const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+                                    return (
+                                        <tr key={m.player_id || m.user_id} className="group hover:bg-indigo-50/30 transition-colors">
+                                            {/* NOM COMPLET */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm border-2 border-white ${isAmical ? 'bg-gray-100 text-gray-600' : 'bg-indigo-100 text-indigo-700'}`}>
+                                                        {initials}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors uppercase">
+                                                            {fullName}
+                                                        </div>
+                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                            {isAmical ? (m.profiles?.role || 'Membre') : 'Joueur'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            {/* LICENCE */}
+                                            <td className="px-4 py-4 hidden md:table-cell">
+                                                <div className="text-xs font-bold text-gray-600 font-mono tracking-tighter">
+                                                    {p.license_number || <span className="text-gray-200">Non renseigné</span>}
+                                                </div>
+                                            </td>
+
+                                            {/* NAISSANCE */}
+                                            <td className="px-4 py-4 hidden sm:table-cell">
+                                                <div className="text-xs font-bold text-gray-600">
+                                                    {p.birth_date ? new Date(p.birth_date).toLocaleDateString('fr-FR') : <span className="text-gray-200">-</span>}
+                                                </div>
+                                            </td>
+
+                                            {/* POSTE */}
+                                            <td className="px-4 py-4">
+                                                <div className={`inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${isAmical ? 'bg-gray-100 text-gray-500' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                    {isAmical ? (m.profiles?.role === 'COACH' ? '🛡️ Coach' : 'Admin') : (p.position || 'Poste non défini')}
+                                                </div>
+                                            </td>
+
+                                            {/* PIED FORT */}
+                                            <td className="px-4 py-4 hidden lg:table-cell text-center">
+                                                <div className="text-xs font-bold text-gray-600 uppercase tracking-tighter">
+                                                    {p.strong_foot === 'DROIT' && '🦶 Droit'}
+                                                    {p.strong_foot === 'GAUCHE' && '🦶 Gauche'}
+                                                    {p.strong_foot === 'AMBIDEXTRE' && '🦶🦶 Ambi'}
+                                                    {!p.strong_foot && !isAmical && <span className="text-gray-200">-</span>}
+                                                </div>
+                                            </td>
+
+                                            {/* ACTIONS */}
+                                            {isCoach && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (confirm(`Supprimer ${fullName} de l'équipe ?`)) {
+                                                                const { error: deleteError } = await supabase
+                                                                    .from('team_members')
+                                                                    .delete()
+                                                                    .eq('team_id', team.id)
+                                                                    .eq(m.player_id ? 'player_id' : 'user_id', m.player_id || m.user_id);
+
+                                                                if (deleteError) {
+                                                                    alert("Erreur: " + deleteError.message);
+                                                                } else {
+                                                                    fetchMembers(team.id);
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="h-10 w-10 flex border-2 border-transparent items-center justify-center bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white hover:shadow-lg hover:shadow-red-500/20 transition-all active:scale-90"
+                                                        title="Supprimer du club"
+                                                    >
+                                                        <AlertCircle size={18} />
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             ) : view === 'attendance' ? (
                 /* Attendance matrix view */

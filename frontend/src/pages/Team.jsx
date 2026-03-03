@@ -678,13 +678,13 @@ export default function Team() {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto no-scrollbar">
+                    <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-white border-b border-gray-100">
-                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Joueur</th>
-                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden md:table-cell">N° Licence</th>
-                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden sm:table-cell">Naissance</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">Joueur</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">N° Licence</th>
+                                    <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">Naissance</th>
                                     <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Poste</th>
                                     <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden lg:table-cell text-center">Pied</th>
                                     {isCoach && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>}
@@ -708,7 +708,7 @@ export default function Team() {
                                         <tr key={m.player_id || m.user_id} className="group hover:bg-indigo-50/30 transition-colors">
                                             {/* NOM COMPLET */}
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 whitespace-nowrap">
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm border-2 border-white ${isAmical ? 'bg-gray-100 text-gray-600' : 'bg-indigo-100 text-indigo-700'}`}>
                                                         {initials}
                                                     </div>
@@ -724,22 +724,22 @@ export default function Team() {
                                             </td>
 
                                             {/* LICENCE */}
-                                            <td className="px-4 py-4 hidden md:table-cell">
-                                                <div className="text-xs font-bold text-gray-600 font-mono tracking-tighter">
+                                            <td className="px-4 py-4">
+                                                <div className="text-xs font-bold text-gray-600 font-mono tracking-tighter whitespace-nowrap">
                                                     {p.license_number || <span className="text-gray-200">Non renseigné</span>}
                                                 </div>
                                             </td>
 
                                             {/* NAISSANCE */}
-                                            <td className="px-4 py-4 hidden sm:table-cell">
-                                                <div className="text-xs font-bold text-gray-600">
+                                            <td className="px-4 py-4">
+                                                <div className="text-xs font-bold text-gray-600 whitespace-nowrap">
                                                     {p.birth_date ? new Date(p.birth_date).toLocaleDateString('fr-FR') : <span className="text-gray-200">-</span>}
                                                 </div>
                                             </td>
 
                                             {/* POSTE */}
                                             <td className="px-4 py-4">
-                                                <div className={`inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${isAmical ? 'bg-gray-100 text-gray-500' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                <div className={`inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isAmical ? 'bg-gray-100 text-gray-500' : 'bg-indigo-50 text-indigo-700'}`}>
                                                     {isAmical ? (m.profiles?.role === 'COACH' ? '🛡️ Coach' : 'Admin') : (p.position || 'Poste non défini')}
                                                 </div>
                                             </td>

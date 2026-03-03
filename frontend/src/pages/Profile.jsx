@@ -105,7 +105,15 @@ export default function Profile() {
 
                     if (error && error.code !== 'PGRST116') throw error;
                     if (data) {
-                        setProfile({ ...data, email: user.email });
+                        let fName = data.first_name;
+                        let lName = data.last_name;
+                        // Fallback to splitting full_name if specific fields are empty
+                        if (!fName && data.full_name) {
+                            const parts = data.full_name.trim().split(' ');
+                            fName = parts[0];
+                            lName = parts.slice(1).join(' ') || '';
+                        }
+                        setProfile({ ...data, first_name: fName, last_name: lName, email: user.email });
                     }
                 }
             }

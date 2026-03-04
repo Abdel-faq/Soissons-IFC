@@ -115,10 +115,7 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                 </button>
 
                 {/* FIFA CARD CONTAINER */}
-                <div
-                    className="relative w-[320px] h-[480px] select-none shadow-2xl shadow-yellow-500/30 rounded-[40px] overflow-hidden group"
-                    style={{ isolation: 'isolate' }}
-                >
+                <div className="relative w-[320px] h-[480px] select-none shadow-2xl shadow-yellow-500/30 rounded-[40px] overflow-hidden group">
 
                     {/* Background SVG / Gold Gradient */}
                     <div className="absolute inset-0 bg-[#F5D76E] bg-gradient-to-br from-[#FFD700] via-[#FDB931] to-[#D4AF37] border-[3px] border-[#C5A028] rounded-[40px]">
@@ -143,20 +140,20 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                                 src={clubLogo}
                                 alt="Club"
                                 className="w-full h-full object-contain"
-                                style={{ mixBlendMode: 'multiply', filter: 'brightness(1.1) contrast(1.1)' }}
+                                style={{ mixBlendMode: 'multiply', filter: 'brightness(1.5) contrast(1.5)' }}
                             />
                         </div>
                     </div>
 
                     {/* PLAYER IMAGE */}
-                    <div className="absolute top-[30px] left-[100px] right-2 h-[275px] z-0 pointer-events-none flex justify-center items-end">
+                    <div className="absolute top-[35px] left-[70px] right-4 h-[270px] z-0 pointer-events-none flex justify-center items-end">
                         <img
                             src={playerPhoto}
                             alt={player.full_name}
                             className="h-full w-auto object-contain transition-transform group-hover:scale-110 duration-700"
                             style={{
                                 mixBlendMode: 'multiply',
-                                filter: 'brightness(1.1) contrast(1.1)',
+                                filter: 'brightness(1.5) contrast(1.5)',
                                 transformOrigin: 'bottom center'
                             }}
                         />
@@ -233,8 +230,8 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none" />
 
                     {/* Version Marker (Subtle) */}
-                    <div className="absolute bottom-2 right-4 text-[6px] text-[#4E3621]/30 font-bold uppercase tracking-widest">
-                        Soissons IFC Card v1.4
+                    <div className="absolute bottom-2 right-4 text-[6px] text-[#4E3621]/40 font-bold uppercase tracking-widest">
+                        Soissons IFC Card v1.5
                     </div>
                 </div>
             </div>

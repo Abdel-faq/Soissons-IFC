@@ -135,17 +135,23 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                             <img src={flagUrl} alt="Flag" className="w-full h-full object-cover" />
                         </div>
 
-                        <div className="w-10 h-10 mt-1 drop-shadow-md mix-blend-multiply">
-                            <img src={clubLogo} alt="Club" className="w-full h-full object-contain" />
+                        <div className="w-10 h-10 mt-1 drop-shadow-md">
+                            <img
+                                src={clubLogo}
+                                alt="Club"
+                                className="w-full h-full object-contain"
+                                style={{ mixBlendMode: 'multiply' }}
+                            />
                         </div>
                     </div>
 
                     {/* PLAYER IMAGE */}
-                    <div className="absolute top-[40px] left-[80px] right-0 h-[260px] z-0 pointer-events-none flex justify-center">
+                    <div className="absolute top-[35px] left-[90px] right-2 h-[270px] z-0 pointer-events-none flex justify-center items-end">
                         <img
                             src={playerPhoto}
                             alt={player.full_name}
-                            className="h-full w-auto object-contain drop-shadow-[0_15px_15px_rgba(0,0,0,0.4)] transition-transform group-hover:scale-110 duration-700 mix-blend-multiply"
+                            className="h-full w-auto object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transition-transform group-hover:scale-110 duration-700"
+                            style={{ mixBlendMode: 'multiply' }}
                         />
                     </div>
 
@@ -218,6 +224,11 @@ export default function PlayerCard({ player, isCoach, onClose }) {
 
                     {/* Glossy Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none" />
+
+                    {/* Version Marker (Subtle) */}
+                    <div className="absolute bottom-2 right-4 text-[6px] text-[#4E3621]/20 font-bold uppercase tracking-widest">
+                        Soissons IFC Card v1.3
+                    </div>
                 </div>
             </div>
         </div>

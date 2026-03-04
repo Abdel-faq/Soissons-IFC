@@ -134,17 +134,17 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                             <img src={flagUrl} alt="Flag" className="w-full h-full object-cover" />
                         </div>
 
-                        <div className="w-10 h-10 mt-1 drop-shadow-md">
+                        <div className="w-10 h-10 mt-1 drop-shadow-md mix-blend-multiply">
                             <img src={clubLogo} alt="Club" className="w-full h-full object-contain" />
                         </div>
                     </div>
 
                     {/* PLAYER IMAGE */}
-                    <div className="absolute top-[40px] right-2 w-[220px] h-[260px] z-0 pointer-events-none">
+                    <div className="absolute top-[40px] left-[80px] right-0 h-[260px] z-0 pointer-events-none flex justify-center">
                         <img
                             src={playerPhoto}
                             alt={player.full_name}
-                            className="w-full h-full object-contain drop-shadow-[0_15px_15px_rgba(0,0,0,0.4)] transition-transform group-hover:scale-105 duration-700"
+                            className="h-full w-auto object-contain drop-shadow-[0_15px_15px_rgba(0,0,0,0.4)] transition-transform group-hover:scale-110 duration-700 mix-blend-multiply"
                         />
                     </div>
 

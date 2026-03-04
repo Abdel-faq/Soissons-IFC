@@ -1091,6 +1091,7 @@ export default function Team() {
             {showCard && selectedPlayer && (
                 <PlayerCard
                     player={selectedPlayer}
+                    isCoach={isCoach}
                     onClose={() => { setShowCard(false); setSelectedPlayer(null); }}
                 />
             )}

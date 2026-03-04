@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { User, Save, Phone, Mail, Camera, Bell, BellOff } from 'lucide-react';
+import { User, Mail, Camera, Save, Bell, Check, Trash2, AlertCircle, ChevronRight, MapPin, Flag } from 'lucide-react';
+
+const COUNTRIES = [
+    { name: "France", code: "fr" },
+    { name: "Tunisie", code: "tn" },
+    { name: "Algérie", code: "dz" },
+    { name: "Maroc", code: "ma" },
+    { name: "Portugal", code: "pt" },
+    { name: "Espagne", code: "es" },
+    { name: "Italie", code: "it" },
+    { name: "Royaume-Uni", code: "gb" },
+    { name: "Égypte", code: "eg" },
+    { name: "Soudan", code: "sd" },
+    { name: "Cameroun", code: "cm" },
+    { name: "Sénégal", code: "sn" },
+    { name: "Mali", code: "ml" },
+    { name: "Nigéria", code: "ng" },
+    { name: "Congo", code: "cg" },
+    { name: "RD Congo", code: "cd" },
+    { name: "Belgique", code: "be" },
+    { name: "Suisse", code: "ch" },
+    { name: "Côte d'Ivoire", code: "ci" },
+    { name: "Sénégal", code: "sn" }
+].sort((a, b) => a.name.localeCompare(b.name));
 
 export default function Profile() {
     const [loading, setLoading] = useState(true);
@@ -312,14 +335,16 @@ export default function Profile() {
 
                             {/* LICENCE */}
                             <div className="space-y-1.5">
-                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">N° Licence FFF</label>
+                                <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Numéro de Licence</label>
                                 <input
                                     type="text"
                                     value={profile.license_number || ''}
                                     onChange={(e) => setProfile({ ...profile, license_number: e.target.value })}
-                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all placeholder:text-gray-300 shadow-inner"
-                                    placeholder="10 chiffres"
+                                    disabled={!isCoach}
+                                    className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 placeholder:text-gray-300 disabled:opacity-50 transition-all focus:bg-white focus:border-indigo-500/20 shadow-inner"
+                                    placeholder="N° de licence"
                                 />
+                                {!isCoach && <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Modifiable uniquement par le coach</p>}
                             </div>
                         </div>
 
@@ -370,7 +395,8 @@ export default function Profile() {
                                     <select
                                         value={profile.position || ''}
                                         onChange={(e) => setProfile({ ...profile, position: e.target.value })}
-                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner"
+                                        disabled={!isCoach}
+                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 focus:bg-white focus:border-indigo-500/20 focus:outline-none transition-all shadow-inner disabled:opacity-50"
                                     >
                                         <option value="">Sélectionner un poste...</option>
                                         <option value="Gardien">🧤 Gardien</option>
@@ -393,14 +419,17 @@ export default function Profile() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div className="space-y-1.5">
-                                    <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Pays (Code ISO: FR, BE...)</label>
-                                    <input
-                                        type="text"
-                                        value={profile.country || ''}
-                                        onChange={(e) => setProfile({ ...profile, country: e.target.value.toUpperCase().substring(0, 2) })}
-                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 placeholder:text-gray-300 transition-all focus:bg-white focus:border-indigo-500/20 shadow-inner"
-                                        placeholder="EX: FR"
-                                    />
+                                    <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Pays</label>
+                                    <select
+                                        value={profile.country || 'fr'}
+                                        onChange={(e) => setProfile({ ...profile, country: e.target.value })}
+                                        className="w-full px-5 py-4 bg-gray-50/50 border-2 border-transparent rounded-2xl text-sm font-bold text-indigo-900 transition-all focus:bg-white focus:border-indigo-500/20 shadow-inner appearance-none"
+                                    >
+                                        <option value="">Choisir un pays...</option>
+                                        {COUNTRIES.map(c => (
+                                            <option key={c.code} value={c.code}>{c.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[11px] font-black text-indigo-900/40 uppercase tracking-[0.2em] ml-1">Note Globale (OVR)</label>

@@ -176,8 +176,8 @@ export default function Team() {
                 .select(`
                     player_id, 
                     user_id,
-                    players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number, country, stats_pac, stats_sho, stats_pas, stats_dri, stats_def, stats_phy, stats_overall),
-                    profiles:user_id(id, full_name, first_name, last_name, role)
+                    players(id, first_name, last_name, full_name, position, avatar_url, parent_id, birth_date, strong_foot, license_number, country, stats_pac, stats_sho, stats_pas, stats_dri, stats_def, stats_phy, stats_overall),
+                    profiles:user_id(id, full_name, first_name, last_name, role, avatar_url)
                 `)
                 .eq('team_id', teamId);
 
@@ -190,8 +190,8 @@ export default function Team() {
                         .select(`
                             player_id, 
                             user_id,
-                            players(id, first_name, last_name, full_name, position, parent_id, birth_date, strong_foot, license_number),
-                            profiles:user_id(id, full_name, first_name, last_name, role)
+                            players(id, first_name, last_name, full_name, position, avatar_url, parent_id, birth_date, strong_foot, license_number),
+                            profiles:user_id(id, full_name, first_name, last_name, role, avatar_url)
                         `)
                         .eq('team_id', teamId);
 
@@ -762,7 +762,11 @@ export default function Team() {
                                                     <div
                                                         onClick={() => {
                                                             if (!isAmical) {
-                                                                setSelectedPlayer({ ...p, full_name: fullName });
+                                                                setSelectedPlayer({
+                                                                    ...p,
+                                                                    full_name: fullName,
+                                                                    avatar_url: p.avatar_url || prof.avatar_url
+                                                                });
                                                                 setShowCard(true);
                                                             }
                                                         }}
@@ -1092,7 +1096,11 @@ export default function Team() {
                 <PlayerCard
                     player={selectedPlayer}
                     isCoach={isCoach}
-                    onClose={() => { setShowCard(false); setSelectedPlayer(null); }}
+                    onClose={() => {
+                        setShowCard(false);
+                        setSelectedPlayer(null);
+                        if (team?.id) fetchMembers(team.id);
+                    }}
                 />
             )}
         </div>

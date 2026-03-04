@@ -27,3 +27,26 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS stats_overall INTEGER DEFAULT 50;
 
 -- Comment pour la clarté
 COMMENT ON COLUMN players.country IS 'ISO country code (e.g., FR, BE, ES)';
+
+-- 3. AUTORISATION DES COACHS (RLS)
+-- Cette politique permet aux coachs de modifier les notes des joueurs de leurs équipes.
+DROP POLICY IF EXISTS "Coaches can update players in their teams" ON players;
+CREATE POLICY "Coaches can update players in their teams" ON players
+FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM teams t
+    JOIN team_members tm ON t.id = tm.team_id
+    WHERE t.coach_id = auth.uid() 
+    AND tm.player_id = players.id
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM teams t
+    JOIN team_members tm ON t.id = tm.team_id
+    WHERE t.coach_id = auth.uid() 
+    AND tm.player_id = players.id
+  )
+);

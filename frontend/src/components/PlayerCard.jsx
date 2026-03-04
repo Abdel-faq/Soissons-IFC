@@ -26,7 +26,7 @@ export default function PlayerCard({ player, isCoach, onClose }) {
     const handleSave = async () => {
         try {
             setUpdating(true);
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('players')
                 .update({
                     stats_pac: localStats.PAC,
@@ -38,14 +38,20 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                     stats_overall: OVR,
                     license_number: licenseNumber
                 })
-                .eq('id', player.id || player.player_id);
+                .eq('id', player.id || player.player_id)
+                .select()
+                .single();
 
             if (error) throw error;
+
             setIsEditing(false);
             alert('Carte mise à jour !');
+            if (onClose) onClose(); // Fermer la carte après succès pour forcer le refresh
         } catch (err) {
-            console.error(err);
-            alert('Erreur lors de la sauvegarde : ' + err.message);
+            console.error("Save error:", err);
+            // Si l'erreur est liée aux permissions (RLS), on donne un message clair
+            const msg = err.code === 'PGRST116' ? "Erreur de permissions : Vous n'êtes pas autorisé à modifier ce joueur ou la base de données n'est pas à jour." : err.message;
+            alert('Erreur lors de la sauvegarde : ' + msg);
         } finally {
             setUpdating(false);
         }

@@ -60,7 +60,7 @@ export default function PlayerCard({ player, isCoach, onClose }) {
 
     const countryCode = player.country?.toLowerCase() || 'fr';
     const flagUrl = `https://flagcdn.com/w80/${countryCode}.png`;
-    const clubLogo = '/logo_soissons.jpg';
+    const clubLogo = '/logo_soissons.png'; // Changé en .png pour supporter la transparence
     const playerPhoto = player.avatar_url || 'https://via.placeholder.com/300?text=Joueur';
 
     return (
@@ -135,7 +135,8 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                             <img src={flagUrl} alt="Flag" className="w-full h-full object-cover" />
                         </div>
 
-                        <div className="w-10 h-10 mt-1">
+                        {/* Club Logo Container (Sans fond blanc) */}
+                        <div className="w-10 h-10 mt-1 flex items-center justify-center">
                             <img
                                 src={clubLogo}
                                 alt="Club"
@@ -144,12 +145,12 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                         </div>
                     </div>
 
-                    {/* PLAYER IMAGE */}
-                    <div className="absolute top-[35px] left-[70px] right-4 h-[270px] z-0 pointer-events-none flex justify-center items-end">
+                    {/* PLAYER IMAGE (Transparence PNG supportée ici) */}
+                    <div className="absolute top-[35px] left-[70px] right-4 h-[270px] z-0 pointer-events-none flex justify-center items-end bg-transparent">
                         <img
                             src={playerPhoto}
                             alt={player.full_name}
-                            className="h-full w-auto object-contain transition-transform group-hover:scale-110 duration-700"
+                            className="h-full w-auto object-contain transition-transform group-hover:scale-110 duration-700 bg-transparent"
                         />
                     </div>
 

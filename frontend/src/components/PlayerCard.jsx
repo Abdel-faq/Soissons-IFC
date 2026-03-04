@@ -140,7 +140,6 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                                 src={clubLogo}
                                 alt="Club"
                                 className="w-full h-full object-contain"
-                                style={{ mixBlendMode: 'multiply', filter: 'brightness(1.5) contrast(1.5)' }}
                             />
                         </div>
                     </div>
@@ -151,11 +150,6 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                             src={playerPhoto}
                             alt={player.full_name}
                             className="h-full w-auto object-contain transition-transform group-hover:scale-110 duration-700"
-                            style={{
-                                mixBlendMode: 'multiply',
-                                filter: 'brightness(1.5) contrast(1.5)',
-                                transformOrigin: 'bottom center'
-                            }}
                         />
                     </div>
 
@@ -228,11 +222,6 @@ export default function PlayerCard({ player, isCoach, onClose }) {
 
                     {/* Glossy Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none" />
-
-                    {/* Version Marker (Subtle) */}
-                    <div className="absolute bottom-2 right-4 text-[6px] text-[#4E3621]/40 font-bold uppercase tracking-widest">
-                        Soissons IFC Card v1.5
-                    </div>
                 </div>
             </div>
         </div>

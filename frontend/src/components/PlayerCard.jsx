@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// Version: 1.2 - Aesthetic Refinement
 import { X, Edit2, Save, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 

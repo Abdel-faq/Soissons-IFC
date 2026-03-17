@@ -12,6 +12,7 @@ const NEXT_CATEGORY_MAP = {
 };
 
 function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName }) {
+    const [selectedLevel, setSelectedLevel] = React.useState(null);
     // Sort levels 1 to 5
     const sortedLevels = useMemo(() => [...(skill.skill_levels || [])].sort((a, b) => a.level - b.level), [skill.skill_levels]);
     
@@ -30,9 +31,6 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
             <tr className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
                 <td className="p-3">
                     <div className="font-bold text-gray-800 text-sm">{skill.name}</div>
-                    <div className="text-[10px] text-gray-400 mt-1 line-clamp-2 leading-tight group-hover:line-clamp-none transition-all">
-                        {sortedLevels[0]?.description || ''}
-                    </div>
                 </td>
                 
                 {[1, 2, 3, 4, 5].map(levelNum => {
@@ -49,10 +47,12 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
                                     isCoach={isCoach}
                                     categoryName={categoryName}
                                     levelNumber={levelNum}
+                                    onLevelClick={() => setSelectedLevel(levelNum)}
                                 />
-                                {levelObj?.description && levelNum !== 1 && (
-                                    <div className="text-[9px] text-center text-gray-400 font-medium leading-[1.1] opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {levelObj.description.substring(0, 40)}...
+                                {levelObj?.description && (
+                                    <div className={`text-[9px] text-center transition-all duration-200 leading-[1.1] ${selectedLevel === levelNum ? 'font-black text-indigo-700 scale-110' : 'text-gray-400 font-medium opacity-0 group-hover:opacity-100'}`}>
+                                        {levelObj.description.substring(0, 50)}
+                                        {levelObj.description.length > 50 && '...'}
                                     </div>
                                 )}
                             </div>

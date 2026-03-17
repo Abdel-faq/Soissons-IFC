@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { updatePlayerSkill } from '../../hooks/useSkills';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 
-export default function SkillLevelCell({ skill, playerLevel, playerId, isCoach, categoryName, levelNumber }) {
+export default function SkillLevelCell({ skill, playerLevel, playerId, isCoach, categoryName, levelNumber, onLevelClick }) {
     const [updating, setUpdating] = useState(false);
     const [status, setStatus] = useState(playerLevel?.status || null); // null, 'red', 'orange', 'green'
 
-    const handleUpdate = async () => {
+    const handleUpdate = async (e) => {
+        if (onLevelClick) onLevelClick();
         if (!isCoach) return; // Read-only for players
         
         let newStatus = 'red';

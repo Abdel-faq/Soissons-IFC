@@ -195,6 +195,7 @@ export default function Profile() {
                 position: profile.position,
                 avatar_url: profile.avatar_url,
                 birth_date: profile.birth_date || null,
+                height: profile.height ? parseInt(profile.height) : null,
                 weight: profile.weight ? parseInt(profile.weight) : null,
                 strong_foot: profile.strong_foot,
                 license_number: profile.license_number,

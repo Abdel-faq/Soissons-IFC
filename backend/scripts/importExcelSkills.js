@@ -93,16 +93,22 @@ async function importData() {
                     
                     // Header row detection: "Niveau d’acquisition" or "Niveaux d'acquisitions"
                     if (firstCell.includes('niveau') && firstCell.includes('acquisition')) {
-                        // Reset skills list for this section
                         currentSkills = [];
                         
-                        // Detect if there's a sub-domain indicator nearby (usually in U10+)
-                        // If row[1] is empty or same as first cell, sub-domain might be elsewhere.
-                        // But let's keep it simple: skills start from col 1 or 2 depending on if col 1 is empty in level rows.
-                        // Actually, looking at the data, skills usually start at index 1 or 2.
+                        // Check row below (Level 1) to see if col 1 is empty
+                        const nextRow = data[i+1];
+                        const col1IsEmpty = !nextRow || !nextRow[1] || String(nextRow[1]).trim() === '';
                         
-                        // We iterate all columns from 1 to find skill names
-                        for (let col = 1; col < row.length; col++) {
+                        let startCol = 1;
+                        let subDomainTitle = domainName;
+                        
+                        if (col1IsEmpty && row[1]) {
+                            subDomainTitle = String(row[1]).trim();
+                            startCol = 2;
+                        }
+                        
+                        // We iterate all columns from startCol to find skill names
+                        for (let col = startCol; col < row.length; col++) {
                             const val = String(row[col] || '').trim();
                             if (val && val !== '') {
                                 // Upsert Skill
@@ -121,7 +127,7 @@ async function importData() {
                                         .insert({ 
                                             category_id: categoryId, 
                                             domain_id: domainId, 
-                                            sub_domain: domainName, // Default to domain name if no explicit sub-domain
+                                            sub_domain: subDomainTitle, 
                                             name: skillName 
                                         })
                                         .select('id')
@@ -132,12 +138,14 @@ async function importData() {
                                     throw skillError;
                                 } else {
                                     skillId = skillData.id;
+                                    // Update sub_domain if it changed
+                                    await supabase.from('skills').update({ sub_domain: subDomainTitle }).eq('id', skillId);
                                 }
                                 
                                 currentSkills.push({ colIndex: col, skillId: skillId, name: skillName });
                             }
                         }
-                        console.log(`    Found header at row ${i} with ${currentSkills.length} skills`);
+                        console.log(`    Section: ${subDomainTitle} (${currentSkills.length} skills)`);
                     } 
                     // Level rows (1 to 5)
                     else if (/^[1-5]$/.test(firstCell)) {

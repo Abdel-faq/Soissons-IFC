@@ -1,8 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { createClient } = require('@supabase/supabase-js');
 const xlsx = require('xlsx');
 const fs = require('fs');
-const path = require('path');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
@@ -89,16 +89,25 @@ async function importData() {
                     const row = data[i];
                     if (!row || row.length === 0) continue;
                     
-                    // Header row
-                    if (row[0] === 'Niveaux d’acquisitions' || String(row[0]).trim().toLowerCase().includes('niveaux d')) {
-                        currentSubDomain = (row[1] && String(row[1]).trim() !== '') ? String(row[1]).trim() : 'Général';
+                    const firstCell = String(row[0] || '').trim().toLowerCase();
+                    
+                    // Header row detection: "Niveau d’acquisition" or "Niveaux d'acquisitions"
+                    if (firstCell.includes('niveau') && firstCell.includes('acquisition')) {
+                        // Reset skills list for this section
                         currentSkills = [];
                         
-                        for (let col = 2; col < row.length; col++) {
-                            if (row[col] && String(row[col]).trim() !== '') {
-                                const skillName = String(row[col]).trim();
-                                
+                        // Detect if there's a sub-domain indicator nearby (usually in U10+)
+                        // If row[1] is empty or same as first cell, sub-domain might be elsewhere.
+                        // But let's keep it simple: skills start from col 1 or 2 depending on if col 1 is empty in level rows.
+                        // Actually, looking at the data, skills usually start at index 1 or 2.
+                        
+                        // We iterate all columns from 1 to find skill names
+                        for (let col = 1; col < row.length; col++) {
+                            const val = String(row[col] || '').trim();
+                            if (val && val !== '') {
                                 // Upsert Skill
+                                const skillName = val;
+                                
                                 const { data: skillData, error: skillError } = await supabase
                                     .from('skills')
                                     .select('id')
@@ -112,7 +121,7 @@ async function importData() {
                                         .insert({ 
                                             category_id: categoryId, 
                                             domain_id: domainId, 
-                                            sub_domain: currentSubDomain,
+                                            sub_domain: domainName, // Default to domain name if no explicit sub-domain
                                             name: skillName 
                                         })
                                         .select('id')
@@ -128,18 +137,18 @@ async function importData() {
                                 currentSkills.push({ colIndex: col, skillId: skillId, name: skillName });
                             }
                         }
-                        console.log(`    Found sub-domain: ${currentSubDomain} with ${currentSkills.length} skills`);
+                        console.log(`    Found header at row ${i} with ${currentSkills.length} skills`);
                     } 
-                    // Level rows
-                    else if (typeof row[0] === 'number' || (typeof row[0] === 'string' && ['1','2','3','4','5'].includes(row[0].toString().trim()))) {
-                        const level = parseInt(row[0].toString().trim());
+                    // Level rows (1 to 5)
+                    else if (/^[1-5]$/.test(firstCell)) {
+                        const level = parseInt(firstCell);
                         
-                        if (level >= 1 && level <= 5 && currentSkills.length > 0) {
+                        if (currentSkills.length > 0) {
                             for (const skill of currentSkills) {
                                 const description = row[skill.colIndex] ? String(row[skill.colIndex]).trim() : '';
+                                if (!description) continue;
                                 
-                                // Insert Level
-                                // Check if exists to avoid error constraint
+                                // Upsert Level
                                 const { data: levelData, error: levelError } = await supabase
                                     .from('skill_levels')
                                     .select('id')
@@ -155,7 +164,6 @@ async function importData() {
                                             description: description
                                         });
                                 } else if (levelData) {
-                                    // Update description if needed
                                     await supabase
                                         .from('skill_levels')
                                         .update({ description: description })

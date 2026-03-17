@@ -12,7 +12,8 @@ export function usePlayerSkills(playerId) {
             const token = (await supabase.auth.getSession()).data.session?.access_token;
             if (!token) throw new Error("No active session");
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/skills/player/${playerId}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const res = await fetch(`${apiUrl}/api/skills/player/${playerId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -53,7 +54,8 @@ export function useSkillsReferential(categoryName) {
              setLoading(true);
              try {
                 const token = (await supabase.auth.getSession()).data.session?.access_token;
-                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/skills/${categoryName}`, {
+                const apiUrl = import.meta.env.VITE_API_URL || '';
+                const res = await fetch(`${apiUrl}/api/skills/${categoryName}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -83,7 +85,8 @@ export function useSkillsReferential(categoryName) {
 
 export async function updatePlayerSkill(playerId, skillId, level, status) {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/skills/player/${playerId}`, {
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const res = await fetch(`${apiUrl}/api/skills/player/${playerId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -112,7 +115,8 @@ export function useNextLevelSkill(targetCategory, skillName) {
             setLoading(true);
             try {
                 const token = (await supabase.auth.getSession()).data.session?.access_token;
-                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/skills/next-level/${targetCategory}/${encodeURIComponent(skillName)}`, {
+                const apiUrl = import.meta.env.VITE_API_URL || '';
+                const res = await fetch(`${apiUrl}/api/skills/next-level/${targetCategory}/${encodeURIComponent(skillName)}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

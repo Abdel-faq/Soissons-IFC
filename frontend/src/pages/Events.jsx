@@ -96,7 +96,7 @@ export default function Events() {
             }
 
             if (context.teamId) {
-                const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${context.teamId}`;
+                const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?team_id=${context.teamId}`;
                 const { data: sessionData } = await supabase.auth.getSession();
                 const session = sessionData?.session;
 
@@ -231,9 +231,10 @@ export default function Events() {
         try {
             const fullDate = new Date(`${newEvent.date}T${newEvent.time}`);
             const isEdit = !!newEvent.id;
+            const apiUrl = import.meta.env.VITE_API_URL || '';
             const url = isEdit
-                ? `${import.meta.env.VITE_API_URL || '/api'}/events/${newEvent.id}`
-                : `${import.meta.env.VITE_API_URL || '/api'}/events`;
+                ? `${apiUrl}/api/events/${newEvent.id}`
+                : `${apiUrl}/api/events`;
 
             if (!team) {
                 throw new Error("ID de l'équipe manquant. Assurez-vous d'être bien propriétaire d'une équipe.");
@@ -325,7 +326,7 @@ export default function Events() {
             const token = sessionData?.session?.access_token;
             if (!token) throw new Error("Non authentifié");
 
-            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events/${id}${mode === 'series' ? '?mode=series' : ''}`;
+            const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events/${id}${mode === 'series' ? '?mode=series' : ''}`;
             const response = await fetch(apiUrl, {
                 method: 'DELETE',
                 headers: {
@@ -353,7 +354,8 @@ export default function Events() {
             const token = sessionData?.session?.access_token;
             if (!token) throw new Error("Non authentifié");
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/reminders`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${eventId}/reminders`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -378,7 +380,8 @@ export default function Events() {
             const token = sessionData?.session?.access_token;
             if (!token) throw new Error("Non authentifié");
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${rpeEvent.id}/rpe`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${rpeEvent.id}/rpe`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -628,7 +631,8 @@ export default function Events() {
                 throw new Error("Session expirée. Veuillez vous reconnecter.");
             }
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/convocations`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${eventId}/convocations`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

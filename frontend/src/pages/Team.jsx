@@ -219,7 +219,7 @@ export default function Team() {
             const session = sessionData?.session;
             if (!session) return;
 
-            const apiUrl = `${import.meta.env.VITE_API_URL || '/api'}/events?team_id=${teamId}&range=season`;
+            const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?team_id=${teamId}&range=season`;
             const response = await fetch(apiUrl, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
@@ -296,7 +296,8 @@ export default function Team() {
             const token = sessionData?.session?.access_token;
             if (!token) throw new Error("Non authentifié");
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/events/${eventId}/rpe`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${eventId}/rpe`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -344,7 +345,8 @@ export default function Team() {
                 return row;
             });
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/sync/google-sheets`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/sync/google-sheets`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

@@ -19,7 +19,7 @@ export default function SkillsMenu({ player, isCoach }) {
         return 'U10-U11'; // Default Fallback
     };
 
-    const categoryName = getCategoryName(player.category);
+    const categoryName = getCategoryName(player.category || player.team_category);
 
     const { referential, loading: refLoading, error: refError } = useSkillsReferential(categoryName);
     const { skills: playerEvaluations, loading: evalLoading, error: evalError } = usePlayerSkills(player.id || player.player_id);
@@ -38,7 +38,9 @@ export default function SkillsMenu({ player, isCoach }) {
     const availableDomains = useMemo(() => {
         if (!referential) return [];
         const domains = new Set(referential.map(s => s.skill_domains.name));
-        return Array.from(domains).sort(); // Optional sorting
+        // Ensure standard order and presence of all expected domains if desired, 
+        // but here we just take what's in the data.
+        return Array.from(domains); 
     }, [referential]);
 
     const filteredSkills = useMemo(() => {

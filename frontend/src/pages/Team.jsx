@@ -774,7 +774,8 @@ export default function Team() {
                                                                 setSelectedPlayer({
                                                                     ...p,
                                                                     full_name: fullName,
-                                                                    avatar_url: p.avatar_url || prof.avatar_url
+                                                                    avatar_url: p.avatar_url || prof.avatar_url,
+                                                                    category: team.category || team.name
                                                                 });
                                                                 setShowCard(true);
                                                             }

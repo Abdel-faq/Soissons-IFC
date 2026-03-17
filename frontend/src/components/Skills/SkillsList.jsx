@@ -115,7 +115,7 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
     );
 }
 
-export default function SkillsList({ skillsData, playerEvaluations, playerId, isCoach, categoryName }) {
+export default function SkillsList({ skillsData, playerEvaluations, playerId, isCoach, categoryName, activeDomain }) {
     if (!skillsData || skillsData.length === 0) {
         return <div className="p-8 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-dashed border-gray-200">
             Aucune compétence trouvée pour ce domaine dans la catégorie {categoryName}.
@@ -138,7 +138,19 @@ export default function SkillsList({ skillsData, playerEvaluations, playerId, is
                         <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
                             <Target size={18} />
                         </div>
-                        <h3 className="font-black text-indigo-900 uppercase tracking-widest text-sm">{subDomain}</h3>
+                        <h3 className="font-black text-indigo-900 uppercase tracking-widest text-sm">
+                            {(() => {
+                                // If subDomain starts with domain name (case insensitive), strip it
+                                const domainLower = (activeDomain || "").toLowerCase();
+                                const subLower = subDomain.toLowerCase();
+                                if (subLower.startsWith(domainLower) && subLower.length > domainLower.length) {
+                                    const stripped = subDomain.substring(domainLower.length).trim();
+                                    // Remove leading dash or space if present
+                                    return stripped.replace(/^[-–—:]\s*/, '').replace(/^\w/, (c) => c.toUpperCase());
+                                }
+                                return subDomain;
+                            })()}
+                        </h3>
                     </div>
                     
                     <div className="p-0 sm:p-4 overflow-x-auto">

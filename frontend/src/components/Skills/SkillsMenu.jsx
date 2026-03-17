@@ -119,6 +119,7 @@ export default function SkillsMenu({ player, isCoach }) {
                     playerId={player.id || player.player_id}
                     isCoach={isCoach}
                     categoryName={categoryName}
+                    activeDomain={activeDomain}
                 />
             </div>
         </div>

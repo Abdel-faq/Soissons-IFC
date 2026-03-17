@@ -51,6 +51,19 @@ async function importData() {
                 categoryId = catData.id;
             }
 
+            // CLEANUP: Delete existing skills and levels for this category to avoid redundant/stale data
+            console.log(`  Cleaning up existing data for ${categoryName}...`);
+            const { data: skillsToDelete } = await supabase
+                .from('skills')
+                .select('id')
+                .eq('category_id', categoryId);
+            
+            if (skillsToDelete && skillsToDelete.length > 0) {
+                const skillIds = skillsToDelete.map(s => s.id);
+                await supabase.from('skill_levels').delete().in('skill_id', skillIds);
+                await supabase.from('skills').delete().in('id', skillIds);
+            }
+
             const workbook = xlsx.readFile(path.join(dataDir, file));
             
             for (const sheetName of workbook.SheetNames) {
@@ -97,23 +110,30 @@ async function importData() {
                         
                         // Check row below (Level 1) to see if col 1 is empty
                         const nextRow = data[i+1];
-                        const col1IsEmpty = !nextRow || !nextRow[1] || String(nextRow[1]).trim() === '';
+                        const cellBelow = nextRow ? nextRow[1] : null;
+                        const col1IsEmpty = cellBelow === null || 
+                                          cellBelow === undefined || 
+                                          String(cellBelow).trim() === '' || 
+                                          String(cellBelow).trim().toLowerCase() === 'null';
                         
                         let startCol = 1;
                         let subDomainTitle = domainName;
                         
                         if (col1IsEmpty && row[1]) {
-                            subDomainTitle = String(row[1]).trim();
-                            startCol = 2;
+                            const val1 = String(row[1]).trim();
+                            if (val1 && val1.toLowerCase() !== 'null') {
+                                subDomainTitle = val1;
+                                startCol = 2;
+                            }
                         }
                         
                         // We iterate all columns from startCol to find skill names
                         for (let col = startCol; col < row.length; col++) {
-                            const val = String(row[col] || '').trim();
-                            if (val && val !== '') {
+                            const val = row[col] === null || row[col] === undefined ? '' : String(row[col]).trim();
+                            if (val && val !== '' && val.toLowerCase() !== 'null') {
                                 // Upsert Skill
                                 const skillName = val;
-                                
+                                console.log(`      Skill: ${skillName}`);
                                 const { data: skillData, error: skillError } = await supabase
                                     .from('skills')
                                     .select('id')
@@ -122,6 +142,7 @@ async function importData() {
                                     
                                 let skillId;
                                 if (skillError && skillError.code === 'PGRST116') {
+                                    console.log(`        Inserting new skill...`);
                                     const { data: newSkill, error: insertSkillError } = await supabase
                                         .from('skills')
                                         .insert({ 
@@ -132,9 +153,13 @@ async function importData() {
                                         })
                                         .select('id')
                                         .single();
-                                    if (insertSkillError) throw insertSkillError;
+                                    if (insertSkillError) {
+                                        console.error("        Insert Skill Error:", insertSkillError);
+                                        throw insertSkillError;
+                                    }
                                     skillId = newSkill.id;
                                 } else if (skillError) {
+                                    console.error("        Select Skill Error:", skillError);
                                     throw skillError;
                                 } else {
                                     skillId = skillData.id;

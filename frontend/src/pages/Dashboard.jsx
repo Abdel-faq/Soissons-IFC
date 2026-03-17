@@ -194,7 +194,8 @@ export default function Dashboard() {
                         // Fetch Unread Count
                         try {
                             const { data: session } = await supabase.auth.getSession();
-                            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/messages/unread-count/${activeContext.teamId}`, {
+                            const apiUrl = import.meta.env.VITE_API_URL || '';
+                            const res = await fetch(`${apiUrl}/api/messages/unread-count/${activeContext.teamId}`, {
                                 headers: { 'Authorization': `Bearer ${session.session?.access_token}` }
                             });
                             const counts = await res.json();
@@ -235,7 +236,8 @@ export default function Dashboard() {
         try {
             setLoadingPosts(true);
             const { data: session } = await supabase.auth.getSession();
-            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/posts/${teamId}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const res = await fetch(`${apiUrl}/api/posts/${teamId}`, {
                 headers: { 'Authorization': `Bearer ${session.session?.access_token}` }
             });
             const data = await res.json();
@@ -321,7 +323,8 @@ export default function Dashboard() {
 
         try {
             const { data: sessionData } = await supabase.auth.getSession();
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/coach`, {
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/users/coach`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -659,7 +662,8 @@ export default function Dashboard() {
                                                     onClick={async () => {
                                                         if (confirm('Supprimer cette publication ?')) {
                                                             const session = await supabase.auth.getSession();
-                                                            await fetch(`${import.meta.env.VITE_API_URL || '/api'}/posts/${post.id}`, {
+                                                            const apiUrl = import.meta.env.VITE_API_URL || '';
+                                                            await fetch(`${apiUrl}/api/posts/${post.id}`, {
                                                                 method: 'DELETE',
                                                                 headers: { 'Authorization': `Bearer ${session.data.session?.access_token}` }
                                                             });

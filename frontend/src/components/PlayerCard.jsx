@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 // Version: 1.2 - Aesthetic Refinement
-import { X, Edit2, Save, RotateCcw } from 'lucide-react';
+import { X, Edit2, Save, RotateCcw, Brain, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import SkillsMenu from './Skills/SkillsMenu';
 
 export default function PlayerCard({ player, isCoach, onClose }) {
+    const [viewMode, setViewMode] = useState('card'); // 'card' or 'skills'
     const [isEditing, setIsEditing] = useState(false);
     const [updating, setUpdating] = useState(false);
 
@@ -114,7 +116,24 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                     <X size={24} />
                 </button>
 
-                {/* FIFA CARD CONTAINER */}
+                {/* VIEW TOGGLE */}
+                <div className="absolute -top-12 left-0 flex gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-2xl border border-white/20">
+                    <button 
+                        onClick={() => setViewMode('card')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${viewMode === 'card' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                    >
+                        <Shield size={14} /> Carte Stats
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('skills')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${viewMode === 'skills' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                    >
+                        <Brain size={14} /> Compétences
+                    </button>
+                </div>
+
+                {viewMode === 'card' ? (
+                /* FIFA CARD CONTAINER */
                 <div className="relative w-[320px] h-[480px] select-none shadow-2xl shadow-yellow-500/30 rounded-[40px] overflow-hidden group">
 
                     {/* Background SVG / Gold Gradient */}
@@ -224,6 +243,12 @@ export default function PlayerCard({ player, isCoach, onClose }) {
                     {/* Glossy Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none" />
                 </div>
+                ) : (
+                /* SKILLS CONTAINER */
+                <div className="relative w-[800px] max-w-[95vw] h-[80vh] bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col p-6 animate-in zoom-in-95 duration-300">
+                    <SkillsMenu player={player} isCoach={isCoach} />
+                </div>
+                )}
             </div>
         </div>
     );

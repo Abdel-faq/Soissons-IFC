@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Users, Copy, UserPlus, AlertCircle, Share, Calendar, Sparkles } from 'lucide-react';
+import { Users, Copy, UserPlus, AlertCircle, Share, Calendar, Sparkles, Brain } from 'lucide-react';
 import PlayerCard from '../components/PlayerCard';
+import SkillsMenu from '../components/Skills/SkillsMenu';
 
 export default function Team() {
     const [loading, setLoading] = useState(true);
@@ -645,6 +646,12 @@ export default function Team() {
                     Assiduité
                 </button>
                 <button
+                    onClick={() => setView('skills')}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${view === 'skills' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                >
+                    <Brain size={16} /> Compétences
+                </button>
+                <button
                     onClick={() => setView('rpe')}
                     className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'rpe' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
                 >
@@ -783,10 +790,25 @@ export default function Team() {
                                                 </div>
                                             </td>
 
-                                            {/* LICENCE */}
+                                            {/* POSTE */}
                                             <td className="px-4 py-4">
-                                                <div className="text-xs font-bold text-gray-600 font-mono tracking-tighter whitespace-nowrap">
-                                                    {p.license_number || <span className="text-gray-200">Non renseigné</span>}
+                                                <div className={`inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isAmical ? 'bg-gray-100 text-gray-500' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                    {isAmical ? (m.profiles?.role === 'COACH' ? '🛡️ Coach' : 'Admin') : (p.position || 'Poste non défini')}
+                                                </div>
+                                            </td>
+
+                                            {/* PIED */}
+                                            <td className="px-4 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-1 text-xs font-bold text-gray-600 font-mono tracking-tighter uppercase whitespace-nowrap">
+                                                    {p.strong_foot ? (
+                                                        <>
+                                                            {p.strong_foot.includes('D') && <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">D</span>}
+                                                            {p.strong_foot.includes('G') && <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">G</span>}
+                                                            {p.strong_foot.includes('A') && <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">A</span>}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-gray-200">-</span>
+                                                    )}
                                                 </div>
                                             </td>
 
@@ -797,47 +819,50 @@ export default function Team() {
                                                 </div>
                                             </td>
 
-                                            {/* POSTE */}
+                                            {/* LICENCE */}
                                             <td className="px-4 py-4">
-                                                <div className={`inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isAmical ? 'bg-gray-100 text-gray-500' : 'bg-indigo-50 text-indigo-700'}`}>
-                                                    {isAmical ? (m.profiles?.role === 'COACH' ? '🛡️ Coach' : 'Admin') : (p.position || 'Poste non défini')}
+                                                <div className="text-xs font-bold text-gray-600 font-mono tracking-tighter whitespace-nowrap">
+                                                    {p.license_number || <span className="text-gray-200">Non renseigné</span>}
                                                 </div>
                                             </td>
 
-                                            {/* PIED FORT */}
-                                            <td className="px-4 py-4 text-center">
-                                                <div className="text-xs font-bold text-gray-600 uppercase tracking-tighter whitespace-nowrap">
-                                                    {p.strong_foot === 'DROIT' && 'Droit'}
-                                                    {p.strong_foot === 'GAUCHE' && 'Gauche'}
-                                                    {p.strong_foot === 'AMBIDEXTRE' && 'Ambi'}
-                                                    {!p.strong_foot && !isAmical && <span className="text-gray-200">-</span>}
-                                                </div>
-                                            </td>
-
-                                            {/* ACTIONS */}
+                                            {/* ACTIONS (Coach Logged In) */}
                                             {isCoach && (
                                                 <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (confirm(`Supprimer ${fullName} de l'équipe ?`)) {
-                                                                const { error: deleteError } = await supabase
-                                                                    .from('team_members')
-                                                                    .delete()
-                                                                    .eq('team_id', team.id)
-                                                                    .eq(m.player_id ? 'player_id' : 'user_id', m.player_id || m.user_id);
-
-                                                                if (deleteError) {
-                                                                    alert("Erreur: " + deleteError.message);
-                                                                } else {
-                                                                    fetchMembers(team.id);
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!isAmical) {
+                                                                    setSelectedPlayer({ ...p, full_name: fullName, avatar_url: p.avatar_url || prof.avatar_url, team_category: team.category || team.name });
+                                                                    setShowCard(true);
                                                                 }
-                                                            }
-                                                        }}
-                                                        className="h-10 w-10 flex border-2 border-transparent items-center justify-center bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white hover:shadow-lg hover:shadow-red-500/20 transition-all active:scale-90"
-                                                        title="Supprimer du club"
-                                                    >
-                                                        <AlertCircle size={18} />
-                                                    </button>
+                                                            }}
+                                                            className="px-3 py-1 bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors scale-90 whitespace-nowrap"
+                                                        >
+                                                            Notes
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (confirm(`Supprimer ${fullName} de l'équipe ?`)) {
+                                                                    const { error: deleteError } = await supabase
+                                                                        .from('team_members')
+                                                                        .delete()
+                                                                        .eq('team_id', team.id)
+                                                                        .eq(m.player_id ? 'player_id' : 'user_id', m.player_id || m.user_id);
+
+                                                                    if (deleteError) {
+                                                                        alert("Erreur: " + deleteError.message);
+                                                                    } else {
+                                                                        fetchMembers(team.id);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="h-10 w-10 flex border-2 border-transparent items-center justify-center bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white hover:shadow-lg hover:shadow-red-500/20 transition-all active:scale-90"
+                                                            title="Supprimer du club"
+                                                        >
+                                                            <AlertCircle size={18} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             )}
                                         </tr>
@@ -1020,7 +1045,7 @@ export default function Team() {
 
                                             return (
                                                 <td key={ev.id} className="p-2 border-r text-center">
-                                                    {isCoach ? (
+                                                    {(isCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date())) ? (
                                                         <select
                                                             className={`bg-transparent outline-none font-black text-[14px] ${getRpeColor(rpe)}`}
                                                             value={rpe || ''}
@@ -1052,6 +1077,14 @@ export default function Team() {
                 </div>
             ) : view.startsWith('fff-') ? (
                 <FffResults url={fffTabs.find(t => `fff-${t.label}` === view)?.url} />
+            ) : view === 'skills' ? (
+                /* Skills Dashboard - Show team dropdown or pick a player */
+                <div className="bg-white rounded-[24px] shadow-xl shadow-indigo-900/5 border border-gray-100 overflow-hidden p-6 text-center">
+                   <h2 className="text-xl font-bold mb-4">Suivi des compétences</h2>
+                   <p className="text-gray-500 mb-6">Pour évaluer un joueur, retournez dans l'onglet <strong>Effectif</strong> et cliquez sur "Notes" ou sur son nom pour ouvrir sa carte joueur, puis accédez à ses compétences.</p>
+                   {/* We can develop a team-wide view here later, but for now we follow the user request: "ajouté un menu 'Compétences' sur le profil d'un joueur" */}
+                   <button onClick={() => setView('members')} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold">Retour à l'effectif</button>
+                </div>
             ) : (
                 /* Original view logic fallback (should not happen with the dynamic tabs) */
                 null
@@ -1092,6 +1125,7 @@ export default function Team() {
                     </div>
                 </div>
             )}
+            {/* PLAYER CARD MODAL */}
             {showCard && selectedPlayer && (
                 <PlayerCard
                     player={selectedPlayer}
@@ -1099,7 +1133,7 @@ export default function Team() {
                     onClose={() => {
                         setShowCard(false);
                         setSelectedPlayer(null);
-                        if (team?.id) fetchMembers(team.id);
+                        fetchMembers(team.id); // Refresh stats on close
                     }}
                 />
             )}

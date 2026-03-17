@@ -23,6 +23,7 @@ const messagesRoutes = require('./src/routes/messages');
 const fffRoutes = require('./src/routes/fff');
 const syncRoutes = require('./src/routes/sync');
 const postsRoutes = require('./src/routes/posts');
+const skillsRoutes = require('./src/routes/skills');
 
 // Use Routes
 const mountRoutes = (basePath) => {
@@ -33,6 +34,7 @@ const mountRoutes = (basePath) => {
     app.use(`${basePath}/fff`, fffRoutes);
     app.use(`${basePath}/sync`, syncRoutes);
     app.use(`${basePath}/posts`, postsRoutes);
+    app.use(`${basePath}/skills`, skillsRoutes);
 };
 
 // Mount both with and without /api prefix for maximum compatibility

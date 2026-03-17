@@ -7,6 +7,7 @@ const messagesRoutes = require('../backend/src/routes/messages');
 const fffRoutes = require('../backend/src/routes/fff');
 const syncRoutes = require('../backend/src/routes/sync');
 const postsRoutes = require('../backend/src/routes/posts');
+const skillsRoutes = require('../backend/src/routes/skills');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/fff', fffRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/posts', postsRoutes);
+app.use('/api/skills', skillsRoutes);
 
 app.get('/api/health', (req, res) => {
     res.json({

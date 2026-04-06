@@ -1021,7 +1021,10 @@ export default function Team() {
                                             const rpe = attData?.rpe;
                                             const isConvoked = attData?.is_convoked;
 
-                                            const isIrrelevant = ev.visibility_type === 'PRIVATE' && !isConvoked && !status;
+                                            const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
+                                            const canModify = isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
+
+                                            const isIrrelevant = !canModify && ev.visibility_type === 'PRIVATE' && !isConvoked && !status;
 
                                             let color = "text-gray-300";
                                             let label = "-";
@@ -1035,9 +1038,6 @@ export default function Team() {
                                             if (isIrrelevant) {
                                                 return <td key={ev.id} className="p-2 border-r bg-gray-100 italic text-[8px] text-gray-400 text-center">N.C.</td>;
                                             }
-
-                                            const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
-                                            const canModify = isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
                                             return (
                                                 <td key={ev.id} className={`p-2 border-r text-center ${!canModify ? 'cursor-not-allowed opacity-80' : ''}`}>

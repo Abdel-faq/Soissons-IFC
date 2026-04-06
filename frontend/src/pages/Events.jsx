@@ -1,0 +1,1072 @@
+
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { Calendar, MapPin, Clock, Plus, Trash2, Edit2, Users, X, Bell } from 'lucide-react';
+import EventCarpooling from '../components/EventCarpooling';
+
+export default function Events() {
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null);
+    const [userName, setUserName] = useState('');
+    const [team, setTeam] = useState(null);
+    const [isCoach, setIsCoach] = useState(false);
+    const [children, setChildren] = useState([]);
+    const [activePlayer, setActivePlayer] = useState(null); // { id, name }
+    const [myAttendance, setMyAttendance] = useState({}); // player_id -> { event_id -> status }
+
+    // New Event Form
+    const [showForm, setShowForm] = useState(false);
+    const [newEvent, setNewEvent] = useState({
+        type: 'MATCH',
+        date: '',
+        time: '',
+        location: '',
+        notes: '',
+        visibility_type: 'PUBLIC',
+        is_recurring: false,
+        selected_players: [], // Array of IDs
+        match_location: 'DOMICILE'
+    });
+
+    // RPE states
+    const [showRpeModal, setShowRpeModal] = useState(false);
+    const [rpeEvent, setRpeEvent] = useState(null); // { id, player_id, name }
+    const [submittingRpe, setSubmittingRpe] = useState(false);
+
+    useEffect(() => {
+        fetchEvents();
+    }, []);
+
+    const fetchEvents = async (includeMaintenance = false) => {
+        try {
+            setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+            if (user) {
+                const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+                if (prof?.full_name) setUserName(prof.full_name);
+            }
+
+            if (!user) return;
+
+            // Fetch All Children for this parent
+            const { data: allChildren } = await supabase.from('players').select('*').eq('parent_id', user.id);
+
+            // Read Context
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { console.error("Stale context", e); }
+            }
+
+            if (!context) {
+                setChildren(allChildren || []);
+                setLoading(false);
+                return;
+            }
+
+            setTeam(context.teamId);
+            setIsCoach(context.role === 'COACH');
+            if (context.playerId) {
+                const childObj = (allChildren || []).find(c => c.id === context.playerId);
+                setActivePlayer({
+                    id: context.playerId,
+                    name: childObj?.full_name || childObj?.first_name || context.playerName
+                });
+            } else {
+                setActivePlayer(null);
+            }
+
+            // Filter children to only those in the current team
+            let filteredChildren = allChildren || [];
+            if (context.teamId) {
+                const { data: teamMemberships } = await supabase
+                    .from('team_members')
+                    .select('player_id')
+                    .eq('team_id', context.teamId);
+
+                const teamPlayerIds = (teamMemberships || []).map(m => m.player_id).filter(Boolean);
+                filteredChildren = (allChildren || []).filter(c => teamPlayerIds.includes(c.id));
+                setChildren(filteredChildren);
+            } else {
+                setChildren(allChildren || []);
+            }
+
+            if (context.teamId) {
+                let apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?team_id=${context.teamId}`;
+                if (includeMaintenance) apiUrl += '&maintenance=true';
+                
+                const { data: sessionData } = await supabase.auth.getSession();
+                const session = sessionData?.session;
+
+                const response = await fetch(apiUrl, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+
+                if (response.ok) {
+                    const eventsData = await response.json();
+                    const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+                    setEvents(activeEvents);
+
+                    // --- OPTIMIZATION: Use data already returned by the API ---
+                    const attMap = {};
+                    const availabilityMap = {};
+                    const convocationsMap = {};
+
+                    activeEvents.forEach(ev => {
+                        if (!availabilityMap[ev.id]) availabilityMap[ev.id] = {};
+                        if (!convocationsMap[ev.id]) convocationsMap[ev.id] = {};
+
+                        ev.attendance?.forEach(a => {
+                            const entityId = a.player_id || a.user_id;
+                            if (!entityId) return;
+
+                            // For myAttendance state (used by parent/player view)
+                            if (!attMap[entityId]) attMap[entityId] = {};
+                            attMap[entityId][ev.id] = { status: a.status, is_locked: a.is_locked, rpe: a.rpe };
+
+                            // For memberAvailability state (used by coach view)
+                            availabilityMap[ev.id][entityId] = a.status;
+                            if (a.is_convoked) convocationsMap[ev.id][entityId] = true;
+                        });
+                    });
+
+                    setMyAttendance(attMap);
+                    setMemberAvailability(availabilityMap);
+                    setConvocations(convocationsMap);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching events:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateAttendance = async (eventId, entityId, status, isCoachSelf = false) => {
+        // Optimistic UI Update
+        setMyAttendance(prev => ({
+            ...prev,
+            [entityId]: {
+                ...(prev[entityId] || {}),
+                [eventId]: { ...(prev[entityId]?.[eventId] || {}), status }
+            }
+        }));
+
+        try {
+            if (isCoachSelf) {
+                // Coach Update (User ID based) - Manual Upsert Logic due to missing constraint
+                const { data: existing } = await supabase
+                    .from('attendance')
+                    .select('event_id')
+                    .eq('event_id', eventId)
+                    .eq('user_id', entityId)
+                    .maybeSingle();
+
+                if (existing) {
+                    const { error } = await supabase.from('attendance').update({
+                        status: status,
+                        updated_at: new Date()
+                    }).eq('event_id', eventId).eq('user_id', entityId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('attendance').insert({
+                        event_id: eventId,
+                        user_id: entityId,
+                        player_id: null,
+                        status: status,
+                        is_locked: false
+                    });
+                    if (error) throw error;
+                }
+
+                if (['ABSENT', 'MALADE', 'BLESSE'].includes(status)) {
+                    await supabase.from('rides').delete().eq('event_id', eventId).eq('driver_id', entityId);
+                }
+            } else {
+                // Player Update (Player ID based)
+                const { error } = await supabase.from('attendance').upsert({
+                    event_id: eventId,
+                    player_id: entityId,
+                    status: status,
+                    updated_at: new Date(),
+                    is_locked: false
+                }, { onConflict: 'event_id, player_id' });
+                if (error) throw error;
+
+                if (['ABSENT', 'MALADE', 'BLESSE'].includes(status)) {
+                    const otherChildren = children.filter(c => c.id !== entityId);
+                    const anyOtherPresent = otherChildren.some(c => {
+                        const s = myAttendance[c.id]?.[eventId]?.status;
+                        return s === 'PRESENT' || s === 'RETARD';
+                    });
+                    if (!anyOtherPresent) {
+                        await supabase.from('rides').delete().eq('event_id', eventId).eq('driver_id', user.id);
+                    }
+                }
+            }
+        } catch (err) {
+            fetchEvents();
+            alert("Erreur : " + err.message);
+        }
+    };
+
+    const createEvent = async (e) => {
+        e.preventDefault();
+        try {
+            const fullDate = new Date(`${newEvent.date}T${newEvent.time}`);
+            const isEdit = !!newEvent.id;
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const url = isEdit
+                ? `${apiUrl}/api/events/${newEvent.id}`
+                : `${apiUrl}/api/events`;
+
+            if (!team) {
+                throw new Error("ID de l'équipe manquant. Assurez-vous d'être bien propriétaire d'une équipe.");
+            }
+            console.log("Calling API URL:", url);
+
+            console.log("Payload sent to API:", {
+                team_id: team,
+                type: newEvent.type,
+                date: fullDate.toISOString(),
+                visibility_type: newEvent.visibility_type
+            });
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            const session = sessionData?.session;
+
+            if (!session) {
+                throw new Error("Session expirée. Veuillez vous reconnecter.");
+            }
+
+            const response = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                    team_id: team,
+                    type: newEvent.type,
+                    date: fullDate.toISOString(),
+                    location: newEvent.location,
+                    notes: newEvent.notes,
+                    visibility_type: newEvent.visibility_type,
+                    is_recurring: newEvent.is_recurring,
+                    selected_players: newEvent.selected_players,
+                    match_location: newEvent.type === 'MATCH' ? newEvent.match_location : null
+                })
+            });
+
+            if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("text/html")) {
+                    throw new Error("Le serveur a renvoyé une erreur réseau (Vercel 404/500). Vérifiez que les routes API sont bien déployées.");
+                }
+
+                let errorMsg = "Erreur inconnue";
+                const responseClone = response.clone();
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorData.message || JSON.stringify(errorData);
+                } catch (e) {
+                    errorMsg = await responseClone.text() || response.statusText;
+                }
+                throw new Error(errorMsg);
+            }
+
+            setShowForm(false);
+            setNewEvent({ type: 'MATCH', date: '', time: '', location: '', notes: '', visibility_type: 'PUBLIC', is_recurring: false, selected_players: [], match_location: 'DOMICILE' });
+            fetchEvents(true); // Trigger maintenance after creation
+        } catch (err) {
+            console.error("Debug Event error:", err);
+            alert("Problème lors de l'enregistrement : " + err.message);
+        }
+    };
+
+    const togglePlayerSelection = (uid) => {
+        setNewEvent(prev => ({
+            ...prev,
+            selected_players: prev.selected_players.includes(uid)
+                ? prev.selected_players.filter(id => id !== uid)
+                : [...prev.selected_players, uid]
+        }));
+    };
+
+    const selectAllPlayers = () => {
+        setNewEvent(prev => ({
+            ...prev,
+            selected_players: members.map(m => m.id)
+        }));
+    };
+
+    const deleteEvent = async (id, mode = 'single') => {
+        if (!confirm(mode === 'series'
+            ? 'Êtes-vous sûr de vouloir supprimer cette séance ET toutes les suivantes ?'
+            : 'Voulez-vous supprimer cet événement ? (L\'historique sera conservé)')) return;
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events/${id}${mode === 'series' ? '?mode=series' : ''}`;
+            const response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur lors de la suppression");
+            }
+
+            fetchEvents(true); // Trigger maintenance after deletion
+            alert(mode === 'series' ? 'Série supprimée' : 'Événement supprimé');
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        }
+    };
+
+    const sendReminders = async (eventId) => {
+        if (!confirm("Envoyer une notification de rappel aux parents des joueurs n'ayant pas encore répondu (INCONNU) ?")) return;
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${eventId}/reminders`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Erreur d'envoi");
+
+            alert(data.message);
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        }
+    };
+
+    const handleRPESubmit = async (rpe) => {
+        if (!rpeEvent) return;
+        setSubmittingRpe(true);
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            if (!token) throw new Error("Non authentifié");
+
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${rpeEvent.id}/rpe`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rpe: parseInt(rpe),
+                    player_id: rpeEvent.player_id
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erreur lors de l'enregistrement du RPE");
+            }
+
+            // Update local state to reflect RPE change
+            setMyAttendance(prev => {
+                const playerAtt = prev[rpeEvent.player_id] || {};
+                return {
+                    ...prev,
+                    [rpeEvent.player_id]: {
+                        ...playerAtt,
+                        [rpeEvent.id]: { ...playerAtt[rpeEvent.id], rpe }
+                    }
+                };
+            });
+
+            alert("Note RPE enregistrée !");
+            setShowRpeModal(false);
+            setRpeEvent(null);
+        } catch (err) {
+            alert("Erreur: " + err.message);
+        } finally {
+            setSubmittingRpe(false);
+        }
+    };
+
+
+
+
+
+    // --- COnvocations (Coach) ---
+    const [memberAvailability, setMemberAvailability] = useState({}); // event_id -> { user_id -> status }
+    const [convocations, setConvocations] = useState({}); // event_id -> { user_id -> boolean }
+    const [members, setMembers] = useState([]); // All team members
+
+    useEffect(() => {
+        if (team) {
+            fetchMembers();
+        }
+    }, [team]);
+
+    // Fetch Base Members
+    const fetchMembers = async () => {
+        const { data, error } = await supabase
+            .from('team_members')
+            .select('player_id, players(id, full_name, first_name, position, avatar_url, parent_id)')
+            .eq('team_id', team);
+
+        if (data) setMembers(data.map(d => d.players).filter(Boolean));
+    };
+
+    // Fetch Availability for specific Event (Lazy load when opening accordion?)
+    // Or simpler: fetch all attendance for displayed events.
+    // Let's do it in fetchEvents to keep it synced.
+    // MODIFIED fetchEvents above to populate a broad attendance map?
+    // Actually, fetchEvents only gets MY attendance.
+    // Let's add a specialized fetch for Coach View.
+
+    // Use a stable key for events to prevent infinite loop when fetchTeamAttendance updates events state
+    const eventIdsString = events.map(e => e.id).sort().join(',');
+
+    // Maintenance Tasks: We no longer trigger redundant fetches here.
+    // The backend provides all necessary attendance and ride data in the main events fetch.
+
+    const fetchTeamAttendance = async () => {
+        // Obsolete: All data is now handled in fetchEvents to reduce Supabase Egress.
+        console.log("fetchTeamAttendance is now handled by the main API fetch.");
+    };
+
+    // Fetch Convocations status for events
+    // Ideally this should be part of event fetch or separate. 
+    // Simplified: We will fetch "presences" for the event when expanded or always.
+    // Let's rely on individual component or simple fetch for now.
+    // Actually, let's keep it simple: Show "Convoked" badge if myAttendance says so.
+
+    // Update: fetchEvents already gets events. We need presence info for ME.
+    // For Coach, we need presence info for ALL.
+
+    // Let's modify fetchEvents to get my convocation status too.
+    // myAttendance is currently just status string. Let's make it object? { status, is_convoked }
+    // Or just separate state.
+
+    const handleConvocationToggle = (eventId, userId) => {
+        setConvocations(prev => {
+            const eventConvs = prev[eventId] || {};
+            return {
+                ...prev,
+                [eventId]: {
+                    ...eventConvs,
+                    [userId]: !eventConvs[userId]
+                }
+            };
+        });
+    };
+
+    const saveConvocations = async (eventId) => {
+        const eventConvs = { ...(convocations[eventId] || {}) };
+
+        // Prepare updates for the API
+        const updates = members.map(m => ({
+            player_id: m.id, // Use player_id (m.id is player id from fetchMembers)
+            is_convoked: !!eventConvs[m.id],
+            is_locked: true
+        }));
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            // ... (keep middle lines same, just skip them in replacement if possible, but safer to replace block)
+            const session = sessionData?.session;
+
+            if (!session) {
+                throw new Error("Session expirée. Veuillez vous reconnecter.");
+            }
+
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/events/${eventId}/convocations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ updates })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Erreur lors de la sauvegarde");
+            }
+
+            alert("Convocations enregistrées !");
+            fetchEvents();
+        } catch (e) {
+            console.error(e);
+            alert("Erreur: " + e.message);
+        }
+    };
+
+    if (loading) return <div className="p-4 text-center">Chargement...</div>;
+
+    if (!team) return (
+        <div className="p-10 text-center text-gray-500">
+            <p className="mb-4">Vous devez rejoindre ou créer une équipe.</p>
+            <a href="/" className="text-indigo-600 hover:underline">Retourner à l'accueil</a>
+        </div>
+    );
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6 px-2 sm:px-4">
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
+                <div>
+                    <h1 className="text-xl font-bold flex items-center gap-2 text-indigo-900"><Calendar className="text-indigo-600" /> Vos Événements</h1>
+                    <p className="text-xs text-gray-500 font-medium">Gérez vos matches et entraînements</p>
+                </div>
+                {isCoach && (
+                    <button
+                        onClick={() => setShowForm(!showForm)}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 transition-all shadow-md active:scale-95"
+                    >
+                        <Plus size={18} /> <span className="hidden sm:inline">Créer</span>
+                    </button>
+                )}
+            </div>
+
+            {showForm && (
+                <div className="bg-white p-6 rounded-xl shadow-lg border-2 border-indigo-100 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex justify-between items-center mb-6 border-b pb-2">
+                        <h2 className="font-bold text-xl text-gray-800 tracking-tight">
+                            {newEvent.id ? '✏️ Modifier l\'événement' : '📂 Nouvel Événement'}
+                        </h2>
+                        <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                    </div>
+                    <form onSubmit={createEvent} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type d'événement</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {['MATCH', 'TRAINING'].map(t => (
+                                            <button
+                                                key={t} type="button"
+                                                onClick={() => setNewEvent({ ...newEvent, type: t, visibility_type: t === 'MATCH' ? 'PRIVATE' : 'PUBLIC' })}
+                                                className={`py-2 rounded-lg border-2 font-bold text-sm transition-all ${newEvent.type === t ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-100 bg-white text-gray-400'
+                                                    }`}
+                                            >
+                                                {t === 'MATCH' ? '🏈 Match' : '🏃 Entraînement'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {newEvent.type === 'MATCH' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Lieu du match</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { id: 'DOMICILE', label: '🏠 Domicile' },
+                                                { id: 'EXTERIEUR', label: '🚌 Extérieur' }
+                                            ].map(loc => (
+                                                <button
+                                                    key={loc.id} type="button"
+                                                    onClick={() => setNewEvent({ ...newEvent, match_location: loc.id })}
+                                                    className={`py-2 rounded-lg border-2 font-bold text-sm transition-all ${newEvent.match_location === loc.id ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-100 bg-white text-gray-400'
+                                                        }`}
+                                                >
+                                                    {loc.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
+                                        <input
+                                            type="date" required
+                                            className="w-full border-2 border-gray-100 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none bg-gray-50 font-medium"
+                                            value={newEvent.date}
+                                            onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Heure</label>
+                                        <input
+                                            type="time" required
+                                            className="w-full border-2 border-gray-100 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none bg-gray-50 font-medium"
+                                            value={newEvent.time}
+                                            onChange={e => setNewEvent({ ...newEvent, time: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Lieu</label>
+                                    <input
+                                        type="text" required
+                                        className="w-full border-2 border-gray-100 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none bg-gray-50 font-medium"
+                                        placeholder="Nom du stade ou de la salle"
+                                        value={newEvent.location}
+                                        onChange={e => setNewEvent({ ...newEvent, location: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 pt-2">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border group">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-indigo-600 rounded"
+                                            checked={newEvent.is_recurring}
+                                            onChange={e => setNewEvent({ ...newEvent, is_recurring: e.target.checked })}
+                                        />
+                                        <span className="text-sm font-bold text-gray-700 group-hover:text-indigo-600">Récurrent (Toutes les semaines)</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border group">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-indigo-600 rounded"
+                                            checked={newEvent.visibility_type === 'PRIVATE'}
+                                            onChange={e => setNewEvent({ ...newEvent, visibility_type: e.target.checked ? 'PRIVATE' : 'PUBLIC' })}
+                                        />
+                                        <span className="text-sm font-bold text-gray-700 group-hover:text-indigo-600">Privé (Visibles seulement par convoqués)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 border-l pl-6">
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase">Joueurs convoqués</label>
+                                    <button type="button" onClick={selectAllPlayers} className="text-[10px] text-indigo-600 font-bold hover:underline">Tout sélectionner</button>
+                                </div>
+                                <div className="h-48 overflow-y-auto border-2 border-gray-50 rounded-lg p-2 grid grid-cols-2 gap-2 bg-gray-50/50">
+                                    {members.map(m => (
+                                        <button
+                                            key={m.id} type="button"
+                                            onClick={() => togglePlayerSelection(m.id)}
+                                            className={`p-2 rounded-lg text-left text-xs transition-all flex items-center gap-2 border ${newEvent.selected_players.includes(m.id)
+                                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                                                : 'bg-white text-gray-600 border-gray-100 hover:border-indigo-200'
+                                                }`}
+                                        >
+                                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-[8px]">{m.full_name?.[0]}</div>
+                                            <span className="truncate">{m.full_name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Notes complémentaires</label>
+                            <textarea
+                                className="w-full border-2 border-gray-100 rounded-lg p-2.5 focus:border-indigo-500 focus:outline-none bg-gray-50 font-medium"
+                                rows="2"
+                                placeholder="..."
+                                value={newEvent.notes}
+                                onChange={e => setNewEvent({ ...newEvent, notes: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                            <button type="button" onClick={() => {
+                                setShowForm(false);
+                                setNewEvent({ type: 'MATCH', date: '', time: '', location: '', notes: '', visibility_type: 'PUBLIC', is_recurring: false, selected_players: [], match_location: 'DOMICILE' });
+                            }} className="px-6 py-2.5 text-gray-500 font-bold hover:bg-gray-100 rounded-lg transition-colors">Annuler</button>
+                            <button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95 transition-all">
+                                {newEvent.id ? 'Sauvegarder les modifications' : 'Publier l\'événement'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            <div className="space-y-6">
+                {events.length === 0 && <p className="text-center text-gray-500 py-10">Aucun événement prévu.</p>}
+                {events.map(ev => {
+                    const status = myAttendance[ev.id];
+                    const isConvoked = ev.attendance?.some(a => a.user_id === user.id && a.is_convoked);
+
+                    // Statistics (Coach only)
+                    const memberIds = new Set(members.map(m => String(m.id)));
+                    let stats = null;
+                    if (isCoach) {
+                        let convokedIds = [];
+
+                        if (convocations[ev.id]) {
+                            convokedIds = Object.keys(convocations[ev.id]).filter(uid =>
+                                convocations[ev.id][uid] && memberIds.has(String(uid))
+                            );
+                        } else {
+                            // Fallback to ev.attendance if map is not yet populated
+                            // We use a Set to avoid counting duplicates if they exist in DB
+                            const seen = new Set();
+                            (ev.attendance || []).forEach(a => {
+                                if (a.is_convoked && a.player_id && memberIds.has(String(a.player_id))) {
+                                    seen.add(String(a.player_id));
+                                }
+                            });
+                            convokedIds = Array.from(seen);
+                        }
+
+                        const totalConvoked = convokedIds.length;
+
+                        if (totalConvoked > 0) {
+                            const respondedIds = new Set();
+                            const validIds = new Set();
+                            const absentIds = new Set();
+
+                            convokedIds.forEach(uid => {
+                                const s = memberAvailability[ev.id]?.[uid];
+                                if (s && s !== 'UNKNOWN' && s !== 'INCONNU') {
+                                    respondedIds.add(String(uid));
+                                    if (s === 'PRESENT' || s === 'RETARD') {
+                                        validIds.add(String(uid));
+                                    } else {
+                                        absentIds.add(String(uid));
+                                    }
+                                }
+                            });
+
+                            stats = {
+                                total: totalConvoked,
+                                responded: respondedIds.size,
+                                valid: validIds.size,
+                                absent: absentIds.size,
+                                waiting: totalConvoked - respondedIds.size
+                            };
+                        }
+                    }
+
+                    // Dynamic styling based on event type and response
+                    const isMatch = ev.type === 'MATCH';
+                    const hasResponded = status?.status && status.status !== 'UNKNOWN' && status.status !== 'INCONNU';
+
+                    // New: Team Riders Stats (Unique players only)
+                    const ridersWithRide = new Set(ev.attendance?.filter(a => a.player_id && a.has_ride && memberIds.has(String(a.player_id))).map(a => a.player_id));
+                    const ridersCount = ridersWithRide.size;
+                    // CHANGED: Denominator now excludes absent/sick/injured players
+                    const convokedCount = (stats?.total || 0) - (stats?.absent || 0);
+
+                    const getFrameColor = () => {
+                        if (isCoach && stats && stats.total > 0 && stats.responded === stats.total) {
+                            return 'border-blue-400 bg-blue-50/20 shadow-blue-100';
+                        }
+
+                        // Check if ANY child hasn't responded
+                        const anyNotResponded = children.some(c => {
+                            const s = myAttendance[c.id]?.[ev.id]?.status;
+                            return !s || s === 'UNKNOWN' || s === 'INCONNU';
+                        });
+
+                        if (anyNotResponded && children.length > 0) return 'border-orange-300 bg-orange-50/30';
+                        if (isMatch) return 'border-red-200 bg-white';
+                        return 'border-green-200 bg-white';
+                    };
+
+                    const getHeaderColor = () => {
+                        if (isMatch) return 'bg-red-600 text-white';
+                        return 'bg-green-600 text-white';
+                    };
+
+                    return (
+                        <div key={ev.id} className={`rounded-xl border-2 shadow-sm overflow-hidden transition-all ${getFrameColor()}`}>
+                            {/* Combined Header/Event Info */}
+                            <div className="p-4 flex flex-col md:flex-row justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${getHeaderColor()}`}>
+                                            {isMatch ? 'Match' : 'Entraînement'}
+                                        </span>
+                                        <span className="text-gray-900 font-bold">
+                                            {new Date(ev.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                        </span>
+                                        <span className="text-indigo-600 font-semibold flex items-center gap-1">
+                                            <Clock size={14} /> {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+
+                                        {/* Team Ride Stats */}
+                                        {isMatch && ev.match_location === 'EXTERIEUR' && convokedCount > 0 && (
+                                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1" title="Joueurs ayant un trajet">
+                                                🚗 {ridersCount} / {convokedCount} ont une voiture
+                                            </span>
+                                        )}
+
+                                        {/* Coach Stats Badge */}
+                                        {isCoach && stats && (
+                                            <div className="flex items-center gap-2 ml-2">
+                                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200" title="Taux de réponse">
+                                                    📊 {stats.responded} / {stats.total} réponses
+                                                </span>
+                                                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200" title="Joueurs valides (Présents/Retard)">
+                                                    ✅ {stats.valid} / {stats.total} valides ({stats.absent} abs, {stats.waiting} attente)
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col gap-1 text-gray-600">
+                                        <span className="flex items-center gap-1.5 font-medium">
+                                            <MapPin size={16} className="text-gray-400" />
+                                            {ev.location}
+                                            {isMatch && (
+                                                <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded ${ev.match_location === 'EXTERIEUR' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                    {ev.match_location === 'EXTERIEUR' ? 'EXTÉRIEUR' : 'DOMICILE'}
+                                                </span>
+                                            )}
+                                        </span>
+                                        {ev.notes && <p className="text-sm text-gray-500 italic bg-gray-50 p-2 rounded border border-dashed mt-1">{ev.notes}</p>}
+                                    </div>
+                                </div>
+
+                                {/* Attendance Controls per Child/Member */}
+                                <div className="flex flex-col items-center md:items-end gap-4">
+                                    {(isCoach
+                                        ? [{ id: user.id, first_name: 'Moi (Coach)', isCoachSelf: true }]
+                                        : children
+                                    ).filter(Boolean).map(child => {
+                                        const cStatus = myAttendance[child.id]?.[ev.id];
+                                        const isCConvoked = ev.attendance?.some(a => a.player_id === child.id && a.is_convoked);
+                                        const hasCResponded = cStatus?.status && cStatus.status !== 'UNKNOWN' && cStatus.status !== 'INCONNU';
+
+                                        return (
+                                            <div key={child.id} className="flex flex-col items-end gap-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {isCConvoked && <span className="text-[10px] bg-red-600 text-white px-1.5 rounded font-black">CONVOQUÉ</span>}
+                                                    <span className="text-xs font-bold text-gray-700">{child.first_name}</span>
+                                                    {!hasCResponded && (
+                                                        <div className="text-[9px] bg-orange-100 text-orange-700 font-bold px-1.5 py-0.5 rounded animate-pulse">
+                                                            RÉPONSE ?
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1 p-1 bg-gray-100 rounded-full border shadow-inner">
+                                                    {[
+                                                        { id: 'PRESENT', label: 'P', color: 'bg-green-600', title: 'Présent' },
+                                                        { id: 'ABSENT', label: 'A', color: 'bg-red-600', title: 'Absent' },
+                                                        { id: 'MALADE', label: '🤒', color: 'bg-purple-600', title: 'Malade' },
+                                                        { id: 'BLESSE', label: '🤕', color: 'bg-orange-600', title: 'Blessé' },
+                                                        { id: 'RETARD', label: '⏱️', color: 'bg-yellow-500', title: 'En retard' }
+                                                    ].map(btn => (
+                                                        <button
+                                                            key={btn.id}
+                                                            onClick={() => updateAttendance(ev.id, child.id, btn.id, child.isCoachSelf)}
+                                                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all transform active:scale-90 ${cStatus?.status === btn.id
+                                                                ? `${btn.color} text-white shadow-md ring-2 ring-offset-1 ring-gray-200`
+                                                                : 'bg-white text-gray-400 hover:bg-gray-50'
+                                                                }`}
+                                                            title={btn.title}
+                                                        >
+                                                            <span className={btn.label.length > 2 ? 'text-base' : 'text-xs font-bold'}>{btn.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {/* RPE Button */}
+                                                {!isCoach && ['PRESENT', 'RETARD'].includes(cStatus?.status) && new Date(ev.date).toDateString() === new Date().toDateString() && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setRpeEvent({ id: ev.id, player_id: child.id, name: child.first_name, current: cStatus?.rpe });
+                                                            setShowRpeModal(true);
+                                                        }}
+                                                        className={`mt-2 px-3 py-1 text-[10px] font-bold rounded-lg border-2 transition-all active:scale-95 ${cStatus?.rpe
+                                                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                            : 'border-indigo-600 bg-white text-indigo-600 hover:bg-indigo-50'
+                                                            }`}
+                                                    >
+                                                        {cStatus?.rpe ? `Note RPE : ${cStatus.rpe}/10` : 'Noter la séance (RPE)'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {isCoach && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setNewEvent({
+                                                        id: ev.id,
+                                                        type: ev.type,
+                                                        date: ev.date.split('T')[0],
+                                                        time: new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                                        location: ev.location,
+                                                        notes: ev.notes,
+                                                        visibility_type: ev.visibility_type,
+                                                        is_recurring: ev.is_recurring,
+                                                        selected_players: Array.from(new Set(ev.attendance?.filter(a => a.is_convoked && a.player_id).map(a => a.player_id) || [])),
+                                                        match_location: ev.match_location || 'DOMICILE'
+                                                    });
+                                                    setShowForm(true);
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                }}
+                                                className="text-gray-300 hover:text-indigo-600 transition-colors"
+                                                title="Modifier"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+
+                                            <button
+                                                onClick={() => sendReminders(ev.id)}
+                                                className="text-gray-300 hover:text-amber-500 transition-colors"
+                                                title="Relancer les non-répondants (Notification)"
+                                            >
+                                                <Bell size={16} />
+                                            </button>
+
+                                            <button onClick={() => deleteEvent(ev.id, 'single')} className="text-gray-300 hover:text-red-500 transition-colors" title="Supprimer cet événement">
+                                                <Trash2 size={16} />
+                                            </button>
+
+                                            {(ev.is_recurring || ev.recurrence_pattern) && (
+                                                <button
+                                                    onClick={() => deleteEvent(ev.id, 'series')}
+                                                    className="text-gray-300 hover:text-red-700 transition-colors flex items-center gap-1"
+                                                    title="Supprimer toute la série"
+                                                >
+                                                    <Trash2 size={16} className="text-red-900" />
+                                                    <span className="text-[10px] font-bold text-red-900 border border-red-200 bg-red-50 rounded px-1">SÉRIE</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            {/* Coach Convocations Section (collapsible) */}
+                            {isCoach && (
+                                <div className="px-4 pb-2 border-t border-gray-100 bg-gray-50/50">
+                                    <details className="text-sm group">
+                                        <summary className="py-2 text-indigo-600 font-semibold cursor-pointer hover:underline flex items-center gap-2">
+                                            <Users size={14} /> Gérer la convocation ({members.filter(m => convocations[ev.id]?.[m.id]).length} convoqués)
+                                        </summary>
+                                        <div className="py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {members.map(m => {
+                                                const mStatus = memberAvailability[ev.id]?.[m.id] || 'UNKNOWN';
+                                                const isSelected = convocations[ev.id]?.[m.id];
+                                                return (
+                                                    <label
+                                                        key={m.id}
+                                                        className={`flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-100 bg-white opacity-60 grayscale'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="w-4 h-4 text-indigo-600 rounded bg-gray-100 border-gray-300 focus:ring-indigo-500"
+                                                                checked={!!isSelected}
+                                                                onChange={() => handleConvocationToggle(ev.id, m.id)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                            <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold">
+                                                                {m.full_name?.[0]}
+                                                            </div>
+                                                            <span className="text-xs font-semibold">{m.full_name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-[10px]">
+                                                                {(mStatus === 'PRESENT' || mStatus === 'RETARD') && <span className="text-green-600 font-bold">✅</span>}
+                                                                {(mStatus === 'ABSENT' || mStatus === 'MALADE' || mStatus === 'BLESSE') && <span className="text-red-600 font-bold">❌</span>}
+                                                            </div>
+                                                        </div>
+                                                    </label>
+                                                );
+                                            })}
+                                            <div className="sm:col-span-2 lg:col-span-3">
+                                                <button
+                                                    onClick={() => saveConvocations(ev.id)}
+                                                    className="w-full mt-2 bg-indigo-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-indigo-700"
+                                                >
+                                                    Mettre à jour la convocation
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </div>
+                            )}
+
+                            {/* Integrated Carpooling Section */}
+                            {
+                                isMatch && ev.match_location === 'EXTERIEUR' && (
+                                    <div className="bg-gray-50/30 px-4 pb-4">
+                                        <EventCarpooling
+                                            eventId={ev.id}
+                                            currentUser={user}
+                                            teamId={team}
+                                            myAttendance={myAttendance}
+                                            isCoach={isCoach}
+                                            activePlayer={activePlayer}
+                                            evAttendance={ev.attendance || []}
+                                            members={members}
+                                            userName={userName}
+                                        />
+                                    </div>
+                                )
+                            }
+                        </div >
+                    );
+                })}
+            </div >
+
+            {/* RPE MODAL */}
+            {showRpeModal && rpeEvent && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-xl text-indigo-900 tracking-tight">RPE - {rpeEvent.name}</h3>
+                            <button onClick={() => setShowRpeModal(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={24} /></button>
+                        </div>
+
+                        <p className="text-sm text-gray-500 mb-6 font-medium">
+                            Quelle était la difficulté de la séance pour toi aujourd'hui ?
+                            <br /><span className="text-[10px] uppercase font-bold text-gray-400">(1 = Facile, 10 = Extrême)</span>
+                        </p>
+
+                        <div className="grid grid-cols-5 gap-3 mb-8">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => (
+                                <button
+                                    key={val}
+                                    disabled={submittingRpe}
+                                    onClick={() => handleRPESubmit(val)}
+                                    className={`
+                                        h-14 flex items-center justify-center rounded-xl font-black text-lg transition-all transform active:scale-90
+                                        ${submittingRpe ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}
+                                        ${rpeEvent.current === val
+                                            ? 'bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-200'
+                                            : 'bg-indigo-50 text-indigo-900 border-2 border-transparent hover:border-indigo-300'
+                                        }
+                                    `}
+                                >
+                                    {val}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2">Échelle de ressenti</h4>
+                            <div className="flex justify-between text-[10px] font-bold">
+                                <span className="text-green-600">FACILE</span>
+                                <span className="text-yellow-600">MOYEN</span>
+                                <span className="text-red-600">DUR</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 rounded-full mt-1" />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div >
+    );
+}
+

@@ -301,19 +301,27 @@ export default function Team() {
                 return [...prev, ...newOnes].sort((a,b) => new Date(a.date) - new Date(b.date));
             });
 
-            // Aggregate matrix
+            // Aggregate matrix (Support both player_id and user_id for robustness)
             const matrixUpdate = {};
             activeEvents.forEach(ev => {
                 if (ev.attendance) {
                     ev.attendance.forEach(row => {
-                        const entityId = row.player_id || row.user_id;
-                        if (!entityId) return;
-                        if (!matrixUpdate[entityId]) matrixUpdate[entityId] = {};
-                        matrixUpdate[entityId][ev.id] = { 
+                        const pid = row.player_id;
+                        const uid = row.user_id;
+                        const data = { 
                             status: row.status, 
                             rpe: row.rpe,
                             is_convoked: row.is_convoked 
                         };
+                        
+                        if (pid) {
+                            if (!matrixUpdate[pid]) matrixUpdate[pid] = {};
+                            matrixUpdate[pid][ev.id] = data;
+                        }
+                        if (uid) {
+                            if (!matrixUpdate[uid]) matrixUpdate[uid] = {};
+                            matrixUpdate[uid][ev.id] = data;
+                        }
                     });
                 }
             });
@@ -346,14 +354,22 @@ export default function Team() {
                 if (directAtt && directAtt.length > 0) {
                     const matrixUpdate = {};
                     directAtt.forEach(row => {
-                        const entityId = row.player_id || row.user_id;
-                        if (!entityId) return;
-                        if (!matrixUpdate[entityId]) matrixUpdate[entityId] = {};
-                        matrixUpdate[entityId][row.event_id] = { 
+                        const pid = row.player_id;
+                        const uid = row.user_id;
+                        const data = { 
                             status: row.status, 
                             rpe: row.rpe,
                             is_convoked: row.is_convoked 
                         };
+                        
+                        if (pid) {
+                            if (!matrixUpdate[pid]) matrixUpdate[pid] = {};
+                            matrixUpdate[pid][row.event_id] = data;
+                        }
+                        if (uid) {
+                            if (!matrixUpdate[uid]) matrixUpdate[uid] = {};
+                            matrixUpdate[uid][row.event_id] = data;
+                        }
                     });
                     setAttendanceMatrix(prev => {
                         const next = { ...prev };
@@ -1046,23 +1062,12 @@ export default function Team() {
                                         const isConvoked = ev.attendance?.some(a => 
                                             a.is_convoked && (
                                                 (a.player_id && a.player_id === m.player_id) || 
-                                                (a.user_id && a.user_id === m.user_id)
-                                            )
-                                        );
-                                        return isConvoked;
-                                    }
-                                    return true; // Public events always count
-                                });
-
-                                const presentCount = relevantEvents.filter(ev => playerAtt[ev.id]?.status === 'PRESENT' || playerAtt[ev.id]?.status === 'RETARD').length;
-                                const ratio = relevantEvents.length > 0 ? Math.round((presentCount / relevantEvents.length) * 100) : 0;
-
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
                                         {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
-                                            // [MODIFIED] Check if irrelevant for this player (Gray Cell)
-                                            // FIX: If a player has a status (responded), they are ALWAYS relevant.
+                                            // [ROBUST LOOKUP] Check both player_id and user_id in the matrix
+                                            const playerAtt = attendanceMatrix[m.player_id] || attendanceMatrix[m.user_id] || {};
                                             const attData = playerAtt[ev.id];
                                             const status = attData?.status;
                                             const rpe = attData?.rpe;

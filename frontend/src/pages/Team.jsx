@@ -1032,13 +1032,15 @@ export default function Team() {
                                             const isConvoked = attData?.is_convoked;
 
                                             const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
-                                            const canModify = isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
+                                            const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid;
+                                            const canModify = isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
-                                            // [MODIFIED] Logic: If NOT convoked and NO status -> Empty cell
-                                            const isNotConvoked = !isConvoked && !status;
+                                            // [MODIFIED] Logic: Hide ONLY for non-coaches/non-admins if not convoked and no status
+                                            // Coaches must ALWAYS see the selectors to manage the team correctly.
+                                            const isNotConvoked = !isUserCoach && !isConvoked && !status;
 
                                             if (isNotConvoked) {
-                                                return <td key={ev.id} className="p-2 border-r bg-gray-50/20"></td>;
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-50/10"></td>;
                                             }
 
                                             let color = "text-gray-300";

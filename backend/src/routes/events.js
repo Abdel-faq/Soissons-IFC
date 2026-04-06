@@ -255,26 +255,28 @@ router.get('/', requireAuth, async (req, res) => {
       .eq('team_id', team_id)
       .eq('is_deleted', false);
 
-    if (month && /^\d{4}-\d{2}$/.test(month)) {
-      // Fetch for a specific month (YYYY-MM)
-      const startDate = new Date(`${month}-01T00:00:00Z`);
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 1);
-      endDate.setSeconds(endDate.getSeconds() - 1);
+        if (month && /^\d{4}-\d{2}$/.test(month)) {
+            // Fetch for a specific month (YYYY-MM)
+            const year = parseInt(month.substring(0, 4));
+            const monthIdx = parseInt(month.substring(5, 7)) - 1;
+            const startDate = new Date(year, monthIdx, 1);
+            const endDate = new Date(year, monthIdx + 1, 0, 23, 59, 59);
 
-      query = query
-        .gte('date', startDate.toISOString())
-        .lte('date', endDate.toISOString());
-    } else if (range === 'season') {
-      // Fetch from start of season
-      const seasonStart = new Date();
-      seasonStart.setMonth(seasonStart.getMonth() - 6);
+            query = query
+                .gte('date', startDate.toISOString())
+                .lte('date', endDate.toISOString());
+        } else if (range === 'season') {
+            // Fetch from start of season (August last year or this year)
+            const now = new Date();
+            const startYear = (now.getMonth() < 7) ? now.getFullYear() - 1 : now.getFullYear();
+            const seasonStart = new Date(startYear, 7, 1); // 1st August
+            const seasonEnd = new Date(startYear + 1, 6, 31, 23, 59, 59); // 31st July
 
-      // Current Week upper limit (Sunday)
-      query = query
-        .gte('date', seasonStart.toISOString())
-        .lte('date', sunday.toISOString());
-    } else {
+            query = query
+                .gte('date', seasonStart.toISOString())
+                .lte('date', seasonEnd.toISOString());
+        }
+ else {
       // DEFAULT: Events View (History + Future) - modified to start from today
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);

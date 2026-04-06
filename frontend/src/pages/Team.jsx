@@ -763,13 +763,21 @@ export default function Team() {
 
                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                         {(() => {
-                            // Extract unique months from history
-                            const monthSet = new Set();
-                            historyEvents.forEach(e => monthSet.add(new Date(e.date).toISOString().substring(0, 7)));
-                            // Always include current month
-                            monthSet.add(new Date().toISOString().substring(0, 7));
+                            const now = new Date();
+                            const months = [];
+                            
+                            // Déterminer l'année de début de saison (Août)
+                            const startYear = (now.getMonth() < 7) ? now.getFullYear() - 1 : now.getFullYear();
+                            const startDate = new Date(startYear, 7, 1); // 1er Août
+                            
+                            // On itère de "Maintenant" vers l'arrière jusqu'à Août
+                            let iter = new Date(now.getFullYear(), now.getMonth(), 1);
+                            while (iter >= startDate) {
+                                months.push(iter.toISOString().substring(0, 7));
+                                iter.setMonth(iter.getMonth() - 1);
+                            }
 
-                            return Array.from(monthSet).sort().reverse().map(m => {
+                            return months.map(m => {
                                 const [year, month] = m.split('-');
                                 const date = new Date(year, month - 1);
                                 const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });

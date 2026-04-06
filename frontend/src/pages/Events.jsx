@@ -108,7 +108,31 @@ export default function Events() {
 
                 if (response.ok) {
                     const eventsData = await response.json();
-                    const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+                    let activeEvents = (eventsData || []).filter(e => !e.is_deleted);
+
+                    // [NEW BACKUP] Direct Supabase fetch to ensure we have all attendance records
+                    const eventIds = activeEvents.map(e => e.id).filter(id => id);
+                    if (eventIds.length > 0) {
+                        const { data: directAtt, error: attError } = await supabase
+                            .from('attendance')
+                            .select('*')
+                            .in('event_id', eventIds);
+                        
+                        if (attError) console.error("[DEBUG] Events Page Direct Att Error:", attError);
+                        
+                        if (directAtt && directAtt.length > 0) {
+                            activeEvents = activeEvents.map(ev => {
+                                const atts = directAtt.filter(a => a.event_id === ev.id);
+                                if (atts.length > 0) {
+                                    const existingIds = new Set((ev.attendance || []).map(a => a.id));
+                                    const newAtts = atts.filter(a => !existingIds.has(a.id));
+                                    return { ...ev, attendance: [...(ev.attendance || []), ...newAtts] };
+                                }
+                                return ev;
+                            });
+                        }
+                    }
+
                     setEvents(activeEvents);
 
                     // --- OPTIMIZATION: Use data already returned by the API ---

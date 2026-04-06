@@ -1051,34 +1051,27 @@ export default function Team() {
                         </thead>
                         <tbody>
                             {members.filter(m => isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || m.players?.parent_id === user?.id).map(m => {
-                                const playerAtt = attendanceMatrix[m.player_id] || {};
+                                // [ROBUST LOOKUP] Check both player_id and user_id in the matrix
+                                const playerAtt = attendanceMatrix[m.player_id] || attendanceMatrix[m.user_id] || {};
+                                
+                                // Calculate seasonal total with robust lookup
+                                const relevantEvents = historyEvents.filter(ev => !ev.is_deleted && new Date(ev.date) < new Date());
+                                const presentCount = relevantEvents.filter(ev => playerAtt[ev.id]?.status === 'PRESENT' || playerAtt[ev.id]?.status === 'RETARD').length;
+                                const ratio = relevantEvents.length > 0 ? Math.round((presentCount / relevantEvents.length) * 100) : 0;
 
-                                // [MODIFIED] STATS CALCULATION
-                                // Only count events where the player is actually concerned.
-                                // If event is PRIVATE and player NOT convoked -> Skip from total.
-                                const relevantEvents = historyEvents.filter(ev => {
-                                    if (ev.visibility_type === 'PRIVATE') {
-                                        // Check convocation in event.attendance list (source of truth for convocation)
-                                        const isConvoked = ev.attendance?.some(a => 
-                                            a.is_convoked && (
-                                                (a.player_id && a.player_id === m.player_id) || 
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
                                         {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
-                                            // [ROBUST LOOKUP] Check both player_id and user_id in the matrix
-                                            const playerAtt = attendanceMatrix[m.player_id] || attendanceMatrix[m.user_id] || {};
                                             const attData = playerAtt[ev.id];
                                             const status = attData?.status;
-                                            const rpe = attData?.rpe;
                                             const isConvoked = attData?.is_convoked;
 
                                             const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
                                             const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid;
                                             const canModify = isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
-                                            // [MODIFIED] Logic: Hide ONLY for non-coaches/non-admins if not convoked and no status
-                                            // Coaches must ALWAYS see the selectors to manage the team correctly.
+                                            // Hide ONLY for non-coaches if not convoked and no status
                                             const isNotConvoked = !isUserCoach && !isConvoked && !status;
 
                                             if (isNotConvoked) {
@@ -1100,7 +1093,7 @@ export default function Team() {
                                                         <select
                                                             className={`bg-transparent outline-none ${color} font-black`}
                                                             value={status || ''}
-                                                            onChange={(e) => handleAttendanceUpdate(m.player_id, ev.id, e.target.value, m.user_id)}
+                                                            onChange={(e) => handleAttendanceUpdate(m.player_id || m.user_id, ev.id, e.target.value, m.user_id)}
                                                         >
                                                             <option value="">{isConvoked ? '?' : '-'}</option>
                                                             <option value="PRESENT">P</option>
@@ -1110,17 +1103,19 @@ export default function Team() {
                                                             <option value="RETARD">R</option>
                                                         </select>
                                                     ) : (
-                                                        <span className={color}>{label}</span>
+                                                        <span className={`font-black ${color}`}>{label}</span>
                                                     )}
                                                 </td>
                                             );
                                         })}
-                                        <td className="p-4 text-center font-black bg-indigo-50/50">
-                                            <div className={`
-                                                px-2 py-1 rounded text-[10px]
-                                                ${ratio >= 80 ? 'bg-green-100 text-green-700' : ratio >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
-                                            `} title={`${presentCount} / ${relevantEvents.length}`}>
-                                                {ratio}%
+                                        <td className="p-2 text-center bg-indigo-50/30">
+                                            <div className="flex items-center justify-center h-full">
+                                                <span 
+                                                    className={`px-2 py-0.5 rounded text-[10px] font-black ${ratio >= 80 ? 'bg-green-100 text-green-700' : ratio >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}
+                                                    title={`${presentCount} / ${relevantEvents.length}`}
+                                                >
+                                                    {ratio}%
+                                                </span>
                                             </div>
                                         </td>
                                     </tr>

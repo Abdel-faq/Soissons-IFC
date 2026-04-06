@@ -264,20 +264,24 @@ export default function Team() {
             console.error("Failed to fetch members:", err.message);
             setError("Erreur de chargement des membres : " + err.message);
         }
-
-        fetchAttendanceHistory(teamId);
+        if (teamId) {
+            fetchAttendanceHistory(teamId, null, 'season');
+        }
     };
 
-    const fetchAttendanceHistory = async (teamId, targetMonth = null) => {
+    const fetchAttendanceHistory = async (teamId, targetMonth = null, range = null) => {
         try {
             const { data: sessionData } = await supabase.auth.getSession();
             const session = sessionData?.session;
             if (!session) return;
 
             // ON-DEMAND OPTIMIZATION: Fetch specific month or current season
-            // If No Month provided, use current month as default for "Assiduité"
             const monthToFetch = targetMonth || selectedMonth;
-            const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?team_id=${teamId}&month=${monthToFetch}`;
+            let query = `team_id=${teamId}`;
+            if (range) query += `&range=${range}`;
+            else query += `&month=${monthToFetch}`;
+            
+            const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?${query}`;
 
             const response = await fetch(apiUrl, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
@@ -288,7 +292,7 @@ export default function Team() {
             const eventsData = await response.json();
             const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
 
-            console.log(`[DEBUG] Team Attendance: Received ${activeEvents.length} events for ${monthToFetch}`);
+            console.log(`[DEBUG] Team Attendance: Received ${activeEvents.length} events (Range: ${range || monthToFetch})`);
 
             // Update states by AGGREGATING with existing data
             setHistoryEvents(prev => {
@@ -322,7 +326,8 @@ export default function Team() {
                 return next;
             });
 
-            setLoadedMonths(prev => new Set([...prev, monthToFetch]));
+            if (!range) setLoadedMonths(prev => new Set([...prev, monthToFetch]));
+            else if (range === 'season') setLoadedMonths(prev => new Set([...prev, 'SEASON_LOADED']));
 
         } catch (err) {
             console.error("Error fetching attendance history:", err);
@@ -763,21 +768,18 @@ export default function Team() {
 
                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                         {(() => {
-                            const now = new Date();
-                            const months = [];
+                            const nowStr = new Date().toISOString().substring(0, 7);
+                            const monthSet = new Set();
                             
-                            // Déterminer l'année de début de saison (Août)
-                            const startYear = (now.getMonth() < 7) ? now.getFullYear() - 1 : now.getFullYear();
-                            const startDate = new Date(startYear, 7, 1); // 1er Août
+                            // On n'affiche que les mois qui ont RÉELLEMENT des événements chargés
+                            historyEvents.forEach(ev => {
+                                if (ev.date) monthSet.add(ev.date.substring(0, 7));
+                            });
                             
-                            // On itère de "Maintenant" vers l'arrière jusqu'à Août
-                            let iter = new Date(now.getFullYear(), now.getMonth(), 1);
-                            while (iter >= startDate) {
-                                months.push(iter.toISOString().substring(0, 7));
-                                iter.setMonth(iter.getMonth() - 1);
-                            }
+                            // On s'assure que le mois en cours est toujours présent
+                            monthSet.add(nowStr);
 
-                            return months.map(m => {
+                            return Array.from(monthSet).sort().reverse().map(m => {
                                 const [year, month] = m.split('-');
                                 const date = new Date(year, month - 1);
                                 const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -1032,7 +1034,12 @@ export default function Team() {
                                             const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
                                             const canModify = isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
-                                            const isIrrelevant = !canModify && ev.visibility_type === 'PRIVATE' && !isConvoked && !status;
+                                            // [MODIFIED] Logic: If NOT convoked and NO status -> Empty cell
+                                            const isNotConvoked = !isConvoked && !status;
+
+                                            if (isNotConvoked) {
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-50/20"></td>;
+                                            }
 
                                             let color = "text-gray-300";
                                             let label = "-";
@@ -1043,19 +1050,15 @@ export default function Team() {
                                             if (status === 'BLESSE') { color = "text-orange-500"; label = "B"; }
                                             if (status === 'RETARD') { color = "text-yellow-600 font-bold"; label = "R"; }
 
-                                            if (isIrrelevant) {
-                                                return <td key={ev.id} className="p-2 border-r bg-gray-100 italic text-[8px] text-gray-400 text-center">N.C.</td>;
-                                            }
-
                                             return (
                                                 <td key={ev.id} className={`p-2 border-r text-center ${!canModify ? 'cursor-not-allowed opacity-80' : ''}`}>
                                                     {canModify ? (
                                                         <select
-                                                            className={`bg-transparent outline-none ${color}`}
+                                                            className={`bg-transparent outline-none ${color} font-black`}
                                                             value={status || ''}
                                                             onChange={(e) => handleAttendanceUpdate(m.player_id, ev.id, e.target.value, m.user_id)}
                                                         >
-                                                            <option value="">-</option>
+                                                            <option value="">{isConvoked ? '?' : '-'}</option>
                                                             <option value="PRESENT">P</option>
                                                             <option value="ABSENT">A</option>
                                                             <option value="MALADE">M</option>

@@ -314,7 +314,7 @@ router.get('/', requireAuth, async (req, res) => {
         .from('attendance')
         .select('id, event_id, player_id, user_id, status, is_convoked, is_locked, rpe')
         .in('event_id', eventIds)
-        .limit(5000); // FIX: Ensure we get all rows for the season
+        .limit(25000); // Increased limit as database has ~24k rows total
       allAttendance = att || [];
     } catch (e) { console.error("Att fetch fail:", e); }
 

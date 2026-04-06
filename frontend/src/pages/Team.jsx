@@ -327,7 +327,13 @@ export default function Team() {
             });
 
             if (!range) setLoadedMonths(prev => new Set([...prev, monthToFetch]));
-            else if (range === 'season') setLoadedMonths(prev => new Set([...prev, 'SEASON_LOADED']));
+            else if (range === 'season') {
+                const monthsInSeason = new Set();
+                activeEvents.forEach(ev => {
+                    if (ev.date) monthsInSeason.add(ev.date.substring(0, 7));
+                });
+                setLoadedMonths(prev => new Set([...prev, ...monthsInSeason, 'SEASON_LOADED']));
+            }
 
         } catch (err) {
             console.error("Error fetching attendance history:", err);

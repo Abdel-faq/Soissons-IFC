@@ -1064,10 +1064,19 @@ export default function Team() {
                         </thead>
                         <tbody>
                             {members.filter(m => isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || m.players?.parent_id === user?.id).map(m => {
-                                // [NEW ROBUST LOGIC] Switch to DIRECT search in ev.attendance to skip matrix cache failures
-                                const relevantEvents = historyEvents.filter(ev => !ev.is_deleted && new Date(ev.date) < new Date());
+                                // Seasonal total based on direct attendance lookup (Only count convoked events)
+                                const relevantEvents = historyEvents.filter(ev => {
+                                    if (ev.is_deleted || new Date(ev.date) >= new Date()) return false;
+                                    
+                                    const att = ev.attendance?.find(a => 
+                                        (a.player_id && a.player_id === m.player_id) || 
+                                        (a.user_id && a.user_id === m.user_id)
+                                    );
+                                    
+                                    // Count as relevant if convoked OR public
+                                    return att?.is_convoked || ev.visibility_type === 'PUBLIC' || !ev.visibility_type;
+                                });
                                 
-                                // Seasonal total based on direct attendance lookup
                                 const presentCountForTotal = relevantEvents.filter(ev => {
                                     const att = ev.attendance?.find(a => 
                                         (a.player_id && a.player_id === m.player_id) || 
@@ -1088,18 +1097,22 @@ export default function Team() {
                                                 (a.user_id && a.user_id === m.user_id)
                                             );
                                             
-                                            const status = attData?.status;
-                                            const isConvoked = attData?.is_convoked;
+                                            // [STRICT CONVOCATION LOGIC]
+                                            // A player is convoked if:
+                                            // 1. Registered as is_convoked: true in attendance row
+                                            // 2. OR the event is PUBLIC (all team invited)
+                                            const isConvoked = attData?.is_convoked || ev.visibility_type === 'PUBLIC' || !ev.visibility_type;
 
                                             const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
                                             const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid;
                                             const canModify = isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
-                                            // Hide ONLY for non-coaches/parents if not convoked and no status
-                                            const isNotConvoked = !isUserCoach && !isConvoked && !status;
+                                            // [MODIFIED] Logic: Hide cell if NOT convoked AND NO status
+                                            // Even for coaches, this keeps the board clean as requested.
+                                            const isNotConvoked = !isConvoked && !status;
 
                                             if (isNotConvoked) {
-                                                return <td key={ev.id} className="p-2 border-r bg-gray-50/10"></td>;
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-50/20"></td>;
                                             }
 
                                             let color = "text-gray-300";

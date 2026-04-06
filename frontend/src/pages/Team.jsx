@@ -1097,6 +1097,8 @@ export default function Team() {
                                                 (a.user_id && a.user_id === m.user_id)
                                             );
                                             
+                                            const status = attData?.status;
+                                            
                                             // [STRICT CONVOCATION LOGIC]
                                             // A player is convoked if:
                                             // 1. Registered as is_convoked: true in attendance row

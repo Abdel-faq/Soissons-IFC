@@ -335,6 +335,37 @@ export default function Team() {
                 setLoadedMonths(prev => new Set([...prev, ...monthsInSeason, 'SEASON_LOADED']));
             }
 
+            // [NEW] Backup: Fetch attendance DIRECTLY from Supabase to ensure RLS doesn't block data for Coach
+            if (activeEvents.length > 0) {
+                const eventIds = activeEvents.map(e => e.id);
+                const { data: directAtt, error: attError } = await supabase
+                    .from('attendance')
+                    .select('id, event_id, player_id, user_id, status, is_convoked, is_locked, rpe')
+                    .in('event_id', eventIds);
+                
+                if (directAtt && directAtt.length > 0) {
+                    const matrixUpdate = {};
+                    directAtt.forEach(row => {
+                        const entityId = row.player_id || row.user_id;
+                        if (!entityId) return;
+                        if (!matrixUpdate[entityId]) matrixUpdate[entityId] = {};
+                        matrixUpdate[entityId][row.event_id] = { 
+                            status: row.status, 
+                            rpe: row.rpe,
+                            is_convoked: row.is_convoked 
+                        };
+                    });
+                    setAttendanceMatrix(prev => {
+                        const next = { ...prev };
+                        Object.keys(matrixUpdate).forEach(pid => {
+                            next[pid] = { ...(next[pid] || {}), ...matrixUpdate[pid] };
+                        });
+                        return next;
+                    });
+                    console.log(`[DEBUG] Direct Attendance: Loaded ${directAtt.length} rows for ${eventIds.length} events.`);
+                }
+            }
+
         } catch (err) {
             console.error("Error fetching attendance history:", err);
         }

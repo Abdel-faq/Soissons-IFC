@@ -345,11 +345,13 @@ export default function Team() {
 
             // [NEW] Backup: Fetch attendance DIRECTLY from Supabase to ensure RLS doesn't block data for Coach
             if (activeEvents.length > 0) {
-                const eventIds = activeEvents.map(e => e.id);
+                const eventIds = activeEvents.map(e => e.id).filter(id => id); // Filter out any null/undefined IDs
                 const { data: directAtt, error: attError } = await supabase
                     .from('attendance')
-                    .select('id, event_id, player_id, user_id, status, is_convoked, is_locked, rpe')
+                    .select('*') // Fetch all existing columns to avoid 400 error on missing ones
                     .in('event_id', eventIds);
+                
+                if (attError) console.error("[DEBUG] Direct Attendance 400 Error:", attError);
                 
                 if (directAtt && directAtt.length > 0) {
                     // [SYNC] Attach direct attendance to historyEvents objects

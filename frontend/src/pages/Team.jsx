@@ -352,33 +352,19 @@ export default function Team() {
                     .in('event_id', eventIds);
                 
                 if (directAtt && directAtt.length > 0) {
-                    const matrixUpdate = {};
-                    directAtt.forEach(row => {
-                        const pid = row.player_id;
-                        const uid = row.user_id;
-                        const data = { 
-                            status: row.status, 
-                            rpe: row.rpe,
-                            is_convoked: row.is_convoked 
-                        };
-                        
-                        if (pid) {
-                            if (!matrixUpdate[pid]) matrixUpdate[pid] = {};
-                            matrixUpdate[pid][row.event_id] = data;
-                        }
-                        if (uid) {
-                            if (!matrixUpdate[uid]) matrixUpdate[uid] = {};
-                            matrixUpdate[uid][row.event_id] = data;
-                        }
-                    });
-                    setAttendanceMatrix(prev => {
-                        const next = { ...prev };
-                        Object.keys(matrixUpdate).forEach(pid => {
-                            next[pid] = { ...(next[pid] || {}), ...matrixUpdate[pid] };
+                    // [SYNC] Attach direct attendance to historyEvents objects
+                    setHistoryEvents(prev => {
+                        return prev.map(ev => {
+                            const atts = directAtt.filter(a => a.event_id === ev.id);
+                            if (atts.length > 0) {
+                                // Merge attendance rows, avoiding duplicates
+                                const existingIds = new Set((ev.attendance || []).map(a => a.id));
+                                const newAtts = atts.filter(a => !existingIds.has(a.id));
+                                return { ...ev, attendance: [...(ev.attendance || []), ...newAtts] };
+                            }
+                            return ev;
                         });
-                        return next;
                     });
-                    console.log(`[DEBUG] Direct Attendance: Loaded ${directAtt.length} rows for ${eventIds.length} events.`);
                 }
             }
 
@@ -417,7 +403,32 @@ export default function Team() {
 
             const { error } = await supabase.from('attendance').upsert(upsertData, { onConflict: onConflictStr });
             if (error) throw error;
-            fetchAttendanceHistory(team.id);
+            
+            // [SYNC] Update local historyEvents state to reflect the change immediately
+            setHistoryEvents(prev => {
+                return prev.map(ev => {
+                    if (ev.id === eventId) {
+                        const existingAtt = ev.attendance || [];
+                        const otherAtts = existingAtt.filter(a => 
+                            !((playerId && a.player_id === playerId) || (memberUserId && a.user_id === memberUserId))
+                        );
+                        return { 
+                            ...ev, 
+                            attendance: [...otherAtts, { 
+                                player_id: playerId, 
+                                user_id: memberUserId, 
+                                status: status,
+                                event_id: eventId,
+                                is_convoked: true // Assume convoked if coach manually set attendance
+                            }] 
+                        };
+                    }
+                    return ev;
+                });
+            });
+            
+            // Don't rely solely on re-fetching from backend as it might have RLS lag/issues
+            // fetchAttendanceHistory(team.id); // This will still reload in background
         } catch (err) {
             alert(err.message);
         }
@@ -1051,19 +1062,30 @@ export default function Team() {
                         </thead>
                         <tbody>
                             {members.filter(m => isCoach || profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || m.players?.parent_id === user?.id).map(m => {
-                                // [ROBUST LOOKUP] Check both player_id and user_id in the matrix
-                                const playerAtt = attendanceMatrix[m.player_id] || attendanceMatrix[m.user_id] || {};
-                                
-                                // Calculate seasonal total with robust lookup
+                                // [NEW ROBUST LOGIC] Switch to DIRECT search in ev.attendance to skip matrix cache failures
                                 const relevantEvents = historyEvents.filter(ev => !ev.is_deleted && new Date(ev.date) < new Date());
-                                const presentCount = relevantEvents.filter(ev => playerAtt[ev.id]?.status === 'PRESENT' || playerAtt[ev.id]?.status === 'RETARD').length;
-                                const ratio = relevantEvents.length > 0 ? Math.round((presentCount / relevantEvents.length) * 100) : 0;
+                                
+                                // Seasonal total based on direct attendance lookup
+                                const presentCountForTotal = relevantEvents.filter(ev => {
+                                    const att = ev.attendance?.find(a => 
+                                        (a.player_id && a.player_id === m.player_id) || 
+                                        (a.user_id && a.user_id === m.user_id)
+                                    );
+                                    return att?.status === 'PRESENT' || att?.status === 'RETARD';
+                                }).length;
+                                
+                                const ratio = relevantEvents.length > 0 ? Math.round((presentCountForTotal / relevantEvents.length) * 100) : 0;
 
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
                                         {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
-                                            const attData = playerAtt[ev.id];
+                                            // [DIRECT LOOKUP] Search in ev.attendance list directly
+                                            const attData = ev.attendance?.find(a => 
+                                                (a.player_id && a.player_id === m.player_id) || 
+                                                (a.user_id && a.user_id === m.user_id)
+                                            );
+                                            
                                             const status = attData?.status;
                                             const isConvoked = attData?.is_convoked;
 
@@ -1071,7 +1093,7 @@ export default function Team() {
                                             const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid;
                                             const canModify = isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
-                                            // Hide ONLY for non-coaches if not convoked and no status
+                                            // Hide ONLY for non-coaches/parents if not convoked and no status
                                             const isNotConvoked = !isUserCoach && !isConvoked && !status;
 
                                             if (isNotConvoked) {
@@ -1112,7 +1134,7 @@ export default function Team() {
                                             <div className="flex items-center justify-center h-full">
                                                 <span 
                                                     className={`px-2 py-0.5 rounded text-[10px] font-black ${ratio >= 80 ? 'bg-green-100 text-green-700' : ratio >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}
-                                                    title={`${presentCount} / ${relevantEvents.length}`}
+                                                    title={`${presentCountForTotal} / ${relevantEvents.length}`}
                                                 >
                                                     {ratio}%
                                                 </span>

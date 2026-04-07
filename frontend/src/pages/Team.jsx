@@ -1100,19 +1100,22 @@ export default function Team() {
                                             const status = attData?.status;
                                             
                                             // [STRICT CONVOCATION LOGIC]
-                                            // A player is convoked if:
-                                            // 1. Registered as is_convoked: true in attendance row
-                                            // 2. OR the event is PUBLIC (all team invited)
-                                            const isConvoked = attData?.is_convoked || ev.visibility_type === 'PUBLIC' || !ev.visibility_type;
+                                            let isConvoked = true;
+                                            if (attData && attData.is_convoked !== undefined && attData.is_convoked !== null) {
+                                                isConvoked = attData.is_convoked;
+                                            } else if (ev.visibility_type === 'PRIVATE') {
+                                                isConvoked = false;
+                                            }
 
                                             const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
                                             const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid;
                                             const canModify = isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
 
                                             // [MODIFIED] Logic: Hide cell if NOT convoked AND NO status
-                                            // Even for coaches, this keeps the board clean as requested.
                                             // Handle legacy database statuses
-                                            const isEmptyStatus = !status || status === 'NC' || status === 'N.C.' || status === '-';
+                                            const validStatuses = ['PRESENT', 'ABSENT', 'MALADE', 'BLESSE', 'RETARD'];
+                                            const isEmptyStatus = !status || !validStatuses.includes(status);
+                                            
                                             const isNotConvoked = !isConvoked && isEmptyStatus;
 
                                             if (isNotConvoked) {

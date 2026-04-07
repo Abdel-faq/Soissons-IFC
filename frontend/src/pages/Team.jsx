@@ -1111,7 +1111,9 @@ export default function Team() {
 
                                             // [MODIFIED] Logic: Hide cell if NOT convoked AND NO status
                                             // Even for coaches, this keeps the board clean as requested.
-                                            const isNotConvoked = !isConvoked && !status;
+                                            // Handle legacy database statuses
+                                            const isEmptyStatus = !status || status === 'NC' || status === 'N.C.' || status === '-';
+                                            const isNotConvoked = !isConvoked && isEmptyStatus;
 
                                             if (isNotConvoked) {
                                                 return <td key={ev.id} className="p-2 border-r bg-gray-200"></td>;

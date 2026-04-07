@@ -783,28 +783,28 @@ export default function Team() {
             )}
 
             {/* Tabs Switcher */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar">
                 <button
                     onClick={() => setView('members')}
-                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'members' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap shrink-0 ${view === 'members' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
                 >
                     Effectif
                 </button>
                 <button
                     onClick={() => setView('attendance')}
-                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'attendance' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap shrink-0 ${view === 'attendance' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
                 >
                     Assiduité
                 </button>
                 <button
                     onClick={() => setView('skills')}
-                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${view === 'skills' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 whitespace-nowrap shrink-0 ${view === 'skills' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
                 >
                     <Brain size={16} /> Compétences
                 </button>
                 <button
                     onClick={() => setView('rpe')}
-                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === 'rpe' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap shrink-0 ${view === 'rpe' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
                 >
                     Note RPE
                 </button>
@@ -812,7 +812,7 @@ export default function Team() {
                     <button
                         key={tab.label}
                         onClick={() => setView(`fff-${tab.label}`)}
-                        className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${view === `fff-${tab.label}` ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
+                        className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap shrink-0 ${view === `fff-${tab.label}` ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
                     >
                         {tab.label}
                     </button>
@@ -1114,7 +1114,7 @@ export default function Team() {
                                             const isNotConvoked = !isConvoked && !status;
 
                                             if (isNotConvoked) {
-                                                return <td key={ev.id} className="p-2 border-r bg-gray-50/20"></td>;
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-200"></td>;
                                             }
 
                                             let color = "text-gray-300";

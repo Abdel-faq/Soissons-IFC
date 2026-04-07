@@ -3,7 +3,7 @@ import { useSkillsReferential, usePlayerSkills } from '../../hooks/useSkills';
 import SkillsList from './SkillsList';
 import { Activity, Brain, Eye, Settings, HeartPulse, Loader2 } from 'lucide-react';
 
-export default function SkillsMenu({ player, isCoach }) {
+export default function SkillsMenu({ player, isCoach, initialDomain }) {
     // 1. Determine player category based on team name (e.g. "U10 Soissons IFC" -> "U10-U11")
     const getCategoryName = (categoryStr) => {
         if (!categoryStr) return 'U10-U11'; // Default Fallback
@@ -24,7 +24,7 @@ export default function SkillsMenu({ player, isCoach }) {
     const { referential, loading: refLoading, error: refError } = useSkillsReferential(categoryName);
     const { skills: playerEvaluations, loading: evalLoading, error: evalError } = usePlayerSkills(player.id || player.player_id);
 
-    const [activeDomain, setActiveDomain] = useState('Technique');
+    const [activeDomain, setActiveDomain] = useState(initialDomain || 'Technique');
 
     const DOMAIN_ICONS = {
         'Technique': <Settings size={18} />,

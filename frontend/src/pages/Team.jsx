@@ -796,12 +796,7 @@ export default function Team() {
                 >
                     Assiduité
                 </button>
-                <button
-                    onClick={() => setView('skills')}
-                    className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 whitespace-nowrap shrink-0 ${view === 'skills' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}
-                >
-                    <Brain size={16} /> Compétences
-                </button>
+
                 <button
                     onClick={() => setView('rpe')}
                     className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap shrink-0 ${view === 'rpe' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600'}`}

@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Team from './pages/Team';
+import SkillsDashboard from './pages/SkillsDashboard';
 import Events from './pages/Events';
 import Chat from './pages/Chat';
 import LandingPage from './pages/LandingPage';
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="team" element={<Team />} />
+          <Route path="skills" element={<SkillsDashboard />} />
           <Route path="events" element={<Events />} />
           <Route path="chat" element={<Chat />} />
           <Route path="profile" element={<Profile />} />

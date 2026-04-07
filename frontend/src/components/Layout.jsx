@@ -43,7 +43,7 @@ export default function Layout() {
         { path: '/dashboard/team', label: 'Équipe', icon: Users },
         { path: '/dashboard/events', label: 'Events', icon: Calendar },
         { path: '/dashboard/chat', label: 'Chat', icon: MessageSquare, badge: unreadCount },
-        { path: '/dashboard/profile', label: 'Profil', icon: User },
+        { path: '/dashboard/skills', label: 'Compétences', icon: Layers },
     ];
 
     return (
@@ -86,9 +86,14 @@ export default function Layout() {
                     <img src="/logo_soissons.jpg" alt="Soissons-IFC" className="h-6 w-auto" />
                     <span className="font-bold text-indigo-600 text-lg">Soissons-IFC</span>
                 </div>
-                <button onClick={handleLogout} className="text-gray-400">
-                    <LogOut size={18} />
-                </button>
+                <div className="flex items-center gap-4">
+                    <Link to="/dashboard/profile" className="text-gray-400 hover:text-indigo-600">
+                        <User size={18} />
+                    </Link>
+                    <button onClick={handleLogout} className="text-gray-400 hover:text-red-600">
+                        <LogOut size={18} />
+                    </button>
+                </div>
             </header>
 
             <main className="flex-1 max-w-7xl mx-auto w-full p-4">

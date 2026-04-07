@@ -73,6 +73,13 @@ export default function Layout() {
                                 {item.label}
                             </Link>
                         ))}
+                        <Link
+                                to="/dashboard/profile"
+                                className={`text-sm font-medium hover:text-indigo-600 flex items-center gap-1.5 ${location.pathname === '/dashboard/profile' ? 'text-indigo-600' : 'text-gray-600'}`}
+                            >
+                                <User size={18} />
+                                Profil
+                            </Link>
                         <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 ml-2" title="Logout">
                             <LogOut size={20} />
                         </button>

@@ -11,6 +11,7 @@ import Events from './pages/Events';
 import Chat from './pages/Chat';
 import LandingPage from './pages/LandingPage';
 import Profile from './pages/Profile';
+import TestsDashboard from './pages/TestsDashboard';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="events" element={<Events />} />
           <Route path="chat" element={<Chat />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="tests" element={<TestsDashboard />} />
         </Route>
 
         {/* Catch all - Redirect to home/dashboard */}

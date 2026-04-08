@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { LogOut, Home, Users, Calendar, MessageSquare, User, Layers } from 'lucide-react';
+import { LogOut, Home, Users, Calendar, MessageSquare, User, Layers, Trophy } from 'lucide-react';
 
 export default function Layout() {
     const navigate = useNavigate();
@@ -44,6 +44,7 @@ export default function Layout() {
         { path: '/dashboard/events', label: 'Events', icon: Calendar },
         { path: '/dashboard/chat', label: 'Chat', icon: MessageSquare, badge: unreadCount },
         { path: '/dashboard/skills', label: 'Compétences', icon: Layers },
+        { path: '/dashboard/tests', label: 'Tests', icon: Trophy },
     ];
 
     return (
@@ -94,6 +95,9 @@ export default function Layout() {
                     <span className="font-bold text-indigo-600 text-lg">Soissons-IFC</span>
                 </div>
                 <div className="flex items-center gap-4">
+                    <Link to="/dashboard" className="text-gray-400 hover:text-indigo-600">
+                        <Home size={18} />
+                    </Link>
                     <Link to="/dashboard/profile" className="text-gray-400 hover:text-indigo-600">
                         <User size={18} />
                     </Link>
@@ -109,7 +113,7 @@ export default function Layout() {
 
             {/* Mobile Bottom Navigation */}
             <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around py-2 z-50 md:hidden safe-area-pb">
-                {navItems.map(item => {
+                {navItems.filter(item => item.path !== '/dashboard').map(item => {
                     const isActive = location.pathname === item.path;
                     const Icon = item.icon;
                     return (

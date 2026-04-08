@@ -1,0 +1,1671 @@
+{
+  "U9": [
+    {
+      "firstName": "Sao",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.42,
+        "broadJump": null,
+        "conduiteBalle": 6.5,
+        "coordination": 17.34,
+        "jonglesSF": null,
+        "jonglesWF": 4.08
+      },
+      "s2": {
+        "vitesse": 4.08,
+        "broadJump": 165,
+        "conduiteBalle": 7.07,
+        "coordination": 13.88,
+        "jonglesSF": 17,
+        "jonglesWF": 9
+      }
+    },
+    {
+      "firstName": "Gabin",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.52,
+        "broadJump": 5,
+        "conduiteBalle": 6.63,
+        "coordination": 14.7,
+        "jonglesSF": 12,
+        "jonglesWF": 4.57
+      },
+      "s2": {
+        "vitesse": 4.57,
+        "broadJump": 160,
+        "conduiteBalle": 6.89,
+        "coordination": 14.63,
+        "jonglesSF": 13,
+        "jonglesWF": 9
+      }
+    },
+    {
+      "firstName": "Zakaria",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.45,
+        "broadJump": 13,
+        "conduiteBalle": 6.82,
+        "coordination": 12.87,
+        "jonglesSF": 53,
+        "jonglesWF": 4.38
+      },
+      "s2": {
+        "vitesse": 4.38,
+        "broadJump": 166,
+        "conduiteBalle": 6.87,
+        "coordination": 12.62,
+        "jonglesSF": 127,
+        "jonglesWF": 40
+      }
+    },
+    {
+      "firstName": "Gustave",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.66,
+        "broadJump": null,
+        "conduiteBalle": 6.57,
+        "coordination": 14.48,
+        "jonglesSF": null,
+        "jonglesWF": 4.42
+      },
+      "s2": {
+        "vitesse": 4.42,
+        "broadJump": 167,
+        "conduiteBalle": 6.61,
+        "coordination": 13.37,
+        "jonglesSF": 29,
+        "jonglesWF": 5
+      }
+    },
+    {
+      "firstName": "Jassem",
+      "category": "U9",
+      "s1": {
+        "vitesse": 3.95,
+        "broadJump": 6,
+        "conduiteBalle": 6.44,
+        "coordination": 15,
+        "jonglesSF": 20,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Rayan",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.33,
+        "broadJump": 6,
+        "conduiteBalle": 6.5,
+        "coordination": 13.1,
+        "jonglesSF": 15,
+        "jonglesWF": 4.66
+      },
+      "s2": {
+        "vitesse": 4.66,
+        "broadJump": 173,
+        "conduiteBalle": 6.88,
+        "coordination": 14.25,
+        "jonglesSF": 23,
+        "jonglesWF": 6
+      }
+    },
+    {
+      "firstName": "Enoah",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.05,
+        "broadJump": null,
+        "conduiteBalle": 6.75,
+        "coordination": 17.14,
+        "jonglesSF": null,
+        "jonglesWF": 4.49
+      },
+      "s2": {
+        "vitesse": 4.49,
+        "broadJump": 169,
+        "conduiteBalle": 6.71,
+        "coordination": 16.22,
+        "jonglesSF": 22,
+        "jonglesWF": 7
+      }
+    },
+    {
+      "firstName": "Eden",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.23,
+        "broadJump": 5,
+        "conduiteBalle": 7.06,
+        "coordination": 14.72,
+        "jonglesSF": 35,
+        "jonglesWF": 4.32
+      },
+      "s2": {
+        "vitesse": 4.32,
+        "broadJump": 161,
+        "conduiteBalle": 6.81,
+        "coordination": 15.93,
+        "jonglesSF": 50,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Aisam",
+      "category": "U9",
+      "s1": {
+        "vitesse": 5.3,
+        "broadJump": null,
+        "conduiteBalle": 7.87,
+        "coordination": 15.26,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Arthur",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.73,
+        "broadJump": null,
+        "conduiteBalle": 6.87,
+        "coordination": 14.96,
+        "jonglesSF": null,
+        "jonglesWF": 4.49
+      },
+      "s2": {
+        "vitesse": 4.49,
+        "broadJump": 167,
+        "conduiteBalle": 6.82,
+        "coordination": 15.25,
+        "jonglesSF": 25,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Noa",
+      "category": "U9",
+      "s1": {
+        "vitesse": 5.76,
+        "broadJump": 2,
+        "conduiteBalle": 7.93,
+        "coordination": 16.3,
+        "jonglesSF": 11,
+        "jonglesWF": 5.23
+      },
+      "s2": {
+        "vitesse": 5.23,
+        "broadJump": 126,
+        "conduiteBalle": 7.92,
+        "coordination": 17.53,
+        "jonglesSF": 24,
+        "jonglesWF": 21
+      }
+    },
+    {
+      "firstName": "Lyes",
+      "category": "U9",
+      "s1": {
+        "vitesse": 5.55,
+        "broadJump": 3,
+        "conduiteBalle": 7.14,
+        "coordination": 14.82,
+        "jonglesSF": 9,
+        "jonglesWF": 4.49
+      },
+      "s2": {
+        "vitesse": 4.49,
+        "broadJump": 151,
+        "conduiteBalle": 6.99,
+        "coordination": 15.03,
+        "jonglesSF": 9,
+        "jonglesWF": 5
+      }
+    },
+    {
+      "firstName": "Wassim",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.87,
+        "broadJump": 3,
+        "conduiteBalle": 7.22,
+        "coordination": 14.36,
+        "jonglesSF": 19,
+        "jonglesWF": 4.41
+      },
+      "s2": {
+        "vitesse": 4.41,
+        "broadJump": 177,
+        "conduiteBalle": 6.75,
+        "coordination": 17.35,
+        "jonglesSF": 12,
+        "jonglesWF": 15
+      }
+    },
+    {
+      "firstName": "Lenny",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 2,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": 21,
+        "jonglesWF": 4.93
+      },
+      "s2": {
+        "vitesse": 4.93,
+        "broadJump": 150,
+        "conduiteBalle": 6.96,
+        "coordination": 16.65,
+        "jonglesSF": 47,
+        "jonglesWF": 20
+      }
+    },
+    {
+      "firstName": "Martin",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.35,
+        "broadJump": null,
+        "conduiteBalle": 6.42,
+        "coordination": 13.7,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Lennon",
+      "category": "U9",
+      "s1": {
+        "vitesse": 5.25,
+        "broadJump": 4,
+        "conduiteBalle": 7.36,
+        "coordination": 13.62,
+        "jonglesSF": 12,
+        "jonglesWF": 4.59
+      },
+      "s2": {
+        "vitesse": 4.59,
+        "broadJump": 159,
+        "conduiteBalle": 6.66,
+        "coordination": 14,
+        "jonglesSF": 31,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Kais",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Moayed",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Adam",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.5,
+        "broadJump": null,
+        "conduiteBalle": 7.81,
+        "coordination": 19,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Liam",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": 4.48
+      },
+      "s2": {
+        "vitesse": 4.48,
+        "broadJump": 174,
+        "conduiteBalle": 6.48,
+        "coordination": 12.41,
+        "jonglesSF": 35,
+        "jonglesWF": 12
+      }
+    },
+    {
+      "firstName": "Yamine",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 14,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": 32,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Rayan",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.33,
+        "broadJump": 6,
+        "conduiteBalle": 6.5,
+        "coordination": 13.1,
+        "jonglesSF": 15,
+        "jonglesWF": 4.66
+      },
+      "s2": {
+        "vitesse": 4.66,
+        "broadJump": 173,
+        "conduiteBalle": 6.88,
+        "coordination": 14.25,
+        "jonglesSF": 23,
+        "jonglesWF": 6
+      }
+    },
+    {
+      "firstName": "Arthur",
+      "category": "U9",
+      "s1": {
+        "vitesse": 4.73,
+        "broadJump": null,
+        "conduiteBalle": 6.87,
+        "coordination": 14.96,
+        "jonglesSF": null,
+        "jonglesWF": 4.49
+      },
+      "s2": {
+        "vitesse": 4.49,
+        "broadJump": 167,
+        "conduiteBalle": 6.82,
+        "coordination": 15.25,
+        "jonglesSF": 25,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Evan",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Quentin",
+      "category": "U9",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    }
+  ],
+  "U10": [
+    {
+      "firstName": "Nolan",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.29,
+        "broadJump": null,
+        "conduiteBalle": 7.49,
+        "coordination": 12.72,
+        "jonglesSF": 10,
+        "jonglesWF": 5
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Edwins",
+      "category": "U10",
+      "s1": {
+        "vitesse": 3.86,
+        "broadJump": null,
+        "conduiteBalle": 7.18,
+        "coordination": 11.55,
+        "jonglesSF": 56,
+        "jonglesWF": 7
+      },
+      "s2": {
+        "vitesse": 4.07,
+        "broadJump": 200,
+        "conduiteBalle": 6.92,
+        "coordination": 12.78,
+        "jonglesSF": 37,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Tiago",
+      "category": "U10",
+      "s1": {
+        "vitesse": 3.88,
+        "broadJump": null,
+        "conduiteBalle": 7.8,
+        "coordination": 12.86,
+        "jonglesSF": 10,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Nassim",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.49,
+        "broadJump": null,
+        "conduiteBalle": 8.07,
+        "coordination": 11.87,
+        "jonglesSF": 35,
+        "jonglesWF": 6
+      },
+      "s2": {
+        "vitesse": 4.33,
+        "broadJump": 150,
+        "conduiteBalle": 6.62,
+        "coordination": 12.18,
+        "jonglesSF": 43,
+        "jonglesWF": 9
+      }
+    },
+    {
+      "firstName": "Anas",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.42,
+        "broadJump": null,
+        "conduiteBalle": 7.78,
+        "coordination": 11.36,
+        "jonglesSF": 46,
+        "jonglesWF": 7
+      },
+      "s2": {
+        "vitesse": 5.41,
+        "broadJump": 162,
+        "conduiteBalle": 8.67,
+        "coordination": 13.56,
+        "jonglesSF": 65,
+        "jonglesWF": 27
+      }
+    },
+    {
+      "firstName": "Rayane",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.2,
+        "broadJump": null,
+        "conduiteBalle": 7.64,
+        "coordination": 12.51,
+        "jonglesSF": 11,
+        "jonglesWF": 3
+      },
+      "s2": {
+        "vitesse": 4.64,
+        "broadJump": 165,
+        "conduiteBalle": 6.75,
+        "coordination": 16.18,
+        "jonglesSF": 24,
+        "jonglesWF": 5
+      }
+    },
+    {
+      "firstName": "Zakaria",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.58,
+        "broadJump": null,
+        "conduiteBalle": 7.69,
+        "coordination": 12.02,
+        "jonglesSF": 29,
+        "jonglesWF": 7
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Paul",
+      "category": "U10",
+      "s1": {
+        "vitesse": 3.84,
+        "broadJump": null,
+        "conduiteBalle": 7.55,
+        "coordination": 11.66,
+        "jonglesSF": 12,
+        "jonglesWF": 10
+      },
+      "s2": {
+        "vitesse": 3.64,
+        "broadJump": 178,
+        "conduiteBalle": 6.42,
+        "coordination": 14.44,
+        "jonglesSF": 34,
+        "jonglesWF": 25
+      }
+    },
+    {
+      "firstName": "Ilies",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.35,
+        "broadJump": null,
+        "conduiteBalle": 7.72,
+        "coordination": 13.6,
+        "jonglesSF": 8,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Sofiane",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.65,
+        "broadJump": null,
+        "conduiteBalle": 8.43,
+        "coordination": 13.82,
+        "jonglesSF": 4,
+        "jonglesWF": 2
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Valentin",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.28,
+        "broadJump": null,
+        "conduiteBalle": 7.92,
+        "coordination": 12.94,
+        "jonglesSF": 12,
+        "jonglesWF": 6
+      },
+      "s2": {
+        "vitesse": 3.99,
+        "broadJump": 182,
+        "conduiteBalle": 6.65,
+        "coordination": 14.93,
+        "jonglesSF": 27,
+        "jonglesWF": 14
+      }
+    },
+    {
+      "firstName": "Naël",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.55,
+        "broadJump": null,
+        "conduiteBalle": 7.92,
+        "coordination": 14.09,
+        "jonglesSF": 35,
+        "jonglesWF": 5
+      },
+      "s2": {
+        "vitesse": 4.81,
+        "broadJump": 153,
+        "conduiteBalle": 7.18,
+        "coordination": 14.69,
+        "jonglesSF": 80,
+        "jonglesWF": 11
+      }
+    },
+    {
+      "firstName": "Kais",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.27,
+        "broadJump": null,
+        "conduiteBalle": 7.84,
+        "coordination": 10.76,
+        "jonglesSF": 29,
+        "jonglesWF": 2
+      },
+      "s2": {
+        "vitesse": 4.16,
+        "broadJump": 160,
+        "conduiteBalle": 6.32,
+        "coordination": 11.83,
+        "jonglesSF": 26,
+        "jonglesWF": 7
+      }
+    },
+    {
+      "firstName": "Farouk",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.57,
+        "broadJump": null,
+        "conduiteBalle": 7.7,
+        "coordination": 11.36,
+        "jonglesSF": 12,
+        "jonglesWF": 5
+      },
+      "s2": {
+        "vitesse": 4.39,
+        "broadJump": 180,
+        "conduiteBalle": 6.55,
+        "coordination": 12.79,
+        "jonglesSF": 40,
+        "jonglesWF": 11
+      }
+    },
+    {
+      "firstName": "Bilel",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.48,
+        "broadJump": null,
+        "conduiteBalle": 7.98,
+        "coordination": 11.14,
+        "jonglesSF": 9,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Abdoulaye",
+      "category": "U10",
+      "s1": {
+        "vitesse": 4.23,
+        "broadJump": null,
+        "conduiteBalle": 7.75,
+        "coordination": 11.11,
+        "jonglesSF": 7,
+        "jonglesWF": 2
+      },
+      "s2": {
+        "vitesse": 4.17,
+        "broadJump": 140,
+        "conduiteBalle": 6.42,
+        "coordination": 13.63,
+        "jonglesSF": null,
+        "jonglesWF": null
+      }
+    },
+    {
+      "firstName": "Lucas",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.78,
+        "broadJump": 159,
+        "conduiteBalle": 6.97,
+        "coordination": 13.4,
+        "jonglesSF": 37,
+        "jonglesWF": 5
+      }
+    },
+    {
+      "firstName": "Axel",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.43,
+        "broadJump": 166,
+        "conduiteBalle": 6.86,
+        "coordination": 17.99,
+        "jonglesSF": 32,
+        "jonglesWF": 6
+      }
+    },
+    {
+      "firstName": "Lotfi",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 3.99,
+        "broadJump": 190,
+        "conduiteBalle": 6.71,
+        "coordination": 14.97,
+        "jonglesSF": 13,
+        "jonglesWF": 5
+      }
+    },
+    {
+      "firstName": "Ali",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.12,
+        "broadJump": 170,
+        "conduiteBalle": 6.61,
+        "coordination": 16.09,
+        "jonglesSF": 4,
+        "jonglesWF": 2
+      }
+    },
+    {
+      "firstName": "Salmane",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.51,
+        "broadJump": 165,
+        "conduiteBalle": 6.96,
+        "coordination": 14.68,
+        "jonglesSF": 11,
+        "jonglesWF": 3
+      }
+    },
+    {
+      "firstName": "Sohan",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.01,
+        "broadJump": 180,
+        "conduiteBalle": 6.73,
+        "coordination": 13.56,
+        "jonglesSF": 18,
+        "jonglesWF": 11
+      }
+    },
+    {
+      "firstName": "Livens",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.37,
+        "broadJump": 153,
+        "conduiteBalle": 6.84,
+        "coordination": 14.23,
+        "jonglesSF": 4,
+        "jonglesWF": 1
+      }
+    },
+    {
+      "firstName": "Quentin",
+      "category": "U10",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    }
+  ],
+  "U12": [
+    {
+      "firstName": "Ange",
+      "category": "U12",
+      "s1": {
+        "vitesse": 3.83,
+        "broadJump": 217,
+        "conduiteBalle": 5.07,
+        "coordination": 10.38,
+        "jonglesSF": 36,
+        "jonglesWF": 6
+      },
+      "s2": {
+        "vitesse": 4.16,
+        "broadJump": 168,
+        "conduiteBalle": 6.89,
+        "coordination": 11.91,
+        "jonglesSF": 100,
+        "jonglesWF": 49
+      }
+    },
+    {
+      "firstName": "Liham",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.37,
+        "broadJump": 167,
+        "conduiteBalle": 5.34,
+        "coordination": 11.73,
+        "jonglesSF": 18,
+        "jonglesWF": 2
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Issam",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.34,
+        "broadJump": 176,
+        "conduiteBalle": 5.62,
+        "coordination": 11.15,
+        "jonglesSF": 5,
+        "jonglesWF": 2
+      },
+      "s2": {
+        "vitesse": 4.11,
+        "broadJump": 163,
+        "conduiteBalle": 7.05,
+        "coordination": 12.31,
+        "jonglesSF": 48,
+        "jonglesWF": 7
+      }
+    },
+    {
+      "firstName": "Gabin",
+      "category": "U12",
+      "s1": {
+        "vitesse": 3.92,
+        "broadJump": 199,
+        "conduiteBalle": 5.23,
+        "coordination": null,
+        "jonglesSF": 5,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Eliezer",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.1,
+        "broadJump": 192,
+        "conduiteBalle": 5.31,
+        "coordination": null,
+        "jonglesSF": 37,
+        "jonglesWF": 8
+      },
+      "s2": {
+        "vitesse": 4.5,
+        "broadJump": 177,
+        "conduiteBalle": 6.86,
+        "coordination": 11.9,
+        "jonglesSF": 100,
+        "jonglesWF": 15
+      }
+    },
+    {
+      "firstName": "Mohamed",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.32,
+        "broadJump": 153,
+        "conduiteBalle": 5.91,
+        "coordination": null,
+        "jonglesSF": 5,
+        "jonglesWF": 1
+      },
+      "s2": {
+        "vitesse": 3.52,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      }
+    },
+    {
+      "firstName": "Raphael",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.38,
+        "broadJump": 186,
+        "conduiteBalle": 5.63,
+        "coordination": null,
+        "jonglesSF": 100,
+        "jonglesWF": 24
+      },
+      "s2": {
+        "vitesse": 4.11,
+        "broadJump": 170,
+        "conduiteBalle": 6.66,
+        "coordination": 11.93,
+        "jonglesSF": 100,
+        "jonglesWF": 50
+      }
+    },
+    {
+      "firstName": "Djamal",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.24,
+        "broadJump": 196,
+        "conduiteBalle": 5.42,
+        "coordination": null,
+        "jonglesSF": 43,
+        "jonglesWF": 3
+      },
+      "s2": {
+        "vitesse": 3.98,
+        "broadJump": 180,
+        "conduiteBalle": 6.92,
+        "coordination": 11.85,
+        "jonglesSF": 51,
+        "jonglesWF": 16
+      }
+    },
+    {
+      "firstName": "Sorène",
+      "category": "U12",
+      "s1": {
+        "vitesse": 3.9,
+        "broadJump": 195,
+        "conduiteBalle": 5.77,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.37,
+        "broadJump": 170,
+        "conduiteBalle": 6.86,
+        "coordination": 11.98,
+        "jonglesSF": 100,
+        "jonglesWF": 39
+      }
+    },
+    {
+      "firstName": "Mamadou",
+      "category": "U12",
+      "s1": {
+        "vitesse": 3.84,
+        "broadJump": 220,
+        "conduiteBalle": 4.97,
+        "coordination": null,
+        "jonglesSF": 10,
+        "jonglesWF": 10
+      },
+      "s2": {
+        "vitesse": 3.17,
+        "broadJump": 180,
+        "conduiteBalle": 6.64,
+        "coordination": 10.89,
+        "jonglesSF": 54,
+        "jonglesWF": 32
+      }
+    },
+    {
+      "firstName": "Bilal",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 198,
+        "conduiteBalle": 5.23,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Jethro",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 193,
+        "conduiteBalle": 4.86,
+        "coordination": 12.37,
+        "jonglesSF": 13,
+        "jonglesWF": 19
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Daniel",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 200,
+        "conduiteBalle": 5.22,
+        "coordination": 11.03,
+        "jonglesSF": 58,
+        "jonglesWF": 7
+      },
+      "s2": {
+        "vitesse": 4.11,
+        "broadJump": 174,
+        "conduiteBalle": 6.82,
+        "coordination": 11.86,
+        "jonglesSF": 100,
+        "jonglesWF": 29
+      }
+    },
+    {
+      "firstName": "Alp",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 173,
+        "conduiteBalle": 5.43,
+        "coordination": 12.06,
+        "jonglesSF": null,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Noé",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 202,
+        "conduiteBalle": 5.18,
+        "coordination": null,
+        "jonglesSF": 100,
+        "jonglesWF": 10
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Ayoub",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": 6.08,
+        "coordination": 12.84,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Glenn",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 183,
+        "conduiteBalle": 5.51,
+        "coordination": 10.95,
+        "jonglesSF": 32,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Joao",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 203,
+        "conduiteBalle": 5.55,
+        "coordination": 10.69,
+        "jonglesSF": null,
+        "jonglesWF": 5
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Dorian",
+      "category": "U12",
+      "s1": {
+        "vitesse": 3.9,
+        "broadJump": 220,
+        "conduiteBalle": 5.42,
+        "coordination": null,
+        "jonglesSF": 57,
+        "jonglesWF": 3
+      },
+      "s2": {
+        "vitesse": 4,
+        "broadJump": 193,
+        "conduiteBalle": 6.96,
+        "coordination": 13.37,
+        "jonglesSF": 75,
+        "jonglesWF": 15
+      }
+    },
+    {
+      "firstName": "Idriss",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 178,
+        "conduiteBalle": 5.54,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Souheib",
+      "category": "U12",
+      "s1": {
+        "vitesse": 4.7,
+        "broadJump": 163,
+        "conduiteBalle": 5.55,
+        "coordination": null,
+        "jonglesSF": 4,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Quentin",
+      "category": "U12",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    }
+  ],
+  "U13": [
+    {
+      "firstName": "Eymen",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.17,
+        "broadJump": 154,
+        "conduiteBalle": 6.87,
+        "coordination": 12.11,
+        "jonglesSF": 100,
+        "jonglesWF": 28
+      }
+    },
+    {
+      "firstName": "Nathan",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.05,
+        "broadJump": 198,
+        "conduiteBalle": 5.32,
+        "coordination": null,
+        "jonglesSF": 29,
+        "jonglesWF": 3
+      },
+      "s2": {
+        "vitesse": 3.92,
+        "broadJump": 199,
+        "conduiteBalle": 7.76,
+        "coordination": 13.52,
+        "jonglesSF": 100,
+        "jonglesWF": 29
+      }
+    },
+    {
+      "firstName": "Ayoub",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4,
+        "broadJump": 185,
+        "conduiteBalle": 5.31,
+        "coordination": null,
+        "jonglesSF": 32,
+        "jonglesWF": 3
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Bradd",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 209,
+        "conduiteBalle": null,
+        "coordination": 11.96,
+        "jonglesSF": 24,
+        "jonglesWF": 10
+      },
+      "s2": {
+        "vitesse": 3.72,
+        "broadJump": 192,
+        "conduiteBalle": 6.95,
+        "coordination": 11.41,
+        "jonglesSF": 80,
+        "jonglesWF": 13
+      }
+    },
+    {
+      "firstName": "Djalil",
+      "category": "U13",
+      "s1": {
+        "vitesse": 3.94,
+        "broadJump": 217,
+        "conduiteBalle": 5.31,
+        "coordination": 10.93,
+        "jonglesSF": 4,
+        "jonglesWF": 4
+      },
+      "s2": {
+        "vitesse": 3.92,
+        "broadJump": 189,
+        "conduiteBalle": 6.89,
+        "coordination": 11.63,
+        "jonglesSF": 24,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Thiméo",
+      "category": "U13",
+      "s1": {
+        "vitesse": 3.9,
+        "broadJump": 211,
+        "conduiteBalle": 5.13,
+        "coordination": 11.75,
+        "jonglesSF": 18,
+        "jonglesWF": 6
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Loukas",
+      "category": "U13",
+      "s1": {
+        "vitesse": 3.8,
+        "broadJump": 231,
+        "conduiteBalle": 4.98,
+        "coordination": 10.18,
+        "jonglesSF": 36,
+        "jonglesWF": 9
+      },
+      "s2": {
+        "vitesse": 3.45,
+        "broadJump": 224,
+        "conduiteBalle": 7.18,
+        "coordination": 10.94,
+        "jonglesSF": 100,
+        "jonglesWF": 28
+      }
+    },
+    {
+      "firstName": "Imran",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.3,
+        "broadJump": 175,
+        "conduiteBalle": 5.65,
+        "coordination": 12.42,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Thomas",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.28,
+        "broadJump": 200,
+        "conduiteBalle": 4.96,
+        "coordination": 9.8,
+        "jonglesSF": 7,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.17,
+        "broadJump": 178,
+        "conduiteBalle": 6.89,
+        "coordination": 11,
+        "jonglesSF": 62,
+        "jonglesWF": 22
+      }
+    },
+    {
+      "firstName": "Arthur",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.34,
+        "broadJump": 220,
+        "conduiteBalle": 5.1,
+        "coordination": 10.35,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 3.97,
+        "broadJump": 186,
+        "conduiteBalle": 6.61,
+        "coordination": 11.31,
+        "jonglesSF": 91,
+        "jonglesWF": 21
+      }
+    },
+    {
+      "firstName": "Adame",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.65,
+        "broadJump": 196,
+        "conduiteBalle": 5.76,
+        "coordination": 11.43,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 4.12,
+        "broadJump": 169,
+        "conduiteBalle": 7.42,
+        "coordination": 12.88,
+        "jonglesSF": 100,
+        "jonglesWF": 50
+      }
+    },
+    {
+      "firstName": "Adem",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.65,
+        "broadJump": 192,
+        "conduiteBalle": 5.12,
+        "coordination": 11.65,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 3.98,
+        "broadJump": 153,
+        "conduiteBalle": 6.77,
+        "coordination": 11.61,
+        "jonglesSF": 100,
+        "jonglesWF": 19
+      }
+    },
+    {
+      "firstName": "Isaac",
+      "category": "U13",
+      "s1": {
+        "vitesse": 3.88,
+        "broadJump": 197,
+        "conduiteBalle": 5.37,
+        "coordination": 11.38,
+        "jonglesSF": 6,
+        "jonglesWF": 4
+      },
+      "s2": {
+        "vitesse": 3.79,
+        "broadJump": 180,
+        "conduiteBalle": 6.95,
+        "coordination": 11.92,
+        "jonglesSF": 70,
+        "jonglesWF": 10
+      }
+    },
+    {
+      "firstName": "Aaron",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.4,
+        "broadJump": 195,
+        "conduiteBalle": 5.3,
+        "coordination": 12.42,
+        "jonglesSF": 18,
+        "jonglesWF": 4
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Kéo",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.75,
+        "broadJump": 187,
+        "conduiteBalle": 5.09,
+        "coordination": 11.88,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Axel",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.54,
+        "broadJump": 228,
+        "conduiteBalle": 5.44,
+        "coordination": 10.4,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Matt",
+      "category": "U13",
+      "s1": {
+        "vitesse": 4.17,
+        "broadJump": 220,
+        "conduiteBalle": 4.95,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 3.79,
+        "broadJump": 208,
+        "conduiteBalle": 6.82,
+        "coordination": 11.7,
+        "jonglesSF": 100,
+        "jonglesWF": 50
+      }
+    },
+    {
+      "firstName": "Joao",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 212,
+        "conduiteBalle": 5.19,
+        "coordination": 9.94,
+        "jonglesSF": 100,
+        "jonglesWF": 15
+      },
+      "s2": {
+        "vitesse": 3.78,
+        "broadJump": 196,
+        "conduiteBalle": 6.72,
+        "coordination": 11.09,
+        "jonglesSF": 100,
+        "jonglesWF": 28
+      }
+    },
+    {
+      "firstName": "Mohamed",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 228,
+        "conduiteBalle": 5.2,
+        "coordination": 10.19,
+        "jonglesSF": 42,
+        "jonglesWF": 25
+      },
+      "s2": {
+        "vitesse": 3.52,
+        "broadJump": 232,
+        "conduiteBalle": 6.63,
+        "coordination": 11.31,
+        "jonglesSF": 100,
+        "jonglesWF": 25
+      }
+    },
+    {
+      "firstName": "Rami",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 190,
+        "conduiteBalle": 5.42,
+        "coordination": 10.74,
+        "jonglesSF": 100,
+        "jonglesWF": 28
+      },
+      "s2": {
+        "vitesse": 4.3,
+        "broadJump": 74,
+        "conduiteBalle": 7.03,
+        "coordination": 11.97,
+        "jonglesSF": 100,
+        "jonglesWF": 50
+      }
+    },
+    {
+      "firstName": "Brytonn",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 192,
+        "conduiteBalle": 5.34,
+        "coordination": 11.6,
+        "jonglesSF": 31,
+        "jonglesWF": 4
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Yanis",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 196,
+        "conduiteBalle": 5.42,
+        "coordination": 10.46,
+        "jonglesSF": 100,
+        "jonglesWF": 5
+      },
+      "s2": null
+    },
+    {
+      "firstName": "Bradd",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": 209,
+        "conduiteBalle": null,
+        "coordination": 11.96,
+        "jonglesSF": 24,
+        "jonglesWF": 10
+      },
+      "s2": {
+        "vitesse": 3.72,
+        "broadJump": 192,
+        "conduiteBalle": 6.95,
+        "coordination": 11.41,
+        "jonglesSF": 80,
+        "jonglesWF": 13
+      }
+    },
+    {
+      "firstName": "Hiel",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": {
+        "vitesse": 3.71,
+        "broadJump": 200,
+        "conduiteBalle": 6.38,
+        "coordination": 11.98,
+        "jonglesSF": 100,
+        "jonglesWF": 28
+      }
+    },
+    {
+      "firstName": "Quentin",
+      "category": "U13",
+      "s1": {
+        "vitesse": null,
+        "broadJump": null,
+        "conduiteBalle": null,
+        "coordination": null,
+        "jonglesSF": null,
+        "jonglesWF": null
+      },
+      "s2": null
+    }
+  ]
+}

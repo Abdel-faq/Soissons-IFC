@@ -165,46 +165,7 @@ export default function TestsDashboard() {
     }
   };
 
-  const migrateFromJson = async () => {
-    if (!window.confirm("Voulez-vous importer les données initiales depuis le fichier JSON ?")) return;
-    try {
-      setSaving(true);
-      const res = await fetch('/tests-data.json');
-      const jsonData = await res.json();
-      
-      const catKey = ['U9', 'U10', 'U12', 'U13'].find(c => team.name.includes(c));
-      const playersData = jsonData[catKey];
-      if (!playersData) {
-        alert("Aucune donnée correspondante trouvée dans le JSON pour " + team.name);
-        return;
-      }
 
-      const rows = [];
-      playersData.forEach(p => {
-        const match = members.find(m => m.name.toLowerCase().includes(p.firstName.toLowerCase()));
-        Object.keys(TEST_DESCRIPTIONS).forEach(testType => {
-          rows.push({
-            team_id: team.id,
-            player_name: p.firstName,
-            player_id: match && match.isPlayer ? match.id : null,
-            test_type: testType,
-            s1: p.s1[testType] || null,
-            s2: p.s2 ? p.s2[testType] : null,
-            s3: null
-          });
-        });
-      });
-
-      const { error } = await supabase.from('test_results').upsert(rows, { onConflict: 'team_id,player_name,test_type' });
-      if (error) throw error;
-      alert("Migration réussie !");
-      fetchResults();
-    } catch (e) {
-      alert("Erreur migration : " + e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Filter members based on search
   const filteredMembers = useMemo(() => {
@@ -240,11 +201,7 @@ export default function TestsDashboard() {
         <div className="flex flex-wrap items-center gap-3">
           {isCoach && !isEditing && (
             <>
-              {results.length === 0 && (
-                <button onClick={migrateFromJson} disabled={saving} className="flex items-center gap-2 px-6 py-3 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl text-xs font-black shadow-sm hover:shadow-md transition-all">
-                  <Download size={16} /> Importer JSON
-                </button>
-              )}
+
               <button 
                 onClick={startEditing}
                 className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all hover:-translate-y-0.5"

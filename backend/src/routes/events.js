@@ -310,11 +310,13 @@ router.get('/', requireAuth, async (req, res) => {
     // 3. Fetch related data separately (Resilient to missing tables/columns)
     let allAttendance = [];
     try {
-      const { data: att } = await supabase
+      const { data: att, error: attErr } = await supabase
         .from('attendance')
-        .select('id, event_id, player_id, user_id, status, is_convoked, is_locked, rpe')
+        .select('*')
         .in('event_id', eventIds)
         .limit(25000); // Increased limit as database has ~24k rows total
+      if (attErr) console.error("Supabase att fetch error:", attErr);
+
       allAttendance = att || [];
     } catch (e) { console.error("Att fetch fail:", e); }
 

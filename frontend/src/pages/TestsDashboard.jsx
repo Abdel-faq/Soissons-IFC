@@ -5,7 +5,7 @@ import { Trophy, Info, ArrowUpRight, ArrowDownRight, Loader2, Users, Search } fr
 const TEST_DESCRIPTIONS = {
   vitesse: {
     label: 'Vitesse (20m)',
-    desc: \"Capacité d'accélération et vitesse de pointe sur une courte distance.\",
+    desc: "Capacité d'accélération et vitesse de pointe sur une courte distance.",
     better: 'lower'
   },
   broadJump: {
@@ -99,7 +99,7 @@ export default function TestsDashboard() {
           setSelectedCategory(CATEGORIES[0]);
         }
       } catch (e) {
-        console.error(\"Failed to load test data\", e);
+        console.error("Failed to load test data", e);
       } finally {
         setLoading(false);
       }
@@ -118,29 +118,29 @@ export default function TestsDashboard() {
 
   if (loading) {
     return (
-      <div className=\"flex flex-col items-center justify-center py-24 gap-4 text-gray-400\">
-        <Loader2 className=\"animate-spin w-10 h-10 text-indigo-500\" />
-        <p className=\"font-bold text-sm uppercase tracking-widest\">Chargement des tests...</p>
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
+        <Loader2 className="animate-spin w-10 h-10 text-indigo-500" />
+        <p className="font-bold text-sm uppercase tracking-widest">Chargement des tests...</p>
       </div>
     );
   }
 
   return (
-    <div className=\"space-y-8 animate-in fade-in duration-700\">
+    <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
-      <div className=\"bg-white rounded-[32px] p-8 shadow-sm border border-indigo-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6\">
-        <div className=\"flex items-center gap-5\">
-          <div className=\"bg-gradient-to-br from-indigo-600 to-violet-600 text-white p-4 rounded-2xl shadow-xl shadow-indigo-200\">
+      <div className="bg-white rounded-[32px] p-8 shadow-sm border border-indigo-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-5">
+          <div className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white p-4 rounded-2xl shadow-xl shadow-indigo-200">
             <Trophy size={28} />
           </div>
           <div>
-            <h1 className=\"text-2xl font-black text-indigo-950 tracking-tight\">Tests Techniques & Athlétiques</h1>
-            <p className=\"text-sm text-gray-400 font-bold uppercase tracking-widest mt-1\">Bilans de performance saison 2023-2024</p>
+            <h1 className="text-2xl font-black text-indigo-950 tracking-tight">Tests Techniques & Athlétiques</h1>
+            <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">Bilans de performance saison 2023-2024</p>
           </div>
         </div>
 
         {/* Category Selector */}
-        <div className=\"flex items-center p-1.5 bg-gray-50 rounded-2xl border border-gray-100\">
+        <div className="flex items-center p-1.5 bg-gray-50 rounded-2xl border border-gray-100">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
@@ -154,79 +154,79 @@ export default function TestsDashboard() {
       </div>
 
       {/* Intro & Summary Cards */}
-      <div className=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6\">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.entries(TEST_DESCRIPTIONS).map(([key, info]) => (
-          <div key={key} className=\"bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm hover:shadow-md transition-all group\">
-            <div className=\"flex items-start justify-between mb-3\">
-              <h3 className=\"font-black text-indigo-900 text-sm uppercase tracking-wider\">{info.label}</h3>
-              <div className=\"p-1.5 bg-indigo-50 text-indigo-400 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity\">
+          <div key={key} className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-black text-indigo-900 text-sm uppercase tracking-wider">{info.label}</h3>
+              <div className="p-1.5 bg-indigo-50 text-indigo-400 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                 <Info size={14} />
               </div>
             </div>
-            <p className=\"text-xs text-gray-500 font-medium leading-relaxed\">{info.desc}</p>
+            <p className="text-xs text-gray-500 font-medium leading-relaxed">{info.desc}</p>
           </div>
         ))}
       </div>
 
       {/* Main Results Board */}
-      <div className=\"bg-white rounded-[32px] shadow-sm border border-indigo-50 overflow-hidden\">
-        <div className=\"p-6 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/30\">
-          <div className=\"flex items-center gap-3\">
-            <div className=\"p-2 bg-indigo-100 text-indigo-600 rounded-lg\">
+      <div className="bg-white rounded-[32px] shadow-sm border border-indigo-50 overflow-hidden">
+        <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
               <Users size={18} />
             </div>
-            <h2 className=\"font-black text-indigo-900 text-sm uppercase tracking-widest\">Résultats Individuels ({selectedCategory})</h2>
+            <h2 className="font-black text-indigo-900 text-sm uppercase tracking-widest">Résultats Individuels ({selectedCategory})</h2>
           </div>
-          <div className=\"relative w-full sm:w-64\">
-            <Search className=\"absolute left-3 top-1/2 -translate-y-1/2 text-gray-400\" size={16} />
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
-              type=\"text\"
-              placeholder=\"Rechercher un joueur...\"
+              type="text"
+              placeholder="Rechercher un joueur..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className=\"w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all\"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
             />
           </div>
         </div>
 
-        <div className=\"overflow-x-auto overflow-y-auto max-h-[600px] no-scrollbar\">
-          <table className=\"w-full text-left border-collapse\">
-            <thead className=\"sticky top-0 z-20 bg-white\">
-              <tr className=\"border-b border-gray-100 shadow-sm bg-white\">
-                <th className=\"p-4 font-black text-gray-400 uppercase text-[10px] tracking-widest sticky left-0 bg-white z-30 min-w-[150px]\">Joueur</th>
+        <div className="overflow-x-auto overflow-y-auto max-h-[600px] no-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-20 bg-white">
+              <tr className="border-b border-gray-100 shadow-sm bg-white">
+                <th className="p-4 font-black text-gray-400 uppercase text-[10px] tracking-widest sticky left-0 bg-white z-30 min-w-[150px]">Joueur</th>
                 {Object.values(TEST_DESCRIPTIONS).map(test => (
-                  <th key={test.label} className=\"p-4 text-center font-black text-gray-400 uppercase text-[10px] tracking-widest min-w-[280px]\">
-                    <div className=\"flex flex-col gap-1 items-center\">
-                      <span className=\"text-indigo-900 text-xs\">{test.label}</span>
-                      <div className=\"flex gap-4 font-bold text-[9px] text-gray-400\">
-                        <span className=\"w-12\">S1</span>
-                        <span className=\"w-12\">S2</span>
-                        <span className=\"w-20 text-indigo-500\">% Evolution</span>
-                        <span className=\"w-12 text-gray-300 italic\">S3</span>
+                  <th key={test.label} className="p-4 text-center font-black text-gray-400 uppercase text-[10px] tracking-widest min-w-[280px]">
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-indigo-900 text-xs">{test.label}</span>
+                      <div className="flex gap-4 font-bold text-[9px] text-gray-400">
+                        <span className="w-12">S1</span>
+                        <span className="w-12">S2</span>
+                        <span className="w-20 text-indigo-500">% Evolution</span>
+                        <span className="w-12 text-gray-300 italic">S3</span>
                       </div>
                     </div>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className=\"divide-y divide-gray-50\">
+            <tbody className="divide-y divide-gray-50">
               {players.map((p, idx) => (
-                <tr key={`${p.firstName}-${idx}`} className=\"hover:bg-indigo-50/20 transition-colors group\">
-                  <td className=\"p-4 font-black text-indigo-900 text-sm uppercase tracking-tight sticky left-0 bg-white group-hover:bg-indigo-50/40 z-10 transition-colors\">
+                <tr key={`${p.firstName}-${idx}`} className="hover:bg-indigo-50/20 transition-colors group">
+                  <td className="p-4 font-black text-indigo-900 text-sm uppercase tracking-tight sticky left-0 bg-white group-hover:bg-indigo-50/40 z-10 transition-colors">
                     {p.firstName}
                   </td>
                   {Object.entries(TEST_DESCRIPTIONS).map(([key, info]) => {
                     const s1Val = p.s1[key];
                     const s2Val = p.s2 ? p.s2[key] : null;
                     return (
-                      <td key={key} className=\"p-4\">
-                        <div className=\"flex justify-center items-center gap-4\">
-                          <span className=\"w-12 text-center text-xs font-bold text-gray-400\">{s1Val || '-'}</span>
-                          <span className=\"w-12 text-center text-xs font-black text-gray-800\">{s2Val || '-'}</span>
-                          <div className=\"w-20 flex justify-center\">
+                      <td key={key} className="p-4">
+                        <div className="flex justify-center items-center gap-4">
+                          <span className="w-12 text-center text-xs font-bold text-gray-400">{s1Val || '-'}</span>
+                          <span className="w-12 text-center text-xs font-black text-gray-800">{s2Val || '-'}</span>
+                          <div className="w-20 flex justify-center">
                             <ImprovementBadge val1={s1Val} val2={s2Val} type={info.better} />
                           </div>
-                          <span className=\"w-12 text-center text-[10px] font-bold text-gray-200 italic\">-</span>
+                          <span className="w-12 text-center text-[10px] font-bold text-gray-200 italic">-</span>
                         </div>
                       </td>
                     );
@@ -237,18 +237,18 @@ export default function TestsDashboard() {
           </table>
 
           {players.length === 0 && (
-            <div className=\"p-20 text-center flex flex-col items-center gap-4\">
-              <Search className=\"text-gray-200\" size={48} />
-              <p className=\"text-gray-400 font-bold italic\">Aucun joueur trouvé pour cette recherche...</p>
+            <div className="p-20 text-center flex flex-col items-center gap-4">
+              <Search className="text-gray-200" size={48} />
+              <p className="text-gray-400 font-bold italic">Aucun joueur trouvé pour cette recherche...</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Footer Info */}
-      <div className=\"flex items-center gap-2 p-4 bg-indigo-50 rounded-2xl text-indigo-700\">
+      <div className="flex items-center gap-2 p-4 bg-indigo-50 rounded-2xl text-indigo-700">
         <Info size={18} />
-        <p className=\"text-[11px] font-bold uppercase tracking-wider\">
+        <p className="text-[11px] font-bold uppercase tracking-wider">
           La session 3 est prévue en fin de saison. Le calcul d'évolution compare la Session 2 par rapport à la Session 1.
         </p>
       </div>

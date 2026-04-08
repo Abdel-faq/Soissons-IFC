@@ -440,7 +440,7 @@ router.post('/generate-recurring', requireAuth, async (req, res) => {
     const { team_id } = req.body;
     const { data: templates, error: templateError } = await supabase
       .from('events')
-      .select('*, attendance(user_id, is_convoked)')
+      .select('*, attendance(player_id, user_id, is_convoked)')
       .eq('team_id', team_id)
       .eq('is_recurring', true);
 
@@ -472,6 +472,7 @@ router.post('/generate-recurring', requireAuth, async (req, res) => {
       if (event.attendance?.length > 0) {
         const convocations = event.attendance.filter(a => a.is_convoked).map(a => ({
           event_id: newEv.id,
+          player_id: a.player_id,
           user_id: a.user_id,
           is_convoked: true
         }));
@@ -752,14 +753,17 @@ router.put('/:id', requireAuth, async (req, res) => {
       // Fetch current to preserve statuses and know who to mark as not convoked
       const { data: currentAtt } = await supabase
         .from('attendance')
-        .select('user_id, status')
+        .select('player_id, user_id, status')
         .eq('event_id', id);
 
       const statusMap = {};
-      const currentIds = [];
+      const currentIds = []; // Combined unique identifiers for logic
       (currentAtt || []).forEach(a => {
-        statusMap[a.user_id] = a.status;
-        currentIds.push(a.user_id);
+        const idKey = a.player_id || a.user_id;
+        if (idKey) {
+          statusMap[idKey] = a.status;
+          currentIds.push(idKey);
+        }
       });
 
       const upsertData = [];
@@ -774,14 +778,14 @@ router.put('/:id', requireAuth, async (req, res) => {
         });
       });
 
-      // Mark unselected (who were in current list) as NOT convoked
-      currentIds.forEach(pid => {
-        if (!selected_players.includes(pid)) {
+      // Mark unselected players (who were in current list) as NOT convoked
+      (currentAtt || []).forEach(a => {
+        if (a.player_id && !selected_players.includes(a.player_id)) {
           upsertData.push({
             event_id: id,
-            player_id: pid,
+            player_id: a.player_id,
             is_convoked: false,
-            status: statusMap[pid] || 'INCONNU'
+            status: a.status || 'INCONNU'
           });
         }
       });

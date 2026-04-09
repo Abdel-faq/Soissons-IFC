@@ -6,12 +6,8 @@ export default function LandingPage() {
     const navigate = useNavigate();
     const [showRoles, setShowRoles] = useState(false);
 
-    // Image URL - Using the generated artifact path logic or a placeholder if local file access is tricky in browser
-    // For now I will use a placeholder or relative path if I can move the file. 
-    // Since I cannot easily move files to "public" in this environment without knowing public structure, 
-    // I will use a high quality Unsplash equivalent or the "imported" asset approach if I could.
-    // Let's use a nice Unsplash football image for reliability in "preview".
-    const bgImage = "https://images.unsplash.com/photo-1517466787929-bc90951d0974?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80";
+    // Image URL
+    const bgImage = "/Accueil.JPG";
 
     const handleRoleSelect = (role) => {
         // In a real app, we might pass state or just redirect to Login.

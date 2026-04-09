@@ -15,19 +15,19 @@ const ImprovementBadge = ({ val1, val2, type }) => {
   if (val1 === null || val2 === null || val1 === undefined || val2 === undefined || val1 === '' || val2 === '') {
     return <span className="text-gray-300">-</span>;
   }
-  
+
   const num1 = parseFloat(val1);
   const num2 = parseFloat(val2);
-  
+
   if (isNaN(num1) || isNaN(num2) || num1 === 0) return <span className="text-gray-300">-</span>;
 
   let improvement = type === 'lower' ? ((num1 - num2) / num1) * 100 : ((num2 - num1) / Math.abs(num1)) * 100;
-  
+
   if (Math.abs(improvement) < 0.1) return <span className="text-gray-400 text-xs font-bold">= 0%</span>;
 
   const isPositive = improvement > 0;
   const absImp = Math.abs(improvement).toFixed(1);
-  
+
   return (
     <div className={`flex items-center justify-center gap-1 text-[11px] font-black px-2 py-1 rounded-lg shadow-sm border ${isPositive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
       {isPositive ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
@@ -70,19 +70,19 @@ export default function TestsDashboard() {
         .from('team_members')
         .select('player_id, user_id, players(id, first_name, last_name, full_name, avatar_url, position), profiles(id, full_name)')
         .eq('team_id', activeTeamId);
-      
+
       const mList = (membersData || []).map(m => {
-          let p = m.players || {};
-          let prof = m.profiles || {};
-          return {
-              id: m.player_id || m.user_id,
-              isPlayer: !!m.player_id,
-              name: p.full_name || prof.full_name || (prof.first_name ? `${prof.first_name} ${prof.last_name}`.trim() : 'Membre'),
-              position: p.position || 'N/A'
-          };
+        let p = m.players || {};
+        let prof = m.profiles || {};
+        return {
+          id: m.player_id || m.user_id,
+          isPlayer: !!m.player_id,
+          name: p.full_name || prof.full_name || (prof.first_name ? `${prof.first_name} ${prof.last_name}`.trim() : 'Membre'),
+          position: p.position || 'N/A'
+        };
       }).filter(Boolean);
-      
-      setMembers(mList.sort((a,b) => a.name.localeCompare(b.name)));
+
+      setMembers(mList.sort((a, b) => a.name.localeCompare(b.name)));
 
       // 2. Fetch test results
       const { data: testData } = await supabase
@@ -116,8 +116,8 @@ export default function TestsDashboard() {
       [playerId]: {
         ...prev[playerId],
         [activeTab]: {
-            ...prev[playerId]?.[activeTab],
-            [field]: value === '' ? null : parseFloat(value)
+          ...prev[playerId]?.[activeTab],
+          [field]: value === '' ? null : parseFloat(value)
         }
       }
     }));
@@ -127,16 +127,15 @@ export default function TestsDashboard() {
     try {
       setSaving(true);
       const rows = [];
-      
+
       Object.entries(editedValues).forEach(([pid, tests]) => {
         Object.entries(tests).forEach(([testType, vals]) => {
           // If no values are entered and no ID exists, skip it
           if (!vals.id && vals.s1 === null && vals.s2 === null && vals.s3 === null) return;
-          
+
           let member = members.find(m => m.id === pid || m.name === pid);
-          
-          rows.push({
-            id: vals.id, // Will be undefined/null for new inserts, causing Supabase to generate one
+
+          const row = {
             team_id: team.id,
             player_name: member ? member.name : pid,
             player_id: member?.isPlayer ? pid : null,
@@ -144,7 +143,13 @@ export default function TestsDashboard() {
             s1: vals.s1,
             s2: vals.s2,
             s3: vals.s3,
-          });
+          };
+
+          if (vals.id) {
+            row.id = vals.id;
+          }
+
+          rows.push(row);
         });
       });
 
@@ -155,7 +160,7 @@ export default function TestsDashboard() {
         const { error } = await supabase.from('test_results').upsert(rows);
         if (error) throw error;
       }
-      
+
       await fetchResults();
       setIsEditing(false);
     } catch (e) {
@@ -202,7 +207,7 @@ export default function TestsDashboard() {
           {isCoach && !isEditing && (
             <>
 
-              <button 
+              <button
                 onClick={startEditing}
                 className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all hover:-translate-y-0.5"
               >
@@ -216,12 +221,12 @@ export default function TestsDashboard() {
               <button onClick={() => { setIsEditing(false); fetchResults(); }} className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-500 rounded-2xl text-xs font-black hover:bg-gray-200 transition-all">
                 <X size={16} /> Annuler
               </button>
-              <button 
-                onClick={saveChanges} 
+              <button
+                onClick={saveChanges}
                 disabled={saving}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-green-200 hover:shadow-green-300 transition-all"
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 Sauvegarder
               </button>
             </>
@@ -237,11 +242,10 @@ export default function TestsDashboard() {
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-6 py-3 font-bold text-sm transition-all whitespace-nowrap shrink-0 rounded-t-2xl border-b-4 ${
-                isActive 
-                  ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
+              className={`flex items-center gap-2 px-6 py-3 font-bold text-sm transition-all whitespace-nowrap shrink-0 rounded-t-2xl border-b-4 ${isActive
+                  ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
                   : 'border-transparent text-gray-500 hover:text-indigo-600 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <span>{info.icon}</span> {info.label}
             </button>
@@ -254,11 +258,11 @@ export default function TestsDashboard() {
         <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200/50">
-               {TEST_DESCRIPTIONS[activeTab].icon}
+              {TEST_DESCRIPTIONS[activeTab].icon}
             </div>
             <div>
-                <h2 className="font-black text-indigo-900 text-sm uppercase tracking-widest">{TEST_DESCRIPTIONS[activeTab].label}</h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-tight mt-0.5">{TEST_DESCRIPTIONS[activeTab].desc}</p>
+              <h2 className="font-black text-indigo-900 text-sm uppercase tracking-widest">{TEST_DESCRIPTIONS[activeTab].label}</h2>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-tight mt-0.5">{TEST_DESCRIPTIONS[activeTab].desc}</p>
             </div>
           </div>
           <div className="relative w-full sm:w-64">
@@ -286,23 +290,23 @@ export default function TestsDashboard() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filteredMembers.length === 0 && (
-                 <tr>
-                    <td colSpan={5} className="p-10 text-center text-gray-400 font-bold text-sm">
-                       Aucun joueur trouvé.
-                    </td>
-                 </tr>
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-gray-400 font-bold text-sm">
+                    Aucun joueur trouvé.
+                  </td>
+                </tr>
               )}
               {filteredMembers.map((m) => {
                 const pid = m.id;
                 // Find existing results for this test
                 const dbResult = results.find(r => (r.player_id === m.id || r.player_name === m.name) && r.test_type === activeTab) || {};
-                
+
                 const initials = m.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-                
+
                 const s1 = isEditing ? editedValues[pid]?.[activeTab]?.s1 : dbResult.s1;
                 const s2 = isEditing ? editedValues[pid]?.[activeTab]?.s2 : dbResult.s2;
                 const s3 = isEditing ? editedValues[pid]?.[activeTab]?.s3 : dbResult.s3;
-                
+
                 // Evolution logic: Compare S3 to S2, or S2 to S1
                 let lastVal = null;
                 let prevVal = null;
@@ -324,8 +328,8 @@ export default function TestsDashboard() {
                           {initials}
                         </div>
                         <div>
-                           <div className="text-sm font-bold text-indigo-950 uppercase">{m.name}</div>
-                           <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{m.position}</div>
+                          <div className="text-sm font-bold text-indigo-950 uppercase">{m.name}</div>
+                          <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{m.position}</div>
                         </div>
                       </div>
                     </td>
@@ -348,7 +352,7 @@ export default function TestsDashboard() {
 
                     {/* S2 */}
                     <td className="px-6 py-4 text-center border-r border-gray-50 bg-indigo-50/10">
-                       {isEditing ? (
+                      {isEditing ? (
                         <input
                           type="number"
                           step="0.01"
@@ -364,7 +368,7 @@ export default function TestsDashboard() {
 
                     {/* S3 */}
                     <td className="px-6 py-4 text-center border-r border-gray-50 bg-indigo-50/10">
-                       {isEditing ? (
+                      {isEditing ? (
                         <input
                           type="number"
                           step="0.01"
@@ -382,9 +386,9 @@ export default function TestsDashboard() {
                     <td className="px-6 py-4">
                       <div className="flex justify-center">
                         {!isEditing ? (
-                           <ImprovementBadge val1={prevVal} val2={lastVal} type={TEST_DESCRIPTIONS[activeTab].better} />
+                          <ImprovementBadge val1={prevVal} val2={lastVal} type={TEST_DESCRIPTIONS[activeTab].better} />
                         ) : (
-                           <span className="text-[10px] text-gray-300 font-bold uppercase">--</span>
+                          <span className="text-[10px] text-gray-300 font-bold uppercase">--</span>
                         )}
                       </div>
                     </td>

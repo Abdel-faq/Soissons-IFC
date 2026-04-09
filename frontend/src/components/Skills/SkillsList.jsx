@@ -14,6 +14,19 @@ const NEXT_CATEGORY_MAP = {
 function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName }) {
     const [hoveredLevel, setHoveredLevel] = React.useState(null);
 
+    // Sort levels 1 to 5
+    const sortedLevels = React.useMemo(() => [...(skill.skill_levels || [])].sort((a, b) => a.level - b.level), [skill.skill_levels]);
+
+    // Check if level 5 is validated (green)
+    const level5Eval = playerEvaluations.find(e => e.skill_id === skill.id && e.level === 5);
+    const isLevel5Validated = level5Eval?.status === 'green';
+
+    // Determine next category
+    const nextCategory = NEXT_CATEGORY_MAP[categoryName];
+
+    // Load next level skill if validated
+    const { skill: nextSkill, loading: nextLoading } = useNextLevelSkill(isLevel5Validated ? nextCategory : null, skill.name);
+
     // Get active description
     const activeLevelObj = hoveredLevel ? sortedLevels.find(l => l.level === hoveredLevel) : null;
 
@@ -42,7 +55,6 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
                                     isCoach={isCoach}
                                     categoryName={categoryName}
                                     levelNumber={levelNum}
-                                    onLevelClick={() => setSelectedLevel(levelNum)}
                                 />
                             </div>
                         </td>

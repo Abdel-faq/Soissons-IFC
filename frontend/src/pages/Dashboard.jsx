@@ -349,7 +349,7 @@ export default function Dashboard() {
 
     const handleJoinTeam = async (e) => {
         e.preventDefault();
-        if (!joinData.childId || !joinData.code) return;
+        if (!joinData.code) return;
 
         try {
             const sanitizedCode = joinData.code.replace(/\s/g, '');
@@ -372,7 +372,7 @@ export default function Dashboard() {
             ]);
             if (joinErr) throw joinErr;
 
-            alert("L'enfant a rejoint l'équipe !");
+            alert(isCoach ? "Vous avez rejoint l'équipe !" : "L'enfant a rejoint l'équipe !");
             setShowJoinModal(false);
             setJoinData({ childId: '', code: '' });
             fetchDashboardData();

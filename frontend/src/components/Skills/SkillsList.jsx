@@ -12,35 +12,30 @@ const NEXT_CATEGORY_MAP = {
 };
 
 function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName }) {
-    const [selectedLevel, setSelectedLevel] = React.useState(null);
-    // Sort levels 1 to 5
-    const sortedLevels = useMemo(() => [...(skill.skill_levels || [])].sort((a, b) => a.level - b.level), [skill.skill_levels]);
-    
-    // Check if level 5 is validated (green)
-    const level5Eval = playerEvaluations.find(e => e.skill_id === skill.id && e.level === 5);
-    const isLevel5Validated = level5Eval?.status === 'green';
-    
-    // Determine next category
-    const nextCategory = NEXT_CATEGORY_MAP[categoryName];
-    
-    // Load next level skill if validated
-    const { skill: nextSkill, loading: nextLoading } = useNextLevelSkill(isLevel5Validated ? nextCategory : null, skill.name);
+    const [hoveredLevel, setHoveredLevel] = React.useState(null);
+
+    // Get active description
+    const activeLevelObj = hoveredLevel ? sortedLevels.find(l => l.level === hoveredLevel) : null;
 
     return (
         <>
-            <tr className="hover:bg-gray-50/50 transition-colors group border-b border-gray-50">
+            <tr className="group border-b-0">
                 <td className="p-3">
                     <div className="font-bold text-gray-800 text-sm">{skill.name}</div>
                 </td>
-                
+
                 {[1, 2, 3, 4, 5].map(levelNum => {
-                    const levelObj = sortedLevels.find(l => l.level === levelNum);
                     const evalObj = playerEvaluations.find(e => e.skill_id === skill.id && e.level === levelNum);
-                    
+
                     return (
-                        <td key={levelNum} className="p-2 align-top">
+                        <td
+                            key={levelNum}
+                            className="p-2 align-top"
+                            onMouseEnter={() => setHoveredLevel(levelNum)}
+                            onMouseLeave={() => setHoveredLevel(null)}
+                        >
                             <div className="flex flex-col items-center gap-2">
-                                <SkillLevelCell 
+                                <SkillLevelCell
                                     skill={skill}
                                     playerLevel={evalObj}
                                     playerId={playerId}
@@ -49,16 +44,47 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
                                     levelNumber={levelNum}
                                     onLevelClick={() => setSelectedLevel(levelNum)}
                                 />
-                                {levelObj?.description && (
-                                    <div className={`text-[9px] text-center transition-all duration-200 leading-[1.1] ${selectedLevel === levelNum ? 'font-black text-indigo-700 scale-110' : 'text-gray-400 font-medium opacity-0 group-hover:opacity-100'}`}>
-                                        {levelObj.description.substring(0, 50)}
-                                        {levelObj.description.length > 50 && '...'}
-                                    </div>
-                                )}
                             </div>
                         </td>
                     );
                 })}
+            </tr>
+
+            {/* DESCRIPTION ROW */}
+            <tr>
+                <td></td>
+                <td colSpan={5} className="px-2 pb-4">
+                    <div className={`min-h-[60px] p-3 rounded-xl transition-all duration-300 border border-transparent ${activeLevelObj ? 'bg-indigo-50/50 border-indigo-100 shadow-sm' : ''}`}>
+                        {activeLevelObj ? (
+                            <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="text-[10px] font-black text-indigo-500 uppercase mb-1 tracking-widest">Niveau {activeLevelObj.level}</div>
+                                <div className="text-sm text-gray-700 leading-relaxed font-medium">
+                                    {activeLevelObj.description}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-sm text-gray-300 italic font-medium">
+                                Survolez un niveau pour voir sa description...
+                            </div>
+                        )}
+                    </div>
+                </td>
+            </tr>
+
+            {/* ILLUSTRATION IMAGE ROW */}
+            <tr>
+                <td colSpan={6} className="px-4 pb-8">
+                    <div className="h-32 w-full rounded-2xl overflow-hidden relative shadow-inner bg-gray-50 border border-gray-100">
+                        <img
+                            src={`https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000&auto=format&fit=crop&sig=${skill.id}`}
+                            alt="football training"
+                            className="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-700"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent flex items-end p-4">
+                            <span className="text-[10px] font-black text-indigo-900/40 uppercase tracking-[0.2em]">{skill.name}</span>
+                        </div>
+                    </div>
+                </td>
             </tr>
 
             {/* NEXT LEVEL ROW (IF VALIDATED) */}
@@ -73,7 +99,7 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
                             Compétence débloquée car le niveau 5 est validé
                         </div>
                     </td>
-                    
+
                     {nextLoading ? (
                         <td colSpan={5} className="p-3 text-center">
                             <Loader2 className="animate-spin text-indigo-400 inline" size={16} />
@@ -83,11 +109,11 @@ function SkillRow({ skill, playerEvaluations, playerId, isCoach, categoryName })
                             const nextSortedLevels = [...(nextSkill.skill_levels || [])].sort((a, b) => a.level - b.level);
                             const nextLevelObj = nextSortedLevels.find(l => l.level === levelNum);
                             const nextEvalObj = playerEvaluations.find(e => e.skill_id === nextSkill.id && e.level === levelNum);
-                            
+
                             return (
                                 <td key={`next-${levelNum}`} className="p-2 align-top">
                                     <div className="flex flex-col items-center gap-2">
-                                        <SkillLevelCell 
+                                        <SkillLevelCell
                                             skill={nextSkill}
                                             playerLevel={nextEvalObj}
                                             playerId={playerId}
@@ -152,7 +178,7 @@ export default function SkillsList({ skillsData, playerEvaluations, playerId, is
                             })()}
                         </h3>
                     </div>
-                    
+
                     <div className="p-0 sm:p-4 overflow-x-auto">
                         <table className="w-full text-left min-w-[600px]">
                             <thead>
@@ -167,13 +193,13 @@ export default function SkillsList({ skillsData, playerEvaluations, playerId, is
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {skills.map(skill => (
-                                    <SkillRow 
-                                        key={skill.id} 
-                                        skill={skill} 
-                                        playerEvaluations={playerEvaluations} 
-                                        playerId={playerId} 
-                                        isCoach={isCoach} 
-                                        categoryName={categoryName} 
+                                    <SkillRow
+                                        key={skill.id}
+                                        skill={skill}
+                                        playerEvaluations={playerEvaluations}
+                                        playerId={playerId}
+                                        isCoach={isCoach}
+                                        categoryName={categoryName}
                                     />
                                 ))}
                             </tbody>

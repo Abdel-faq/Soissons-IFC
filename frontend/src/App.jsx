@@ -21,40 +21,61 @@ export default function App() {
     // 1. Initialize OneSignal (Web Push)
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (OneSignal) => {
-      await OneSignal.init({
-        appId: "49f496fd-5137-4256-a3ad-26333b3fb56d",
-        safari_web_id: "web.onesignal.auto.0860f031-816f-4b4e-9724-08fcd0b320db",
-        notifyButton: {
-          enable: false,
-        },
-      });
+      try {
+        await OneSignal.init({
+          appId: "49f496fd-5137-4256-a3ad-26333b3fb56d",
+          safari_web_id: "web.onesignal.auto.0860f031-816f-4b4e-9724-08fcd0b320db",
+          notifyButton: { enable: false },
+        });
+      } catch (err) {
+        console.error("OneSignal init error:", err);
+      }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user?.id) {
+    // Guard to prevent multiple adjacent login calls for the same user
+    let lastLoggedInId = null;
+
+    const handleOneSignalAuth = (userSession) => {
+      const userId = userSession?.user?.id;
+
+      if (userId) {
+        if (lastLoggedInId === userId) return; // Already triggered for this user
+        lastLoggedInId = userId;
+
         window.OneSignalDeferred.push(async (OneSignal) => {
-          await OneSignal.login(session.user.id);
-          console.log("OneSignal logged in for:", session.user.id);
+          try {
+            await OneSignal.login(userId);
+            console.log("OneSignal login success:", userId);
+          } catch (err) {
+            console.error("OneSignal login error:", err);
+          }
+        });
+      } else {
+        if (lastLoggedInId === null) return; // Already logged out or never logged in
+        lastLoggedInId = null;
+
+        window.OneSignalDeferred.push(async (OneSignal) => {
+          try {
+            await OneSignal.logout();
+            console.log("OneSignal logout success");
+          } catch (err) {
+            console.error("OneSignal logout error:", err);
+          }
         });
       }
+    };
+
+    // Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      handleOneSignalAuth(session);
       setLoading(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen to changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session?.user?.id) {
-        window.OneSignalDeferred.push(async (OneSignal) => {
-          await OneSignal.login(session.user.id);
-          console.log("OneSignal auth change login:", session.user.id);
-        });
-      } else {
-        window.OneSignalDeferred.push(async (OneSignal) => {
-          await OneSignal.logout();
-        });
-      }
+      handleOneSignalAuth(session);
     });
 
     return () => subscription.unsubscribe();

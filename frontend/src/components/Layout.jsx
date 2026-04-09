@@ -53,7 +53,7 @@ export default function Layout() {
             <header className="bg-white shadow-sm sticky top-0 z-10 hidden md:block">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
                     <Link to="/" className="text-xl font-bold text-indigo-600 flex items-center gap-2">
-                        <img src="/logo_soissons.jpg" alt="Soissons-IFC" className="h-8 w-auto" />
+                        <img src="/logo_soissons.png" alt="Soissons-IFC" className="h-8 w-auto" />
                         <span>Soissons-IFC</span>
                     </Link>
                     <nav className="flex items-center gap-4">
@@ -75,12 +75,12 @@ export default function Layout() {
                             </Link>
                         ))}
                         <Link
-                                to="/dashboard/profile"
-                                className={`text-sm font-medium hover:text-indigo-600 flex items-center gap-1.5 ${location.pathname === '/dashboard/profile' ? 'text-indigo-600' : 'text-gray-600'}`}
-                            >
-                                <User size={18} />
-                                Profil
-                            </Link>
+                            to="/dashboard/profile"
+                            className={`text-sm font-medium hover:text-indigo-600 flex items-center gap-1.5 ${location.pathname === '/dashboard/profile' ? 'text-indigo-600' : 'text-gray-600'}`}
+                        >
+                            <User size={18} />
+                            Profil
+                        </Link>
                         <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 ml-2" title="Logout">
                             <LogOut size={20} />
                         </button>
@@ -91,7 +91,7 @@ export default function Layout() {
             {/* Mobile Header (Simplified) */}
             <header className="bg-white shadow-sm sticky top-0 z-10 md:hidden flex justify-between items-center px-4 py-3">
                 <div className="flex items-center gap-2">
-                    <img src="/logo_soissons.jpg" alt="Soissons-IFC" className="h-6 w-auto" />
+                    <img src="/logo_soissons.png" alt="Soissons-IFC" className="h-6 w-auto" />
                     <span className="font-bold text-indigo-600 text-lg">Soissons-IFC</span>
                 </div>
                 <div className="flex items-center gap-4">

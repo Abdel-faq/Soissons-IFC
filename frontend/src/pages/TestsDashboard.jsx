@@ -279,9 +279,9 @@ export default function TestsDashboard() {
             <thead>
               <tr className="bg-white border-b border-gray-100">
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] sticky left-0 bg-white z-10 border-r border-gray-50">Joueur</th>
-                <th className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-center border-r border-gray-50 bg-indigo-50/30">Section 1 (S1)</th>
-                <th className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-center border-r border-gray-50 bg-indigo-50/30">Section 2 (S2)</th>
-                <th className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-center border-r border-gray-50 bg-indigo-50/30">Section 3 (S3)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-center border-r border-gray-50 bg-indigo-50/30">Session 1 (Septembre)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-center border-r border-gray-50 bg-indigo-50/30">Session 2 (Février)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] text-center border-r border-gray-50 bg-indigo-50/30">Session 3 (Juin)</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-center">% Progression</th>
               </tr>
             </thead>

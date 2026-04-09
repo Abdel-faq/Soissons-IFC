@@ -80,7 +80,7 @@ export default function TestsDashboard() {
           name: p.full_name || prof.full_name || (prof.first_name ? `${prof.first_name} ${prof.last_name}`.trim() : 'Membre'),
           position: p.position || 'N/A'
         };
-      }).filter(Boolean);
+      }).filter(m => m.isPlayer);
 
       setMembers(mList.sort((a, b) => a.name.localeCompare(b.name)));
 

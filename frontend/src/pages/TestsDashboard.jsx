@@ -136,6 +136,7 @@ export default function TestsDashboard() {
           let member = members.find(m => m.id === pid || m.name === pid);
 
           const row = {
+            id: vals.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36)),
             team_id: team.id,
             player_name: member ? member.name : pid,
             player_id: member?.isPlayer ? pid : null,
@@ -144,10 +145,6 @@ export default function TestsDashboard() {
             s2: vals.s2,
             s3: vals.s3,
           };
-
-          if (vals.id) {
-            row.id = vals.id;
-          }
 
           rows.push(row);
         });
@@ -243,8 +240,8 @@ export default function TestsDashboard() {
               key={key}
               onClick={() => setActiveTab(key)}
               className={`flex items-center gap-2 px-6 py-3 font-bold text-sm transition-all whitespace-nowrap shrink-0 rounded-t-2xl border-b-4 ${isActive
-                  ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
-                  : 'border-transparent text-gray-500 hover:text-indigo-600 hover:bg-gray-50'
+                ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
+                : 'border-transparent text-gray-500 hover:text-indigo-600 hover:bg-gray-50'
                 }`}
             >
               <span>{info.icon}</span> {info.label}

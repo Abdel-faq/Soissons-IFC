@@ -75,30 +75,42 @@ export default function Stats({ teamId }) {
                         attendanceRate = Math.round((presentCount / validAttendance.length) * 100);
                     }
 
-                    // Ranking Logic
-                    const presenceCounts = {};
-                    const absenceCounts = {};
+                    // Ranking Logic with Percentages
+                    const playerStats = {};
 
                     validAttendance.forEach(a => {
                         const name = a.players?.full_name || 'Inconnu';
-
-                        if (a.status === 'PRESENT') {
-                            presenceCounts[name] = (presenceCounts[name] || 0) + 1;
+                        if (!playerStats[name]) {
+                            playerStats[name] = { present: 0, total: 0 };
                         }
-                        // "Plus Absent" logic: Strictly ABSENT (red) or include Retard?
-                        // Usually "Plus Absent" means ABSENT.
-                        else if (a.status === 'ABSENT') {
-                            absenceCounts[name] = (absenceCounts[name] || 0) + 1;
+                        playerStats[name].total += 1;
+                        if (a.status === 'PRESENT' || a.status === 'RETARD') {
+                            playerStats[name].present += 1;
                         }
                     });
 
-                    // Top Assidu
-                    const sortedPresence = Object.entries(presenceCounts).sort((a, b) => b[1] - a[1]);
-                    if (sortedPresence.length > 0) topPlayerName = `${sortedPresence[0][0]} (${sortedPresence[0][1]})`;
+                    const playerRanks = Object.entries(playerStats).map(([name, data]) => ({
+                        name,
+                        rate: Math.round((data.present / data.total) * 100),
+                        total: data.total
+                    }));
 
-                    // Top Absent (Flop)
-                    const sortedAbsence = Object.entries(absenceCounts).sort((a, b) => b[1] - a[1]);
-                    if (sortedAbsence.length > 0) flopPlayerName = `${sortedAbsence[0][0]} (${sortedAbsence[0][1]})`;
+                    // Top Assidu (High %) - Filter those with at least 3 events to be relevant
+                    const sortedByRateDesc = [...playerRanks]
+                        .filter(p => p.total >= 3 || playerRanks.length < 5)
+                        .sort((a, b) => b.rate - a.rate || b.total - a.total);
+
+                    if (sortedByRateDesc.length > 0) {
+                        topPlayerName = `${sortedByRateDesc[0].name} ${sortedByRateDesc[0].rate}%`;
+                    }
+
+                    // Plus Absent (Low %)
+                    const sortedByRateAsc = [...playerRanks]
+                        .sort((a, b) => a.rate - b.rate || b.total - a.total);
+
+                    if (sortedByRateAsc.length > 0) {
+                        flopPlayerName = `${sortedByRateAsc[0].name} ${sortedByRateAsc[0].rate}%`;
+                    }
                 }
             }
 

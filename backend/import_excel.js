@@ -9,12 +9,19 @@ const supabase = createClient(
 );
 
 const TEST_MAP = {
+  // U9 / Original style
   'Vitesse 20 m': 'vitesse',
   'Broad jump': 'broadJump',
   'Conduite': 'conduiteBalle',
   'Agilité': 'coordination',
   'Bon pied': 'jonglesSF',
-  'Jongles mauvais pied': 'jonglesWF'
+  'Jongles mauvais pied': 'jonglesWF',
+  // U10, U12, U13 style
+  '20 m': 'vitesse',
+  'BJ': 'broadJump',
+  'Cazorla': 'coordination',
+  'Jongles SF': 'jonglesSF',
+  'Jongles WF': 'jonglesWF'
 };
 
 const CATEGORIES = [
@@ -48,7 +55,7 @@ async function run() {
       .from('team_members')
       .select('player_id, user_id, players(id, first_name, full_name), profiles(id, first_name, full_name)')
       .eq('team_id', team.id);
-      
+
     const members = (membersData || []).map(m => {
       return {
         id: m.player_id || m.user_id,
@@ -65,7 +72,7 @@ async function run() {
     const data = xlsx.utils.sheet_to_json(sheet);
 
     // Get unique dates to determine S1 vs S2
-    const dates = Array.from(new Set(data.map(r => r.Date).filter(d => d))).sort((a,b) => a - b);
+    const dates = Array.from(new Set(data.map(r => r.Date).filter(d => d))).sort((a, b) => a - b);
     const dateToSection = {};
     if (dates.length > 0) dateToSection[dates[0]] = 's1';
     if (dates.length > 1) dateToSection[dates[1]] = 's2';
@@ -97,7 +104,7 @@ async function run() {
     // Now match with members and prepare rows
     const rowsToUpsert = [];
     let matchCount = 0;
-    
+
     for (const [prenom, tests] of Object.entries(extracted)) {
       // Find matching member by first name
       const match = members.find(m => m.firstName.includes(prenom) || prenom.includes(m.firstName));
@@ -105,7 +112,7 @@ async function run() {
         console.log(`❌ No member match found for Excel name: "${prenom}". Skipping.`);
         continue;
       }
-      
+
       matchCount++;
 
       for (const [testType, vals] of Object.entries(tests)) {
@@ -122,18 +129,18 @@ async function run() {
     }
 
     console.log(`Matched ${matchCount} players from Excel to DB.`);
-    
+
     if (rowsToUpsert.length > 0) {
       // To properly upsert, delete existing ones for these players and team, or use upsert.
       // Since test_results might not have unique constraint reliably handling player_id vs player_name everywhere, 
       // let's do a fast delete then insert for matched players.
       const playerIds = Array.from(new Set(rowsToUpsert.map(r => r.player_id).filter(Boolean)));
-      
+
       if (playerIds.length > 0) {
         await supabase.from('test_results')
-         .delete()
-         .eq('team_id', team.id)
-         .in('player_id', playerIds);
+          .delete()
+          .eq('team_id', team.id)
+          .in('player_id', playerIds);
       }
 
       const { data: upsertData, error } = await supabase.from('test_results').insert(rowsToUpsert);

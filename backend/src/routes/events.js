@@ -255,28 +255,28 @@ router.get('/', requireAuth, async (req, res) => {
       .eq('team_id', team_id)
       .eq('is_deleted', false);
 
-        if (month && /^\d{4}-\d{2}$/.test(month)) {
-            // Fetch for a specific month (YYYY-MM)
-            const year = parseInt(month.substring(0, 4));
-            const monthIdx = parseInt(month.substring(5, 7)) - 1;
-            const startDate = new Date(year, monthIdx, 1);
-            const endDate = new Date(year, monthIdx + 1, 0, 23, 59, 59);
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      // Fetch for a specific month (YYYY-MM)
+      const year = parseInt(month.substring(0, 4));
+      const monthIdx = parseInt(month.substring(5, 7)) - 1;
+      const startDate = new Date(year, monthIdx, 1);
+      const endDate = new Date(year, monthIdx + 1, 0, 23, 59, 59);
 
-            query = query
-                .gte('date', startDate.toISOString())
-                .lte('date', endDate.toISOString());
-        } else if (range === 'season') {
-            // Fetch from start of season (August last year or this year)
-            const now = new Date();
-            const startYear = (now.getMonth() < 7) ? now.getFullYear() - 1 : now.getFullYear();
-            const seasonStart = new Date(startYear, 7, 1); // 1st August
-            const seasonEnd = new Date(startYear + 1, 6, 31, 23, 59, 59); // 31st July
+      query = query
+        .gte('date', startDate.toISOString())
+        .lte('date', endDate.toISOString());
+    } else if (range === 'season') {
+      // Fetch from start of season (August last year or this year)
+      const now = new Date();
+      const startYear = (now.getMonth() < 7) ? now.getFullYear() - 1 : now.getFullYear();
+      const seasonStart = new Date(startYear, 7, 1); // 1st August
+      const seasonEnd = new Date(startYear + 1, 6, 31, 23, 59, 59); // 31st July
 
-            query = query
-                .gte('date', seasonStart.toISOString())
-                .lte('date', seasonEnd.toISOString());
-        }
- else {
+      query = query
+        .gte('date', seasonStart.toISOString())
+        .lte('date', seasonEnd.toISOString());
+    }
+    else {
       // DEFAULT: Events View (History + Future) - modified to start from today
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -324,7 +324,7 @@ router.get('/', requireAuth, async (req, res) => {
     try {
       const { data: rd } = await supabase
         .from('rides')
-        .select('id, event_id, driver_id, destination, departure_time, ride_passengers(id, player_id, passenger_id, user_id)')
+        .select('id, event_id, driver_id, departure_location, departure_time, ride_passengers(id, player_id, passenger_id)')
         .in('event_id', eventIds)
         .limit(5000); // FIX: Ensure we get all rows for the season
       allRides = rd || [];

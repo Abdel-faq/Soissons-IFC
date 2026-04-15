@@ -116,7 +116,7 @@ export default function Team() {
             }
 
             let activeRole = context?.role || 'PLAYER';
-            
+
             // [FIX] Highly Robust Coach Check: Context Role OR Profile Role OR Admin Role
             // [FORCE FIX] Sajid is ALWAYS a coach
             const isSajid = currentUser.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
@@ -128,7 +128,7 @@ export default function Team() {
                 .from('teams')
                 .select('id')
                 .eq('coach_id', currentUser.id);
-            
+
             if (ownedTeamsCheck && ownedTeamsCheck.length > 0) hasCoachRights = true;
             setIsCoach(hasCoachRights);
 
@@ -165,7 +165,7 @@ export default function Team() {
                 if (current) {
                     setTeam(current);
                     fetchMembers(current.id);
-                    
+
                     // Final check: if user is logged in as a coach but context says player
                     // or if they are the coach of THIS team, force isCoach true.
                     if (profileData?.role === 'COACH' || profileData?.role === 'ADMIN' || current.coach_id === currentUser.id) {
@@ -185,12 +185,12 @@ export default function Team() {
                     if (teamData) {
                         setTeam(teamData);
                         setTeams([teamData]);
-                        
+
                         // Re-verify coach status for this specific team (Ownership check)
                         if (teamData.coach_id === currentUser.id) {
                             setIsCoach(true);
                         }
-                        
+
                         fetchMembers(teamData.id);
                     }
                 } else {
@@ -199,13 +199,13 @@ export default function Team() {
                         .from('team_members')
                         .select('team_id, teams(*)')
                         .eq('user_id', currentUser.id);
-                    
+
                     if (userMemberships && userMemberships.length > 0) {
                         const firstTeam = userMemberships[0].teams;
                         if (firstTeam) {
                             setTeam(firstTeam);
                             setTeams([firstTeam]);
-                            
+
                             // [FIX] Crucial: Set coach status in fallback case too!
                             if (profileData?.role === 'COACH' || profileData?.role === 'ADMIN' || firstTeam.coach_id === currentUser.id) {
                                 setIsCoach(true);
@@ -280,7 +280,7 @@ export default function Team() {
             let query = `team_id=${teamId}`;
             if (range) query += `&range=${range}`;
             else query += `&month=${monthToFetch}`;
-            
+
             const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?${query}`;
 
             const response = await fetch(apiUrl, {
@@ -298,7 +298,7 @@ export default function Team() {
             setHistoryEvents(prev => {
                 const existingIds = new Set(prev.map(e => e.id));
                 const newOnes = activeEvents.filter(e => !existingIds.has(e.id));
-                return [...prev, ...newOnes].sort((a,b) => new Date(a.date) - new Date(b.date));
+                return [...prev, ...newOnes].sort((a, b) => new Date(a.date) - new Date(b.date));
             });
 
             // Aggregate matrix (Support both player_id and user_id for robustness)
@@ -308,12 +308,12 @@ export default function Team() {
                     ev.attendance.forEach(row => {
                         const pid = row.player_id;
                         const uid = row.user_id;
-                        const data = { 
-                            status: row.status, 
+                        const data = {
+                            status: row.status,
                             rpe: row.rpe,
-                            is_convoked: row.is_convoked 
+                            is_convoked: row.is_convoked
                         };
-                        
+
                         if (pid) {
                             if (!matrixUpdate[pid]) matrixUpdate[pid] = {};
                             matrixUpdate[pid][ev.id] = data;
@@ -350,18 +350,18 @@ export default function Team() {
                     .from('attendance')
                     .select('*') // Fetch all existing columns to avoid 400 error on missing ones
                     .in('event_id', eventIds);
-                
+
                 if (attError) console.error("[DEBUG] Direct Attendance 400 Error:", attError);
-                
+
                 if (directAtt && directAtt.length > 0) {
                     // [SYNC] Attach direct attendance to historyEvents objects
                     setHistoryEvents(prev => {
                         return prev.map(ev => {
                             const atts = directAtt.filter(a => a.event_id === ev.id);
                             if (atts.length > 0) {
-                                // Merge attendance rows, avoiding duplicates
-                                const existingIds = new Set((ev.attendance || []).map(a => a.id));
-                                const newAtts = atts.filter(a => !existingIds.has(a.id));
+                                // Merge attendance rows, avoiding duplicates using composite key
+                                const existingKeys = new Set((ev.attendance || []).map(a => `${a.event_id}-${a.player_id || a.user_id}`));
+                                const newAtts = atts.filter(a => !existingKeys.has(`${a.event_id}-${a.player_id || a.user_id}`));
                                 return { ...ev, attendance: [...(ev.attendance || []), ...newAtts] };
                             }
                             return ev;
@@ -405,30 +405,30 @@ export default function Team() {
 
             const { error } = await supabase.from('attendance').upsert(upsertData, { onConflict: onConflictStr });
             if (error) throw error;
-            
+
             // [SYNC] Update local historyEvents state to reflect the change immediately
             setHistoryEvents(prev => {
                 return prev.map(ev => {
                     if (ev.id === eventId) {
                         const existingAtt = ev.attendance || [];
-                        const otherAtts = existingAtt.filter(a => 
+                        const otherAtts = existingAtt.filter(a =>
                             !((playerId && a.player_id === playerId) || (memberUserId && a.user_id === memberUserId))
                         );
-                        return { 
-                            ...ev, 
-                            attendance: [...otherAtts, { 
-                                player_id: playerId, 
-                                user_id: memberUserId, 
+                        return {
+                            ...ev,
+                            attendance: [...otherAtts, {
+                                player_id: playerId,
+                                user_id: memberUserId,
                                 status: status,
                                 event_id: eventId,
                                 is_convoked: true // Assume convoked if coach manually set attendance
-                            }] 
+                            }]
                         };
                     }
                     return ev;
                 });
             });
-            
+
             // Don't rely solely on re-fetching from backend as it might have RLS lag/issues
             // fetchAttendanceHistory(team.id); // This will still reload in background
         } catch (err) {
@@ -831,12 +831,12 @@ export default function Team() {
                         {(() => {
                             const nowStr = new Date().toISOString().substring(0, 7);
                             const monthSet = new Set();
-                            
+
                             // On n'affiche que les mois qui ont RÉELLEMENT des événements chargés
                             historyEvents.forEach(ev => {
                                 if (ev.date) monthSet.add(ev.date.substring(0, 7));
                             });
-                            
+
                             // On s'assure que le mois en cours est toujours présent
                             monthSet.add(nowStr);
 
@@ -1062,24 +1062,24 @@ export default function Team() {
                                 // Seasonal total based on direct attendance lookup (Only count convoked events)
                                 const relevantEvents = historyEvents.filter(ev => {
                                     if (ev.is_deleted || new Date(ev.date) >= new Date()) return false;
-                                    
-                                    const att = ev.attendance?.find(a => 
-                                        (a.player_id && a.player_id === m.player_id) || 
+
+                                    const att = ev.attendance?.find(a =>
+                                        (a.player_id && a.player_id === m.player_id) ||
                                         (a.user_id && a.user_id === m.user_id)
                                     );
-                                    
+
                                     // Count as relevant if convoked OR public
                                     return att?.is_convoked || ev.visibility_type === 'PUBLIC' || !ev.visibility_type;
                                 });
-                                
+
                                 const presentCountForTotal = relevantEvents.filter(ev => {
-                                    const att = ev.attendance?.find(a => 
-                                        (a.player_id && a.player_id === m.player_id) || 
+                                    const att = ev.attendance?.find(a =>
+                                        (a.player_id && a.player_id === m.player_id) ||
                                         (a.user_id && a.user_id === m.user_id)
                                     );
                                     return att?.status === 'PRESENT' || att?.status === 'RETARD';
                                 }).length;
-                                
+
                                 const ratio = relevantEvents.length > 0 ? Math.round((presentCountForTotal / relevantEvents.length) * 100) : 0;
 
                                 return (
@@ -1087,13 +1087,13 @@ export default function Team() {
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
                                         {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
                                             // [DIRECT LOOKUP] Search in ev.attendance list directly
-                                            const attData = ev.attendance?.find(a => 
-                                                (a.player_id && a.player_id === m.player_id) || 
+                                            const attData = ev.attendance?.find(a =>
+                                                (a.player_id && a.player_id === m.player_id) ||
                                                 (a.user_id && a.user_id === m.user_id)
                                             );
-                                            
+
                                             const status = attData?.status;
-                                            
+
                                             // [STRICT CONVOCATION LOGIC]
                                             let isConvoked = true;
                                             if (attData && attData.is_convoked !== undefined && attData.is_convoked !== null) {
@@ -1110,15 +1110,15 @@ export default function Team() {
                                             // Handle legacy database statuses
                                             const validStatuses = ['PRESENT', 'ABSENT', 'MALADE', 'BLESSE', 'RETARD'];
                                             const isEmptyStatus = !status || !validStatuses.includes(status);
-                                            
-                                            const isNotConvoked = !isConvoked && isEmptyStatus;
+
+                                            const isNotConvoked = !isConvoked && isEmptyStatus && !isUserCoach;
 
                                             if (isNotConvoked) {
-                                                return <td key={ev.id} className="p-2 border-r bg-gray-200"></td>;
+                                                return <td key={ev.id} className="p-2 border-r bg-gray-200" title="Non convoqué"></td>;
                                             }
 
                                             let color = "text-gray-300";
-                                            let label = "-";
+                                            let label = isConvoked ? "?" : "-";
 
                                             if (status === 'PRESENT') { color = "text-green-600 font-black"; label = "P"; }
                                             if (status === 'ABSENT') { color = "text-red-500 font-black"; label = "A"; }
@@ -1149,7 +1149,7 @@ export default function Team() {
                                         })}
                                         <td className="p-2 text-center bg-indigo-50/30">
                                             <div className="flex items-center justify-center h-full">
-                                                <span 
+                                                <span
                                                     className={`px-2 py-0.5 rounded text-[10px] font-black ${ratio >= 80 ? 'bg-green-100 text-green-700' : ratio >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}
                                                     title={`${presentCountForTotal} / ${relevantEvents.length}`}
                                                 >
@@ -1194,9 +1194,9 @@ export default function Team() {
 
                                 const relevantEvents = historyEvents.filter(ev => {
                                     if (ev.visibility_type === 'PRIVATE') {
-                                        const isConvoked = ev.attendance?.some(a => 
+                                        const isConvoked = ev.attendance?.some(a =>
                                             a.is_convoked && (
-                                                (a.player_id && a.player_id === m.player_id) || 
+                                                (a.player_id && a.player_id === m.player_id) ||
                                                 (a.user_id && a.user_id === m.user_id)
                                             )
                                         );
@@ -1216,9 +1216,9 @@ export default function Team() {
                                             const rpe = attData?.rpe;
 
                                             // Check if irrelevant
-                                            const isConvoked = ev.attendance?.some(a => 
+                                            const isConvoked = ev.attendance?.some(a =>
                                                 a.is_convoked && (
-                                                    (a.player_id && a.player_id === m.player_id) || 
+                                                    (a.player_id && a.player_id === m.player_id) ||
                                                     (a.user_id && a.user_id === m.user_id)
                                                 )
                                             );
@@ -1272,10 +1272,10 @@ export default function Team() {
             ) : view === 'skills' ? (
                 /* Skills Dashboard - Show team dropdown or pick a player */
                 <div className="bg-white rounded-[24px] shadow-xl shadow-indigo-900/5 border border-gray-100 overflow-hidden p-6 text-center">
-                   <h2 className="text-xl font-bold mb-4">Suivi des compétences</h2>
-                   <p className="text-gray-500 mb-6">Pour évaluer un joueur, retournez dans l'onglet <strong>Effectif</strong> et cliquez sur "Notes" ou sur son nom pour ouvrir sa carte joueur, puis accédez à ses compétences.</p>
-                   {/* We can develop a team-wide view here later, but for now we follow the user request: "ajouté un menu 'Compétences' sur le profil d'un joueur" */}
-                   <button onClick={() => setView('members')} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold">Retour à l'effectif</button>
+                    <h2 className="text-xl font-bold mb-4">Suivi des compétences</h2>
+                    <p className="text-gray-500 mb-6">Pour évaluer un joueur, retournez dans l'onglet <strong>Effectif</strong> et cliquez sur "Notes" ou sur son nom pour ouvrir sa carte joueur, puis accédez à ses compétences.</p>
+                    {/* We can develop a team-wide view here later, but for now we follow the user request: "ajouté un menu 'Compétences' sur le profil d'un joueur" */}
+                    <button onClick={() => setView('members')} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold">Retour à l'effectif</button>
                 </div>
             ) : (
                 /* Original view logic fallback (should not happen with the dynamic tabs) */

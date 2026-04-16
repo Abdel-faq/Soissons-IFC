@@ -1100,7 +1100,8 @@ export default function Team() {
                                                 (a.user_id && a.user_id === m.user_id)
                                             );
 
-                                            if (ev.date?.includes('04-18') && fullName.toLowerCase().includes('noah')) {
+                                            const currentName = m.players?.full_name || m.profiles?.full_name || 'Membre';
+                                            if (ev.date?.includes('04-18') && currentName.toLowerCase().includes('noah')) {
                                                 console.log(`[DEBUG CELL] Noah Apr18: m.playerId=${m.player_id}, m.userId=${m.user_id}, attFound=${!!attData}, attIsConvoked=${attData?.is_convoked}`);
                                             }
 

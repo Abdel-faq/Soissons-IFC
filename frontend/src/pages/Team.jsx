@@ -283,10 +283,19 @@ export default function Team() {
             if (range) query += `&range=${range}`;
             else query += `&month=${monthToFetch}`;
 
+            // Cache Buster to prevent internal navigation gray-out 
+            query += `&_t=${Date.now()}`;
+
             const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/events?${query}`;
 
             const response = await fetch(apiUrl, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
+                cache: 'no-store'
             });
 
             if (!response.ok) throw new Error("Erreur lors de la récupération des événements");

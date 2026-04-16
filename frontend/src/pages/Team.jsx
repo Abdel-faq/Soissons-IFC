@@ -85,7 +85,9 @@ export default function Team() {
 
     useEffect(() => {
         if (view === 'attendance' || view === 'rpe') {
-            if (team && !loadedMonths.has(selectedMonth)) {
+            const hasEvents = historyEvents.some(ev => ev.date?.startsWith(selectedMonth));
+            if (team && (!loadedMonths.has(selectedMonth) || !hasEvents)) {
+                console.log(`[DEBUG] Team Attendance: Triggering fetch for ${selectedMonth} (View: ${view}, HasEvents: ${hasEvents})`);
                 fetchAttendanceHistory(team.id, selectedMonth);
             }
         }
@@ -292,7 +294,7 @@ export default function Team() {
             const eventsData = await response.json();
             const activeEvents = (eventsData || []).filter(e => !e.is_deleted);
 
-            console.log(`[DEBUG] Team Attendance: Received ${activeEvents.length} events (Range: ${range || monthToFetch})`);
+            console.log(`[DEBUG] Team Attendance Fetch: Month=${monthToFetch}, API returned=${activeEvents.length} events`);
 
             // Update states by INTELLIGENTLY MERGING with existing data
             setHistoryEvents(prev => {
@@ -357,6 +359,7 @@ export default function Team() {
                 if (attError) console.error("[DEBUG] Direct Attendance 400 Error:", attError);
 
                 if (directAtt && directAtt.length > 0) {
+                    console.log(`[DEBUG] Team Attendance Backup: Received ${directAtt.length} rows directly from DB (Truth)`);
                     // [SYNC] Attach direct attendance to historyEvents objects
                     setHistoryEvents(prev => {
                         return prev.map(ev => {
@@ -370,6 +373,8 @@ export default function Team() {
                             return ev;
                         });
                     });
+                } else {
+                    console.log(`[DEBUG] Team Attendance Backup: No rows returned from direct DB fetch (Check RLS)`);
                 }
             }
 

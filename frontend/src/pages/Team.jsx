@@ -1100,11 +1100,15 @@ export default function Team() {
                                                 (a.user_id && a.user_id === m.user_id)
                                             );
 
+                                            if (ev.date?.includes('04-18') && fullName.toLowerCase().includes('noah')) {
+                                                console.log(`[DEBUG CELL] Noah Apr18: m.playerId=${m.player_id}, m.userId=${m.user_id}, attFound=${!!attData}, attIsConvoked=${attData?.is_convoked}`);
+                                            }
+
                                             const status = attData?.status;
 
                                             // [STRICT CONVOCATION LOGIC]
                                             let isConvoked = true;
-                                            if (attData && attData.is_convoked !== undefined && attData.is_convoked !== null) {
+                                            if (attData && (attData.is_convoked === true || attData.is_convoked === false)) {
                                                 isConvoked = attData.is_convoked;
                                             } else if (ev.visibility_type === 'PRIVATE') {
                                                 isConvoked = false;

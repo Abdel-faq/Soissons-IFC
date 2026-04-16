@@ -359,10 +359,10 @@ export default function Team() {
                         return prev.map(ev => {
                             const atts = directAtt.filter(a => a.event_id === ev.id);
                             if (atts.length > 0) {
-                                // Merge attendance rows, avoiding duplicates using composite key
-                                const existingKeys = new Set((ev.attendance || []).map(a => `${a.event_id}-${a.player_id || a.user_id}`));
-                                const newAtts = atts.filter(a => !existingKeys.has(`${a.event_id}-${a.player_id || a.user_id}`));
-                                return { ...ev, attendance: [...(ev.attendance || []), ...newAtts] };
+                                // Intelligent Merge: Direct DB results (the truth) REPLACE any existing records
+                                const directKeys = new Set(atts.map(a => `${a.event_id}-${a.player_id || a.user_id}`));
+                                const rest = (ev.attendance || []).filter(a => !directKeys.has(`${a.event_id}-${a.player_id || a.user_id}`));
+                                return { ...ev, attendance: [...rest, ...atts] };
                             }
                             return ev;
                         });
@@ -1104,14 +1104,16 @@ export default function Team() {
 
                                             const isSajid = user?.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
                                             const isUserCoach = profile?.role === 'COACH' || profile?.role === 'ADMIN' || team?.coach_id === user?.id || isSajid;
-                                            const canModify = isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date());
+                                            // [STRICT RULE] Modification only possible if convoked AND (coach OR parent in future)
+                                            const canModify = isConvoked && (isUserCoach || (m.players?.parent_id === user?.id && new Date(ev.date) > new Date()));
 
                                             // [MODIFIED] Logic: Hide cell if NOT convoked AND NO status
                                             // Handle legacy database statuses
                                             const validStatuses = ['PRESENT', 'ABSENT', 'MALADE', 'BLESSE', 'RETARD'];
                                             const isEmptyStatus = !status || !validStatuses.includes(status);
 
-                                            const isNotConvoked = !isConvoked && isEmptyStatus && !isUserCoach;
+                                            const isNotConvoked = !isConvoked && isEmptyStatus;
+
 
                                             if (isNotConvoked) {
                                                 return <td key={ev.id} className="p-2 border-r bg-gray-200" title="Non convoqué"></td>;

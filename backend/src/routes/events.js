@@ -309,8 +309,18 @@ router.get('/', requireAuth, async (req, res) => {
 
     // 3. Fetch related data separately (Resilient to missing tables/columns)
     let allAttendance = [];
+    // [FIX RLS DYNAMIC] Authenticate backend supabase client using the user's JWT
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY;
+    const token = req.headers.authorization ? req.headers.authorization.split(' ')[1] : '';
+
+    const userSupabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    });
+
     try {
-      const { data: att, error: attErr } = await supabase
+      const { data: att, error: attErr } = await userSupabase
         .from('attendance')
         .select('*')
         .in('event_id', eventIds)
@@ -322,7 +332,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     let allRides = [];
     try {
-      const { data: rd } = await supabase
+      const { data: rd } = await userSupabase
         .from('rides')
         .select('id, event_id, driver_id, departure_location, departure_time, ride_passengers(id, player_id, passenger_id)')
         .in('event_id', eventIds)

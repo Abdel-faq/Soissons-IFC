@@ -361,7 +361,7 @@ router.get('/', requireAuth, async (req, res) => {
       const isTeamCoach = teamOwnerId && currentUserId && String(teamOwnerId) === String(currentUserId);
       const isPublic = ev.visibility_type === 'PUBLIC' || !ev.visibility_type;
 
-      // Allow ADMIN and COACH (any coach) to see events.
+      // Allow ADMIN, COACH (any coach), and specifically the OWNER of this team to see events.
       if (userRole === 'ADMIN' || userRole === 'COACH' || isTeamCoach || isPublic) return true;
 
       // Private Event: Check if USER or their CHILDREN are convoked

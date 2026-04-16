@@ -294,11 +294,14 @@ export default function Team() {
 
             console.log(`[DEBUG] Team Attendance: Received ${activeEvents.length} events (Range: ${range || monthToFetch})`);
 
-            // Update states by AGGREGATING with existing data
+            // Update states by INTELLIGENTLY MERGING with existing data
             setHistoryEvents(prev => {
-                const existingIds = new Set(prev.map(e => e.id));
-                const newOnes = activeEvents.filter(e => !existingIds.has(e.id));
-                return [...prev, ...newOnes].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const eventMap = new Map(prev.map(e => [e.id, e]));
+                activeEvents.forEach(ev => {
+                    // Replace or add event
+                    eventMap.set(ev.id, ev);
+                });
+                return Array.from(eventMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
             });
 
             // Aggregate matrix (Support both player_id and user_id for robustness)

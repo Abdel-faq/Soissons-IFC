@@ -320,24 +320,49 @@ router.get('/', requireAuth, async (req, res) => {
     });
 
     try {
-      const { data: att, error: attErr } = await userSupabase
-        .from('attendance')
-        .select('*')
-        .in('event_id', eventIds)
-        .limit(25000); // Increased limit as database has ~24k rows total
-      if (attErr) console.error("Supabase att fetch error:", attErr);
+      // PAGINATION: Supabase limits to 1000 rows by default. Must paginate for full season!
+      let start = 0;
+      let hasMore = true;
+      while (hasMore && eventIds.length > 0) {
+        const { data: attChunk, error: attErr } = await userSupabase
+          .from('attendance')
+          .select('*')
+          .in('event_id', eventIds)
+          .range(start, start + 999);
 
-      allAttendance = att || [];
+        if (attErr) {
+          console.error("Supabase att fetch error:", attErr);
+          hasMore = false;
+        } else if (attChunk && attChunk.length > 0) {
+          allAttendance.push(...attChunk);
+          start += 1000;
+          if (attChunk.length < 1000) hasMore = false;
+        } else {
+          hasMore = false;
+        }
+      }
     } catch (e) { console.error("Att fetch fail:", e); }
 
     let allRides = [];
     try {
-      const { data: rd } = await userSupabase
-        .from('rides')
-        .select('id, event_id, driver_id, departure_location, departure_time, ride_passengers(id, player_id, passenger_id)')
-        .in('event_id', eventIds)
-        .limit(5000); // FIX: Ensure we get all rows for the season
-      allRides = rd || [];
+      // PAGINATION FOR RIDES
+      let startRides = 0;
+      let hasMoreRides = true;
+      while (hasMoreRides && eventIds.length > 0) {
+        const { data: rdChunk } = await userSupabase
+          .from('rides')
+          .select('id, event_id, driver_id, departure_location, departure_time, ride_passengers(id, player_id, passenger_id)')
+          .in('event_id', eventIds)
+          .range(startRides, startRides + 999);
+
+        if (rdChunk && rdChunk.length > 0) {
+          allRides.push(...rdChunk);
+          startRides += 1000;
+          if (rdChunk.length < 1000) hasMoreRides = false;
+        } else {
+          hasMoreRides = false;
+        }
+      }
     } catch (e) { console.error("Rides fetch fail:", e); }
 
     // 4. Process & Filter

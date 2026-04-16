@@ -357,35 +357,7 @@ export default function Team() {
                 setLoadedMonths(prev => new Set([...prev, ...monthsInSeason, 'SEASON_LOADED']));
             }
 
-            // [NEW] Backup: Fetch attendance DIRECTLY from Supabase to ensure RLS doesn't block data for Coach
-            if (activeEvents.length > 0) {
-                const eventIds = activeEvents.map(e => e.id).filter(id => id); // Filter out any null/undefined IDs
-                const { data: directAtt, error: attError } = await supabase
-                    .from('attendance')
-                    .select('*') // Fetch all existing columns to avoid 400 error on missing ones
-                    .in('event_id', eventIds);
 
-                if (attError) console.error("[DEBUG] Direct Attendance 400 Error:", attError);
-
-                if (directAtt && directAtt.length > 0) {
-                    console.log(`[DEBUG] Team Attendance Backup: Received ${directAtt.length} rows directly from DB (Truth)`);
-                    // [SYNC] Attach direct attendance to historyEvents objects
-                    setHistoryEvents(prev => {
-                        return prev.map(ev => {
-                            const atts = directAtt.filter(a => a.event_id === ev.id);
-                            if (atts.length > 0) {
-                                // Intelligent Merge: Direct DB results (the truth) REPLACE any existing records
-                                const directKeys = new Set(atts.map(a => `${a.event_id}-${a.player_id || a.user_id}`));
-                                const rest = (ev.attendance || []).filter(a => !directKeys.has(`${a.event_id}-${a.player_id || a.user_id}`));
-                                return { ...ev, attendance: [...rest, ...atts] };
-                            }
-                            return ev;
-                        });
-                    });
-                } else {
-                    console.log(`[DEBUG] Team Attendance Backup: No rows returned from direct DB fetch (Check RLS)`);
-                }
-            }
 
         } catch (err) {
             console.error("Error fetching attendance history:", err);

@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Calendar, MapPin, Clock, Plus, Trash2, Edit2, Users, X, Bell } from 'lucide-react';
+import { cacheService } from '../lib/cache';
+import { Calendar, MapPin, Clock, Plus, Trash2, Edit2, Users, X, Bell, RefreshCw } from 'lucide-react';
 import EventCarpooling from '../components/EventCarpooling';
 
 export default function Events() {
@@ -38,9 +39,29 @@ export default function Events() {
         fetchEvents();
     }, []);
 
-    const fetchEvents = async (includeMaintenance = false) => {
+    const fetchEvents = async (includeMaintenance = false, force = false) => {
         try {
             setLoading(true);
+
+            if (!force && !includeMaintenance) {
+                const cached = cacheService.get('events_page_data');
+                if (cached) {
+                    console.log("[CACHE] Loading events data from cache");
+                    setUser(cached.user);
+                    setUserName(cached.userName);
+                    setChildren(cached.children);
+                    setTeam(cached.team);
+                    setIsCoach(cached.isCoach);
+                    setActivePlayer(cached.activePlayer);
+                    setEvents(cached.events);
+                    setMyAttendance(cached.myAttendance);
+                    setMemberAvailability(cached.memberAvailability);
+                    setConvocations(cached.convocations);
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
             if (user) {
@@ -161,6 +182,20 @@ export default function Events() {
                     setMyAttendance(attMap);
                     setMemberAvailability(availabilityMap);
                     setConvocations(convocationsMap);
+
+                    // Save to cache
+                    cacheService.set('events_page_data', {
+                        user,
+                        userName: prof?.full_name || '',
+                        children: filteredChildren,
+                        team: context.teamId,
+                        isCoach: context.role === 'COACH',
+                        activePlayer: context.playerId ? activePlayer : null,
+                        events: activeEvents,
+                        myAttendance: attMap,
+                        memberAvailability: availabilityMap,
+                        convocations: convocationsMap
+                    }, 15);
                 }
             }
         } catch (error) {
@@ -232,8 +267,10 @@ export default function Events() {
                     }
                 }
             }
+
+            cacheService.remove('events_page_data');
         } catch (err) {
-            fetchEvents();
+            fetchEvents(false, true); // Force refresh
             alert("Erreur : " + err.message);
         }
     };
@@ -556,7 +593,16 @@ export default function Events() {
         <div className="max-w-4xl mx-auto space-y-6 px-2 sm:px-4">
             <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
                 <div>
-                    <h1 className="text-xl font-bold flex items-center gap-2 text-indigo-900"><Calendar className="text-indigo-600" /> Vos Événements</h1>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h1 className="text-xl font-bold flex items-center gap-2 text-indigo-900"><Calendar className="text-indigo-600" /> Vos Événements</h1>
+                        <button
+                            onClick={() => { cacheService.remove('events_page_data'); fetchEvents(false, true); }}
+                            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                            title="Actualiser les données"
+                        >
+                            <RefreshCw size={15} className={`${loading ? 'animate-spin' : ''} text-indigo-500`} />
+                        </button>
+                    </div>
                     <p className="text-xs text-gray-500 font-medium">Gérez vos matches et entraînements</p>
                 </div>
                 {isCoach && (

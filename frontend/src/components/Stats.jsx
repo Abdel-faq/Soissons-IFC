@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { cacheService } from '../lib/cache';
 import { Users, CheckCircle, TrendingUp } from 'lucide-react';
 
 export default function Stats({ teamId }) {
@@ -8,15 +9,26 @@ export default function Stats({ teamId }) {
         attendanceRate: 0,
         topPlayer: null
     });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [showStats, setShowStats] = useState(false);
 
     useEffect(() => {
-        if (teamId) fetchStats();
-    }, [teamId]);
+        if (teamId && showStats) fetchStats();
+    }, [teamId, showStats]);
 
-    const fetchStats = async () => {
+    const fetchStats = async (force = false) => {
         try {
             setLoading(true);
+
+            if (!force) {
+                const cached = cacheService.get(`stats_${teamId}`);
+                if (cached) {
+                    console.log(`[CACHE] Loading stats for team ${teamId} from cache`);
+                    setStats(cached);
+                    setLoading(false);
+                    return;
+                }
+            }
 
             // 1. Total Players
             const { data: members } = await supabase
@@ -114,12 +126,15 @@ export default function Stats({ teamId }) {
                 }
             }
 
-            setStats({
+            const newStats = {
                 totalPlayers: playerCount,
                 attendanceRate,
                 topPlayer: topPlayerName,
                 flopPlayer: flopPlayerName
-            });
+            };
+
+            setStats(newStats);
+            cacheService.set(`stats_${teamId}`, newStats, 15); // Cache for 15 minutes
 
         } catch (error) {
             console.error("Stats error", error);
@@ -128,7 +143,25 @@ export default function Stats({ teamId }) {
         }
     };
 
-    if (loading) return <div className="p-4 bg-white rounded shadow-sm animate-pulse h-24"></div>;
+    if (!showStats) {
+        return (
+            <div className="bg-white rounded-[24px] shadow-sm border border-indigo-50 p-6 mb-6 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-4">
+                    <TrendingUp size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Statistiques de l'équipe</h3>
+                <p className="text-sm text-gray-500 mb-6">Affichez les statistiques d'assiduité et les données de présence (téléchargement depuis l'historique complet).</p>
+                <button
+                    onClick={() => setShowStats(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-md shadow-indigo-600/20"
+                >
+                    Afficher les données
+                </button>
+            </div>
+        );
+    }
+
+    if (loading) return <div className="p-4 bg-white rounded shadow-sm animate-pulse h-24 mb-6"></div>;
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

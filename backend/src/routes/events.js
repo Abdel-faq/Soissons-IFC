@@ -275,8 +275,12 @@ router.get('/', requireAuth, async (req, res) => {
       query = query
         .gte('date', seasonStart.toISOString())
         .lte('date', seasonEnd.toISOString());
-    }
-    else {
+    } else if (range === 'week') {
+      // Fetch from Monday to Sunday of the current week
+      query = query
+        .gte('date', monday.toISOString())
+        .lte('date', sunday.toISOString());
+    } else {
       // DEFAULT: Events View (History + Future) - modified to start from today
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);

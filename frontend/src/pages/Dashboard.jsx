@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { cacheService } from '../lib/cache';
 import Stats from '../components/Stats';
-import { Plus, X, Users, Edit2, Trash2, Image, Send, Layout, ChevronLeft, ChevronRight, MessageSquare, Info } from 'lucide-react';
+import { Plus, X, Users, Edit2, Trash2, Image, Send, Layout, ChevronLeft, ChevronRight, MessageSquare, Info, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
     const [newTeamName, setNewTeamName] = useState('');
@@ -49,34 +50,51 @@ export default function Dashboard() {
         fetchDashboardData();
     }, []);
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = async (force = false) => {
         try {
+            if (!force) {
+                const cached = cacheService.get('dashboard_data');
+                if (cached) {
+                    console.log("[CACHE] Loading dashboard data from cache");
+                    setUser(cached.user);
+                    setProfile(cached.profile);
+                    setIsCoach(cached.isCoach);
+                    setChildren(cached.children);
+                    setTeams(cached.teams);
+                    setTeam(cached.team);
+                    setNextEvent(cached.nextEvent);
+                    setUnreadCount(cached.unreadCount);
+                    setAdminTeams(cached.adminTeams);
+                    setPosts(cached.posts);
+                    setLoading(false);
+                    return;
+                }
+            }
+
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
 
             if (user) {
-                // Fetch Profile and Role
-                const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+                // Fetch Profile and Role - Optimize Select
+                const { data: profileData } = await supabase.from('profiles').select('id, full_name, role, avatar_url').eq('id', user.id).maybeSingle();
                 setProfile(profileData);
 
                 const userRole = profileData?.role || 'PLAYER';
                 setIsCoach(userRole === 'COACH');
 
-                // Fetch Children (Players managed by this account)
-                const { data: childrenData } = await supabase.from('players').select('*').eq('parent_id', user.id);
+                // Fetch Children - Optimize Select
+                const { data: childrenData } = await supabase.from('players').select('id, first_name, last_name, full_name, position, parent_id').eq('parent_id', user.id);
                 setChildren(childrenData || []);
 
                 // Fetch Team(s) for all children (and self if coach)
-                let allMyTeams = [];
-
                 // 1. Fetch teams where I am the coach
-                const { data: ownedTeams } = await supabase.from('teams').select('*').eq('coach_id', user.id);
+                const { data: ownedTeams } = await supabase.from('teams').select('id, name, category, invite_code, coach_id').eq('coach_id', user.id);
 
-                // 2. Fetch teams where I am a member (can be as a coach or through children)
+                // 2. Fetch teams where I am a member
                 const { data: userMemberships } = await supabase
                     .from('team_members')
-                    .select('team_id, teams(*)')
+                    .select('team_id, teams(id, name, category, invite_code, coach_id)')
                     .eq('user_id', user.id);
 
                 const membershipTeams = (userMemberships || []).map(m => m.teams).filter(Boolean);
@@ -87,19 +105,16 @@ export default function Dashboard() {
                     const childIds = childrenData.map(c => c.id);
                     const { data: mData } = await supabase
                         .from('team_members')
-                        .select('team_id, player_id, teams(*)')
+                        .select('team_id, player_id, teams(id, name, category, invite_code, coach_id)')
                         .in('player_id', childIds);
                     childrenMemberships = mData || [];
                 }
 
                 // 4. Build Contexts
                 const availableContexts = [];
-
-                // Combine owned teams and membership teams (avoiding duplicates)
                 const teamMap = new Map();
                 (ownedTeams || []).forEach(t => teamMap.set(t.id, { ...t, role: 'COACH' }));
 
-                // If I'm a member and my profile role is COACH, I'm a coach in that team too
                 if (userRole === 'COACH') {
                     membershipTeams.forEach(t => {
                         if (!teamMap.has(t.id)) {
@@ -108,7 +123,6 @@ export default function Dashboard() {
                     });
                 }
 
-                // Convert map to contexts
                 teamMap.forEach(t => {
                     availableContexts.push({
                         id: `coach-${t.id}`,
@@ -121,7 +135,6 @@ export default function Dashboard() {
                     });
                 });
 
-                // Player Contexts (Children)
                 if (childrenData) {
                     childrenData.forEach(child => {
                         const childMembershipsList = childrenMemberships.filter(m => m.player_id === child.id);
@@ -142,7 +155,6 @@ export default function Dashboard() {
                                 }
                             });
                         } else {
-                            // Child with no team context
                             availableContexts.push({
                                 id: `player-${child.id}-none`,
                                 teamId: null,
@@ -172,26 +184,30 @@ export default function Dashboard() {
                     activeContext = availableContexts[0];
                 }
 
+                let currentNextEvent = null;
+                let currentUnreadCount = 0;
+                let currentPosts = [];
+                let currentAdminTeams = [];
+
                 if (activeContext) {
                     localStorage.setItem('sb-active-context', JSON.stringify(activeContext));
                     if (activeContext.teamId) localStorage.setItem('active_team_id', activeContext.teamId);
                     setTeam(activeContext);
                     setIsCoach(activeContext.role === 'COACH');
 
-                    // Fetch Next Event if has team
                     if (activeContext.teamId) {
                         const { data: event } = await supabase
                             .from('events')
-                            .select('*')
+                            .select('id, type, date, location, team_id')
                             .eq('team_id', activeContext.teamId)
                             .eq('is_deleted', false)
                             .gte('date', new Date().toISOString())
                             .order('date', { ascending: true })
                             .limit(1)
                             .maybeSingle();
+                        currentNextEvent = event;
                         setNextEvent(event);
 
-                        // Fetch Unread Count
                         try {
                             const { data: session } = await supabase.auth.getSession();
                             const apiUrl = import.meta.env.VITE_API_URL || '';
@@ -199,31 +215,49 @@ export default function Dashboard() {
                                 headers: { 'Authorization': `Bearer ${session.session?.access_token}` }
                             });
                             const counts = await res.json();
-                            setUnreadCount(counts.total || 0);
+                            currentUnreadCount = counts.total || 0;
+                            setUnreadCount(currentUnreadCount);
                         } catch (e) {
                             console.error("Error fetching unread count", e);
                         }
-                    } else {
-                        setNextEvent(null);
-                        setUnreadCount(0);
+
+                        // Fetch Posts
+                        const { data: session } = await supabase.auth.getSession();
+                        const apiUrl = import.meta.env.VITE_API_URL || '';
+                        const resPosts = await fetch(`${apiUrl}/api/posts/${activeContext.teamId}`, {
+                            headers: { 'Authorization': `Bearer ${session.session?.access_token}` }
+                        });
+                        currentPosts = await resPosts.json() || [];
+                        setPosts(currentPosts);
+
+                        if (activeContext.role === 'COACH') {
+                            fetchTeamMembers(activeContext.teamId);
+                        }
                     }
                 }
 
                 if (userRole === 'ADMIN') {
                     const { data: allTeamsData } = await supabase
                         .from('teams')
-                        .select('*, coach:coach_id(full_name)')
+                        .select('id, name, invite_code, coach_id, coach:coach_id(full_name)')
                         .order('name');
-                    setAdminTeams(allTeamsData || []);
+                    currentAdminTeams = allTeamsData || [];
+                    setAdminTeams(currentAdminTeams);
                 }
 
-                // Fetch Posts if team is active
-                if (activeContext?.teamId) {
-                    fetchPosts(activeContext.teamId);
-                    if (activeContext.role === 'COACH') {
-                        fetchTeamMembers(activeContext.teamId);
-                    }
-                }
+                // Save to Cache
+                cacheService.set('dashboard_data', {
+                    user,
+                    profile: profileData,
+                    isCoach: activeContext?.role === 'COACH' || userRole === 'COACH',
+                    children: childrenData,
+                    teams: availableContexts,
+                    team: activeContext,
+                    nextEvent: currentNextEvent,
+                    unreadCount: currentUnreadCount,
+                    adminTeams: currentAdminTeams,
+                    posts: currentPosts
+                }, 15); // Cache for 15 minutes
             }
         } catch (error) {
             console.error("Dashboard error:", error);
@@ -242,6 +276,13 @@ export default function Dashboard() {
             });
             const data = await res.json();
             setPosts(data || []);
+            
+            // Update cache with new posts
+            const cached = cacheService.get('dashboard_data');
+            if (cached) {
+                cached.posts = data || [];
+                cacheService.set('dashboard_data', cached, 15);
+            }
         } catch (e) {
             console.error("Error fetching posts", e);
         } finally {
@@ -269,13 +310,14 @@ export default function Dashboard() {
         try {
             const { data, error } = await supabase.from('players').insert([
                 { ...newChild, parent_id: user.id }
-            ]).select().single();
+            ]).select('id, first_name, last_name, full_name, position, parent_id').single();
 
             if (error) throw error;
 
             setChildren([...children, data]);
             setNewChild({ first_name: '', last_name: '', position: 'Attaquant' });
             setShowChildForm(false);
+            cacheService.remove('dashboard_data'); // Invalidate cache
             alert("Enfant ajouté !");
         } catch (err) {
             alert("Erreur: " + err.message);
@@ -287,6 +329,7 @@ export default function Dashboard() {
         if (selected) {
             localStorage.setItem('sb-active-context', JSON.stringify(selected));
             if (selected.teamId) localStorage.setItem('active_team_id', selected.teamId);
+            cacheService.remove('dashboard_data'); // Force refresh on next load
             window.location.reload();
         }
     };
@@ -304,12 +347,14 @@ export default function Dashboard() {
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             const { data, error } = await supabase.from('teams').insert([
                 { name: newTeamName, coach_id: user.id, invite_code: code }
-            ]).select().single();
+            ]).select('id, name, coach_id, invite_code').single();
 
             if (error) throw error;
 
+            cacheService.remove('dashboard_data'); // Invalidate
             alert("Équipe créée !");
             setTeam(data);
+            fetchDashboardData(true); // Re-fetch
         } catch (err) {
             alert("Erreur création équipe: " + err.message);
         } finally {
@@ -423,16 +468,25 @@ export default function Dashboard() {
     return (
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="w-full">
-                    <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight flex flex-wrap items-center gap-2">
-                        <span>Bonjour {team?.playerName || profile?.full_name || user?.email?.split('@')[0]},</span>
-                        <span className="text-[10px] font-black px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">
-                            {team?.role || profile?.role || 'Joueur'}
-                        </span>
-                    </h1>
-                    <p className="text-gray-500 font-bold mt-1">
-                        {team?.teamName ? `Equipe : ${team.teamName}` : 'SOISSONS IFC'}
-                    </p>
+                <div className="w-full flex justify-between items-center">
+                    <div>
+                        <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight flex flex-wrap items-center gap-2">
+                            <span>Bonjour {team?.playerName || profile?.full_name || user?.email?.split('@')[0]},</span>
+                            <span className="text-[10px] font-black px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">
+                                {team?.role || profile?.role || 'Joueur'}
+                            </span>
+                            <button 
+                                onClick={() => fetchDashboardData(true)} 
+                                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                                title="Actualiser les données"
+                            >
+                                <RefreshCw size={16} className={`${loading ? 'animate-spin' : ''} text-indigo-600`} />
+                            </button>
+                        </h1>
+                        <p className="text-gray-500 font-bold mt-1">
+                            {team?.teamName ? `Equipe : ${team.teamName}` : 'SOISSONS IFC'}
+                        </p>
+                    </div>
                 </div>
 
                 {!isAdmin && (

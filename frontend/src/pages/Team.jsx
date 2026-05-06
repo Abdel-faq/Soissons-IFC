@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Users, Copy, UserPlus, AlertCircle, Share, Calendar, Sparkles, Brain } from 'lucide-react';
+import { cacheService } from '../lib/cache';
+import { Users, Copy, UserPlus, AlertCircle, Share, Calendar, Sparkles, Brain, RefreshCw } from 'lucide-react';
 import PlayerCard from '../components/PlayerCard';
 import SkillsMenu from '../components/Skills/SkillsMenu';
 
@@ -14,6 +15,7 @@ export default function Team() {
 
     const [profile, setProfile] = useState(null);
     const [view, setView] = useState('members'); // 'members' or 'attendance'
+    const [attendanceMode, setAttendanceMode] = useState('week'); // 'week' or 'history'
     const [historyEvents, setHistoryEvents] = useState([]);
     const [attendanceMatrix, setAttendanceMatrix] = useState({}); // { user_id: { event_id: status } }
     const [loadedMonths, setLoadedMonths] = useState(new Set()); // Months already fetched
@@ -85,25 +87,73 @@ export default function Team() {
 
     useEffect(() => {
         if (view === 'attendance' || view === 'rpe') {
-            const hasEvents = historyEvents.some(ev => ev.date?.startsWith(selectedMonth));
-            if (team && (!loadedMonths.has(selectedMonth) || !hasEvents)) {
-                console.log(`[DEBUG] Team Attendance: Triggering fetch for ${selectedMonth} (View: ${view}, HasEvents: ${hasEvents})`);
-                fetchAttendanceHistory(team.id, selectedMonth);
+            if (attendanceMode === 'week') {
+                if (team) fetchAttendanceHistory(team.id, null, 'week');
+            } else {
+                const hasEvents = historyEvents.some(ev => ev.date?.startsWith(selectedMonth));
+                if (team && (!loadedMonths.has(selectedMonth) || !hasEvents)) {
+                    console.log(`[DEBUG] Team Attendance: Triggering fetch for ${selectedMonth} (View: ${view}, HasEvents: ${hasEvents})`);
+                    fetchAttendanceHistory(team.id, selectedMonth);
+                }
             }
         }
-    }, [view, selectedMonth, team?.id]);
+    }, [view, selectedMonth, attendanceMode, team?.id]);
 
-    const fetchData = async () => {
+    const getVisibleEvents = () => {
+        if (attendanceMode === 'week') {
+            const now = new Date();
+            const day = now.getDay(); // 0 (Sun) to 6 (Sat)
+            const monday = new Date(now);
+            const diffToMonday = (day === 0 ? -6 : 1) - day;
+            monday.setDate(now.getDate() + diffToMonday);
+            monday.setHours(0, 0, 0, 0);
+
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            
+            const isSaturdayAfter10 = (day === 6 && now.getHours() >= 10);
+            const isSunday = (day === 0);
+            if (isSaturdayAfter10 || isSunday) {
+                sunday.setDate(sunday.getDate() + 7);
+            }
+            sunday.setHours(23, 59, 59, 999);
+
+            return historyEvents.filter(ev => {
+                const d = new Date(ev.date);
+                return d >= monday && d <= sunday;
+            });
+        }
+        return historyEvents.filter(ev => ev.date?.startsWith(selectedMonth));
+    };
+
+    const fetchData = async (force = false) => {
         try {
             setLoading(true);
+
+            // Check cache first
+            if (!force) {
+                const cached = cacheService.get('team_page_data');
+                if (cached) {
+                    console.log("[CACHE] Loading team page data from cache");
+                    setUser(cached.user);
+                    setProfile(cached.profile);
+                    setIsCoach(cached.isCoach);
+                    setTeam(cached.team);
+                    setTeams(cached.teams);
+                    setMembers(cached.members);
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (!currentUser) throw new Error("No user found");
             setUser(currentUser);
 
-            // Fetch Profile
+            // Fetch Profile — colonnes optimisées
             const { data: profileData } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id, full_name, role, avatar_url')
                 .eq('id', currentUser.id)
                 .maybeSingle();
             setProfile(profileData);
@@ -119,13 +169,11 @@ export default function Team() {
 
             let activeRole = context?.role || 'PLAYER';
 
-            // [FIX] Highly Robust Coach Check: Context Role OR Profile Role OR Admin Role
-            // [FORCE FIX] Sajid is ALWAYS a coach
             const isSajid = currentUser.email?.toLowerCase().trim() === 'sajid.wadi@hotmail.com';
             let hasCoachRights = activeRole === 'COACH' || profileData?.role === 'COACH' || profileData?.role === 'ADMIN' || isSajid;
             setIsCoach(hasCoachRights);
 
-            // 1. Fetch data to see ownership
+            // Check ownership
             const { data: ownedTeamsCheck } = await supabase
                 .from('teams')
                 .select('id')
@@ -134,22 +182,24 @@ export default function Team() {
             if (ownedTeamsCheck && ownedTeamsCheck.length > 0) hasCoachRights = true;
             setIsCoach(hasCoachRights);
 
-            // 1. Fetch ALL teams where user has coach rights (owner OR member coach)
+            let finalTeams = [];
+            let finalTeam = null;
+            let finalIsCoach = hasCoachRights;
+
             if (hasCoachRights) {
-                // Fetch membership teams
+                // Fetch membership teams — colonnes optimisées
                 const { data: userMemberships } = await supabase
                     .from('team_members')
-                    .select('team_id, teams(*)')
+                    .select('team_id, teams(id, name, category, invite_code, coach_id, is_chat_locked)')
                     .eq('user_id', currentUser.id);
 
                 const membershipTeams = (userMemberships || []).map(m => m.teams).filter(Boolean);
 
-                // Merge and unique
                 const teamMap = new Map();
-                // Fetch full data for owned teams now that we know we have coach rights
+                // Fetch owned teams — colonnes optimisées
                 const { data: fullOwnedTeams } = await supabase
                     .from('teams')
-                    .select('*')
+                    .select('id, name, category, invite_code, coach_id, is_chat_locked')
                     .eq('coach_id', currentUser.id);
 
                 (fullOwnedTeams || []).forEach(t => teamMap.set(t.id, t));
@@ -157,67 +207,78 @@ export default function Team() {
                     if (!teamMap.has(t.id)) teamMap.set(t.id, t);
                 });
 
-                const allCoachTeams = Array.from(teamMap.values());
-                setTeams(allCoachTeams);
+                finalTeams = Array.from(teamMap.values());
+                setTeams(finalTeams);
 
-                // Use context team if present, else first team
-                // Use context team if present, else first team
-                const targetTeamId = context?.teamId || allCoachTeams?.[0]?.id;
-                const current = allCoachTeams.find(t => t.id === targetTeamId);
+                const targetTeamId = context?.teamId || finalTeams?.[0]?.id;
+                const current = finalTeams.find(t => t.id === targetTeamId);
                 if (current) {
+                    finalTeam = current;
                     setTeam(current);
-                    fetchMembers(current.id);
 
-                    // Final check: if user is logged in as a coach but context says player
-                    // or if they are the coach of THIS team, force isCoach true.
                     if (profileData?.role === 'COACH' || profileData?.role === 'ADMIN' || current.coach_id === currentUser.id) {
+                        finalIsCoach = true;
                         setIsCoach(true);
                     }
                 }
             } else {
-                // 2. PLAYER case (or No Rights yet)
-                // If we have a context team, load it
                 const targetTeamId = context?.teamId;
                 if (targetTeamId) {
                     const { data: teamData } = await supabase
                         .from('teams')
-                        .select('*')
+                        .select('id, name, category, invite_code, coach_id, is_chat_locked')
                         .eq('id', targetTeamId)
                         .single();
                     if (teamData) {
+                        finalTeam = teamData;
+                        finalTeams = [teamData];
                         setTeam(teamData);
                         setTeams([teamData]);
 
-                        // Re-verify coach status for this specific team (Ownership check)
                         if (teamData.coach_id === currentUser.id) {
+                            finalIsCoach = true;
                             setIsCoach(true);
                         }
-
-                        fetchMembers(teamData.id);
                     }
                 } else {
-                    // Fallback: If no context, try to find any team for this player
                     const { data: userMemberships } = await supabase
                         .from('team_members')
-                        .select('team_id, teams(*)')
+                        .select('team_id, teams(id, name, category, invite_code, coach_id, is_chat_locked)')
                         .eq('user_id', currentUser.id);
 
                     if (userMemberships && userMemberships.length > 0) {
                         const firstTeam = userMemberships[0].teams;
                         if (firstTeam) {
+                            finalTeam = firstTeam;
+                            finalTeams = [firstTeam];
                             setTeam(firstTeam);
                             setTeams([firstTeam]);
 
-                            // [FIX] Crucial: Set coach status in fallback case too!
                             if (profileData?.role === 'COACH' || profileData?.role === 'ADMIN' || firstTeam.coach_id === currentUser.id) {
+                                finalIsCoach = true;
                                 setIsCoach(true);
                             }
-
-                            fetchMembers(firstTeam.id);
                         }
                     }
                 }
             }
+
+            // Fetch members for the active team
+            let finalMembers = [];
+            if (finalTeam?.id) {
+                finalMembers = await fetchMembersForCache(finalTeam.id);
+            }
+
+            // Save to cache
+            cacheService.set('team_page_data', {
+                user: currentUser,
+                profile: profileData,
+                isCoach: finalIsCoach,
+                team: finalTeam,
+                teams: finalTeams,
+                members: finalMembers
+            }, 15);
+
         } catch (err) {
             console.error("TeamPage: Error", err);
             setError(err.message);
@@ -226,9 +287,9 @@ export default function Team() {
         }
     };
 
-    const fetchMembers = async (teamId) => {
+    // Internal: fetch members and return them (for caching)
+    const fetchMembersForCache = async (teamId) => {
         try {
-            // Tentative de récupération complète (avec stats FIFA)
             const { data: teamMembers, error } = await supabase
                 .from('team_members')
                 .select(`
@@ -240,7 +301,6 @@ export default function Team() {
                 .eq('team_id', teamId);
 
             if (error) {
-                // Si erreur 400 (colonnes manquantes), on tente un fallback sans les stats
                 if (error.code === '42703' || error.status === 400) {
                     console.warn("⚠️ FIFA stats columns missing. Falling back to basic query.");
                     const { data: basicMembers, error: basicError } = await supabase
@@ -256,19 +316,23 @@ export default function Team() {
                     if (basicError) throw basicError;
                     setMembers(basicMembers || []);
                     setError("⚠️ Base de données non à jour : Les statistiques FIFA ne sont pas disponibles. Exécutez le script SQL de migration.");
-                    return;
+                    return basicMembers || [];
                 }
                 throw error;
             }
             setMembers(teamMembers || []);
-            setError(null); // Clear previous errors if successful
+            setError(null);
+            if (teamId) fetchAttendanceHistory(teamId, null, 'week'); // Par défaut on charge la semaine
+            return teamMembers || [];
         } catch (err) {
             console.error("Failed to fetch members:", err.message);
             setError("Erreur de chargement des membres : " + err.message);
+            return [];
         }
-        if (teamId) {
-            fetchAttendanceHistory(teamId, null, 'season');
-        }
+    };
+
+    const fetchMembers = async (teamId) => {
+        await fetchMembersForCache(teamId);
     };
 
     const fetchAttendanceHistory = async (teamId, targetMonth = null, range = null) => {
@@ -739,8 +803,14 @@ export default function Team() {
             <div className="bg-white p-6 rounded shadow-sm border flex justify-between items-start">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-
                         <h1 className="text-2xl font-bold leading-none">{team.name}</h1>
+                        <button
+                            onClick={() => { cacheService.remove('team_page_data'); fetchData(true); }}
+                            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                            title="Actualiser les données"
+                        >
+                            <RefreshCw size={15} className={`${loading ? 'animate-spin' : ''} text-indigo-500`} />
+                        </button>
                     </div>
                     {isCoach && (
                         <p className="text-gray-500 text-sm">Code d'invitation: <span className="font-mono bg-gray-100 px-2 py-1 rounded select-all">{team.invite_code}</span></p>
@@ -803,53 +873,74 @@ export default function Team() {
                 ))}
             </div>
 
-            {/* Month Selector for Stats Views */}
+            {/* Controls for Stats Views */}
             {(view === 'attendance' || view === 'rpe') && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-indigo-50 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-md">
-                            <Calendar size={18} />
+                <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-indigo-50 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+                    
+                    {/* Coach Toggles */}
+                    {isCoach && (
+                        <div className="flex items-center gap-2 border-b border-gray-100 pb-4">
+                            <button
+                                onClick={() => setAttendanceMode('week')}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${attendanceMode === 'week' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            >
+                                Saisir la semaine en cours
+                            </button>
+                            <button
+                                onClick={() => setAttendanceMode('history')}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${attendanceMode === 'history' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            >
+                                Afficher l'historique (par mois)
+                            </button>
                         </div>
-                        <div>
-                            <h3 className="font-black text-gray-800 uppercase text-xs tracking-wider">Période d'affichage</h3>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Filtrer par mois</p>
+                    )}
+
+                    {/* Month Selector (Only visible in history mode) */}
+                    {attendanceMode === 'history' && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-md">
+                                    <Calendar size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-gray-800 uppercase text-xs tracking-wider">Période d'affichage</h3>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Filtrer par mois</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                {(() => {
+                                    const nowStr = new Date().toISOString().substring(0, 7);
+                                    const monthSet = new Set();
+
+                                    historyEvents.forEach(ev => {
+                                        if (ev.date) monthSet.add(ev.date.substring(0, 7));
+                                    });
+                                    monthSet.add(nowStr);
+
+                                    return Array.from(monthSet).sort().reverse().map(m => {
+                                        const [year, month] = m.split('-');
+                                        const date = new Date(year, month - 1);
+                                        const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                                        const isActive = selectedMonth === m;
+
+                                        return (
+                                            <button
+                                                key={m}
+                                                onClick={() => setSelectedMonth(m)}
+                                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 whitespace-nowrap uppercase tracking-tighter ${isActive
+                                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg scale-105'
+                                                    : 'bg-white border-gray-100 text-gray-500 hover:border-indigo-200 hover:text-indigo-600'
+                                                    }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    });
+                                })()}
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                        {(() => {
-                            const nowStr = new Date().toISOString().substring(0, 7);
-                            const monthSet = new Set();
-
-                            // On n'affiche que les mois qui ont RÉELLEMENT des événements chargés
-                            historyEvents.forEach(ev => {
-                                if (ev.date) monthSet.add(ev.date.substring(0, 7));
-                            });
-
-                            // On s'assure que le mois en cours est toujours présent
-                            monthSet.add(nowStr);
-
-                            return Array.from(monthSet).sort().reverse().map(m => {
-                                const [year, month] = m.split('-');
-                                const date = new Date(year, month - 1);
-                                const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-                                const isActive = selectedMonth === m;
-
-                                return (
-                                    <button
-                                        key={m}
-                                        onClick={() => setSelectedMonth(m)}
-                                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 whitespace-nowrap uppercase tracking-tighter ${isActive
-                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg scale-105'
-                                            : 'bg-white border-gray-100 text-gray-500 hover:border-indigo-200 hover:text-indigo-600'
-                                            }`}
-                                    >
-                                        {label}
-                                    </button>
-                                );
-                            });
-                        })()}
-                    </div>
+                    )}
                 </div>
             )}
 
@@ -1032,7 +1123,7 @@ export default function Team() {
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
                             <tr>
                                 <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
-                                {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => (
+                                {getVisibleEvents().map(ev => (
                                     <th
                                         key={ev.id}
                                         onClick={() => isCoach && setSelectedEvent(ev)}
@@ -1043,7 +1134,9 @@ export default function Team() {
                                         <div className="text-[8px] opacity-70">{ev.type === 'MATCH' ? 'Match' : 'Entr.'}</div>
                                     </th>
                                 ))}
-                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">Total Saison</th>
+                                <th className="p-4 text-center bg-indigo-50 text-indigo-700">
+                                    {attendanceMode === 'week' ? "Total Semaine" : "Total Saison"}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1074,7 +1167,7 @@ export default function Team() {
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
-                                        {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
+                                        {getVisibleEvents().map(ev => {
                                             // [DIRECT LOOKUP] Search in ev.attendance list directly
                                             const attData = ev.attendance?.find(a =>
                                                 (a.player_id && a.player_id === m.player_id) ||
@@ -1169,7 +1262,7 @@ export default function Team() {
                         <thead className="bg-gray-50 uppercase font-black text-gray-500 border-b">
                             <tr>
                                 <th className="p-4 bg-white sticky left-0 z-10 border-r">Joueur</th>
-                                {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => (
+                                {getVisibleEvents().map(ev => (
                                     <th
                                         key={ev.id}
                                         className="p-2 min-w-[60px] text-center border-r"
@@ -1207,7 +1300,7 @@ export default function Team() {
                                 return (
                                     <tr key={m.player_id || m.user_id} className="border-b hover:bg-gray-50">
                                         <td className="p-4 font-bold bg-white sticky left-0 z-10 border-r">{m.players?.full_name || m.profiles?.full_name || 'Membre'}</td>
-                                        {historyEvents.filter(ev => ev.date?.startsWith(selectedMonth)).map(ev => {
+                                        {getVisibleEvents().map(ev => {
                                             const attData = playerAtt[ev.id];
                                             const rpe = attData?.rpe;
 

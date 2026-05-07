@@ -130,6 +130,16 @@ export default function Team() {
         try {
             setLoading(true);
 
+            // Read Context first to get teamId
+            const savedCtx = localStorage.getItem('sb-active-context');
+            let context = null;
+            if (savedCtx) {
+                try {
+                    context = JSON.parse(savedCtx);
+                } catch (e) { console.error("Stale context", e); }
+            }
+            const teamId = context?.teamId;
+
             // Check cache first
             if (!force) {
                 const cached = cacheService.get(`team_page_${teamId || 'default'}`);
@@ -150,6 +160,8 @@ export default function Team() {
                 }
             }
 
+            // Profile and context are already used above if from cache
+            // But if not from cache, we continue
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (!currentUser) throw new Error("No user found");
             setUser(currentUser);
@@ -161,15 +173,6 @@ export default function Team() {
                 .eq('id', currentUser.id)
                 .maybeSingle();
             setProfile(profileData);
-
-            // Read Context
-            const savedCtx = localStorage.getItem('sb-active-context');
-            let context = null;
-            if (savedCtx) {
-                try {
-                    context = JSON.parse(savedCtx);
-                } catch (e) { console.error("Stale context", e); }
-            }
 
             let activeRole = context?.role || 'PLAYER';
 

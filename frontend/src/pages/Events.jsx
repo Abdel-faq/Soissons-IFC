@@ -64,8 +64,10 @@ export default function Events() {
 
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
+            let profileData = null;
             if (user) {
                 const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+                profileData = prof;
                 if (prof?.full_name) setUserName(prof.full_name);
             }
 
@@ -186,7 +188,7 @@ export default function Events() {
                     // Save to cache
                     cacheService.set('events_page_data', {
                         user,
-                        userName: prof?.full_name || '',
+                        userName: profileData?.full_name || '',
                         children: filteredChildren,
                         team: context.teamId,
                         isCoach: context.role === 'COACH',

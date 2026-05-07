@@ -89,13 +89,16 @@ export default function Dashboard() {
 
                 // Fetch Team(s) for all children (and self if coach)
                 // 1. Fetch teams where I am the coach
-                const { data: ownedTeams } = await supabase.from('teams').select('id, name, category, invite_code, coach_id').eq('coach_id', user.id);
+                const { data: ownedTeams, error: ownedError } = await supabase.from('teams').select('id, name, category, invite_code, coach_id').eq('coach_id', user.id);
+                if (ownedError) console.error("Owned teams error:", ownedError);
+                console.log(`[DEBUG] Dashboard: Found ${ownedTeams?.length || 0} owned teams for UID ${user.id}`);
 
-                // 2. Fetch teams where I am a member
-                const { data: userMemberships } = await supabase
+                const { data: userMemberships, error: memberError } = await supabase
                     .from('team_members')
                     .select('team_id, teams(id, name, category, invite_code, coach_id)')
                     .eq('user_id', user.id);
+                if (memberError) console.error("Membership error:", memberError);
+                console.log(`[DEBUG] Dashboard: Found ${userMemberships?.length || 0} memberships for UID ${user.id}`);
 
                 const membershipTeams = (userMemberships || []).map(m => m.teams).filter(Boolean);
 
@@ -137,6 +140,8 @@ export default function Dashboard() {
                         label: `👨‍🏫 Coach - ${t.name} (${t.category || ''})`
                     });
                 });
+
+                console.log(`[DEBUG] Dashboard: Built ${availableContexts.length} total contexts`);
 
                 if (childrenData) {
                     childrenData.forEach(child => {
@@ -252,7 +257,7 @@ export default function Dashboard() {
                 cacheService.set('dashboard_data', {
                     user,
                     profile: profileData,
-                    isCoach: activeContext?.role === 'COACH' || userRole === 'COACH',
+                    isCoach: (availableContexts.length > 0 ? (activeContext?.role === 'COACH') : (userRole === 'COACH')),
                     children: childrenData,
                     teams: availableContexts,
                     team: activeContext,

@@ -52,7 +52,10 @@ export default function Dashboard() {
 
     const fetchDashboardData = async (force = false) => {
         try {
-            if (!force) {
+            if (force) {
+                cacheService.remove('dashboard_data');
+                console.log("[DEBUG] Cache cleared by force refresh");
+            } else {
                 const cached = cacheService.get('dashboard_data');
                 if (cached) {
                     console.log("[CACHE] Loading dashboard data from cache");
@@ -267,8 +270,9 @@ export default function Dashboard() {
                     posts: currentPosts
                 }, 15); // Cache for 15 minutes
             }
-        } catch (error) {
-            console.error("Dashboard error:", error);
+        } catch (err) {
+            console.error("Dashboard: Global Error", err);
+            alert("Erreur Dashboard: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -649,7 +653,6 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* Mes Enfants Section */}
             {/* View: Infos Equipe (Feed) */}
             {team && (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">

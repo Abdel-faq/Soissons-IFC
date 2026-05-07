@@ -113,11 +113,14 @@ export default function Dashboard() {
                 // 4. Build Contexts
                 const availableContexts = [];
                 const teamMap = new Map();
+                
+                // Add teams where I am the coach
                 (ownedTeams || []).forEach(t => teamMap.set(t.id, { ...t, role: 'COACH' }));
 
-                if (userRole === 'COACH') {
+                // Add teams where I am a member (if Coach or Admin)
+                if (userRole === 'COACH' || userRole === 'ADMIN') {
                     membershipTeams.forEach(t => {
-                        if (!teamMap.has(t.id)) {
+                        if (t && !teamMap.has(t.id)) {
                             teamMap.set(t.id, { ...t, role: 'COACH' });
                         }
                     });

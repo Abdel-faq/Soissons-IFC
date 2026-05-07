@@ -132,7 +132,7 @@ export default function Team() {
 
             // Check cache first
             if (!force) {
-                const cached = cacheService.get('team_page_data');
+                const cached = cacheService.get(`team_page_${teamId || 'default'}`);
                 if (cached) {
                     console.log("[CACHE] Loading team page data from cache");
                     setUser(cached.user);
@@ -141,6 +141,10 @@ export default function Team() {
                     setTeam(cached.team);
                     setTeams(cached.teams);
                     setMembers(cached.members);
+                    if (cached.historyEvents) setHistoryEvents(cached.historyEvents);
+                    if (cached.attendanceMatrix) setAttendanceMatrix(cached.attendanceMatrix);
+                    if (cached.attendanceMode) setAttendanceMode(cached.attendanceMode);
+                    if (cached.loadedMonths) setLoadedMonths(new Set(cached.loadedMonths));
                     setLoading(false);
                     return;
                 }
@@ -270,13 +274,17 @@ export default function Team() {
             }
 
             // Save to cache
-            cacheService.set('team_page_data', {
+            cacheService.set(`team_page_${finalTeam?.id || 'default'}`, {
                 user: currentUser,
                 profile: profileData,
                 isCoach: finalIsCoach,
                 team: finalTeam,
                 teams: finalTeams,
-                members: finalMembers
+                members: finalMembers,
+                historyEvents,
+                attendanceMatrix,
+                attendanceMode,
+                loadedMonths: Array.from(loadedMonths)
             }, 15);
 
         } catch (err) {
@@ -805,7 +813,10 @@ export default function Team() {
                     <div className="flex items-center gap-2 mb-1">
                         <h1 className="text-2xl font-bold leading-none">{team.name}</h1>
                         <button
-                            onClick={() => { cacheService.remove('team_page_data'); fetchData(true); }}
+                            onClick={() => { 
+                                if (team?.id) cacheService.remove(`team_page_${team.id}`);
+                                fetchData(true); 
+                            }}
                             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                             title="Actualiser les données"
                         >

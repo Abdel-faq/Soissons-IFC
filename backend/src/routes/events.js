@@ -277,6 +277,7 @@ router.get('/', requireAuth, async (req, res) => {
         .lte('date', seasonEnd.toISOString());
     } else if (range === 'week') {
       // Fetch from Monday to Sunday of the current week
+      console.log(`[BACKEND] Fetching week range: team_id=${team_id}, from ${monday.toISOString()} to ${sunday.toISOString()}`);
       query = query
         .gte('date', monday.toISOString())
         .lte('date', sunday.toISOString());

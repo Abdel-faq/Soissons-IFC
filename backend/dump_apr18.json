@@ -1,0 +1,91 @@
+{
+  "events": [
+    {
+      "id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "team_id": "eafbe33f-49a1-44b7-a7bc-f6fdc920de7d",
+      "type": "MATCH",
+      "date": "2026-04-18T06:15:00+00:00",
+      "is_deleted": false
+    }
+  ],
+  "attendance": [
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "0f41f7f9-297f-414e-a8b2-552ef9882991",
+      "is_convoked": true,
+      "status": "INCONNU"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "4fc9d14a-92d5-48c2-9073-ed2a86be7246",
+      "is_convoked": true,
+      "status": "INCONNU"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "5afb22f5-5a95-4dd7-a8b7-29e64851d258",
+      "is_convoked": true,
+      "status": "INCONNU"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "5d6ec95d-139e-41f9-87bd-ef05548de244",
+      "is_convoked": true,
+      "status": "INCONNU"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "7e7d3319-95bf-41cf-8dca-335be2635e16",
+      "is_convoked": true,
+      "status": "PRESENT"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "8e3ccaef-86c1-403f-9b0f-300c65140b37",
+      "is_convoked": true,
+      "status": "INCONNU"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "9e3ab229-2191-4b25-8bb0-9c08a73ee2f3",
+      "is_convoked": true,
+      "status": "PRESENT"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "a7414924-b5dd-4f15-8434-b1f868ead931",
+      "is_convoked": true,
+      "status": "PRESENT"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "ac4487e9-5472-4a2e-8d52-002e832d5256",
+      "is_convoked": true,
+      "status": "PRESENT"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "b4bc287a-3531-49fa-925c-e8a144f0df94",
+      "is_convoked": true,
+      "status": "INCONNU"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "dcdd8505-df77-4ae6-b58f-8b920bab8ae1",
+      "is_convoked": true,
+      "status": "PRESENT"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": "fb703e7d-e7ea-4889-a7f8-084b912cef63",
+      "is_convoked": true,
+      "status": "PRESENT"
+    },
+    {
+      "event_id": "eb23a605-1895-4e98-961a-22fa085ab76e",
+      "player_id": null,
+      "is_convoked": false,
+      "status": "PRESENT"
+    }
+  ]
+}

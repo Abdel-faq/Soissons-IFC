@@ -91,14 +91,13 @@ export default function Dashboard() {
                 setChildren(childrenData || []);
 
                 // Fetch Team(s) for all children (and self if coach)
-                // 1. Fetch teams where I am the coach
-                const { data: ownedTeams, error: ownedError } = await supabase.from('teams').select('id, name, category, invite_code, coach_id').eq('coach_id', user.id);
+                const { data: ownedTeams, error: ownedError } = await supabase.from('teams').select('id, name, invite_code, coach_id').eq('coach_id', user.id);
                 if (ownedError) console.error("Owned teams error:", ownedError);
                 console.log(`[DEBUG] Dashboard: Found ${ownedTeams?.length || 0} owned teams for UID ${user.id}`);
 
                 const { data: userMemberships, error: memberError } = await supabase
                     .from('team_members')
-                    .select('team_id, teams(id, name, category, invite_code, coach_id)')
+                    .select('team_id, teams(id, name, invite_code, coach_id)')
                     .eq('user_id', user.id);
                 if (memberError) console.error("Membership error:", memberError);
                 console.log(`[DEBUG] Dashboard: Found ${userMemberships?.length || 0} memberships for UID ${user.id}`);
@@ -111,7 +110,7 @@ export default function Dashboard() {
                     const childIds = childrenData.map(c => c.id);
                     const { data: mData } = await supabase
                         .from('team_members')
-                        .select('team_id, player_id, teams(id, name, category, invite_code, coach_id)')
+                        .select('team_id, player_id, teams(id, name, invite_code, coach_id)')
                         .in('player_id', childIds);
                     childrenMemberships = mData || [];
                 }
@@ -137,10 +136,9 @@ export default function Dashboard() {
                         id: `coach-${t.id}`,
                         teamId: t.id,
                         teamName: t.name,
-                        category: t.category,
                         role: 'COACH',
                         inviteCode: t.invite_code,
-                        label: `👨‍🏫 Coach - ${t.name} (${t.category || ''})`
+                        label: `👨‍🏫 Coach - ${t.name}`
                     });
                 });
 

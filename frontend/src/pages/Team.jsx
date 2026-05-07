@@ -194,7 +194,7 @@ export default function Team() {
                 // Fetch membership teams — colonnes optimisées
                 const { data: userMemberships } = await supabase
                     .from('team_members')
-                    .select('team_id, teams(id, name, category, invite_code, coach_id, is_chat_locked)')
+                    .select('team_id, teams(id, name, invite_code, coach_id, is_chat_locked)')
                     .eq('user_id', currentUser.id);
 
                 const membershipTeams = (userMemberships || []).map(m => m.teams).filter(Boolean);
@@ -203,7 +203,7 @@ export default function Team() {
                 // Fetch owned teams — colonnes optimisées
                 const { data: fullOwnedTeams } = await supabase
                     .from('teams')
-                    .select('id, name, category, invite_code, coach_id, is_chat_locked')
+                    .select('id, name, invite_code, coach_id, is_chat_locked')
                     .eq('coach_id', currentUser.id);
 
                 (fullOwnedTeams || []).forEach(t => teamMap.set(t.id, t));
@@ -230,7 +230,7 @@ export default function Team() {
                 if (targetTeamId) {
                     const { data: teamData } = await supabase
                         .from('teams')
-                        .select('id, name, category, invite_code, coach_id, is_chat_locked')
+                        .select('id, name, invite_code, coach_id, is_chat_locked')
                         .eq('id', targetTeamId)
                         .single();
                     if (teamData) {
@@ -247,7 +247,7 @@ export default function Team() {
                 } else {
                     const { data: userMemberships } = await supabase
                         .from('team_members')
-                        .select('team_id, teams(id, name, category, invite_code, coach_id, is_chat_locked)')
+                        .select('team_id, teams(id, name, invite_code, coach_id, is_chat_locked)')
                         .eq('user_id', currentUser.id);
 
                     if (userMemberships && userMemberships.length > 0) {

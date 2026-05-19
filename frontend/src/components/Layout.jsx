@@ -34,7 +34,7 @@ export default function Layout() {
         };
 
         fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 30000); // Polling every 30s
+        const interval = setInterval(fetchUnreadCount, 90000); // Polling every 90s
         return () => clearInterval(interval);
     }, [location.pathname]);
 

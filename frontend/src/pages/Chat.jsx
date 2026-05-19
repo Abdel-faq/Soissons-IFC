@@ -38,22 +38,34 @@ export default function Chat() {
         checkMobile();
         fetchChatData();
 
-        const channel = supabase
-            .channel('public:messages')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-                // Only push if message belongs to current room
-                if (!activeRoom) {
-                    if (!payload.new.group_id) fetchOneMessage(payload.new.id);
-                } else {
-                    if (payload.new.group_id === activeRoom.id) fetchOneMessage(payload.new.id);
-                }
-            })
-            .subscribe();
+        let channel;
+        if (team) {
+            channel = supabase
+                .channel(`public:messages:team:${team}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `team_id=eq.${team}`
+                    },
+                    payload => {
+                        // Only push if message belongs to current room
+                        if (!activeRoom) {
+                            if (!payload.new.group_id) fetchOneMessage(payload.new.id);
+                        } else {
+                            if (payload.new.group_id === activeRoom.id) fetchOneMessage(payload.new.id);
+                        }
+                    }
+                )
+                .subscribe();
 
-        if (team) markAsRead();
+            markAsRead();
+        }
 
         return () => {
-            supabase.removeChannel(channel);
+            if (channel) supabase.removeChannel(channel);
         };
     }, [activeRoom, team]);
 

@@ -12,6 +12,7 @@ import Chat from './pages/Chat';
 import LandingPage from './pages/LandingPage';
 import Profile from './pages/Profile';
 import TestsDashboard from './pages/TestsDashboard';
+import FrozenPage from './pages/FrozenPage';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -101,13 +102,13 @@ export default function App() {
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<Dashboard />} />
-          <Route path="team" element={<Team />} />
-          <Route path="skills" element={<SkillsDashboard />} />
+          <Route index element={<FrozenPage title="Accueil" />} />
+          <Route path="team" element={<FrozenPage title="Équipe" />} />
+          <Route path="skills" element={<FrozenPage title="Compétences" />} />
           <Route path="events" element={<Events />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="tests" element={<TestsDashboard />} />
+          <Route path="chat" element={<FrozenPage title="Chat" />} />
+          <Route path="profile" element={<FrozenPage title="Profil" />} />
+          <Route path="tests" element={<FrozenPage title="Tests" />} />
         </Route>
 
         {/* Catch all - Redirect to home/dashboard */}

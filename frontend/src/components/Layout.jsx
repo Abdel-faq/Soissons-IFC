@@ -14,28 +14,8 @@ export default function Layout() {
     };
 
     useEffect(() => {
-        const fetchUnreadCount = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) return;
-
-                const activeTeamId = localStorage.getItem('active_team_id');
-                if (!activeTeamId) return;
-
-                const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/messages/unread-count/${activeTeamId}`, {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
-                });
-                if (!res.ok) return;
-                const counts = await res.json();
-                setUnreadCount(counts.total || 0);
-            } catch (e) {
-                console.error("Error fetching unread count in layout", e);
-            }
-        };
-
-        fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 90000); // Polling every 90s
-        return () => clearInterval(interval);
+        // Temporarily disabled to save data egress since Chat is frozen
+        return;
     }, [location.pathname]);
 
     const navItems = [

@@ -102,7 +102,7 @@ export default function App() {
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<FrozenPage title="Accueil" />} />
+          <Route index element={<Dashboard />} />
           <Route path="team" element={<FrozenPage title="Équipe" />} />
           <Route path="skills" element={<FrozenPage title="Compétences" />} />
           <Route path="events" element={<Events />} />

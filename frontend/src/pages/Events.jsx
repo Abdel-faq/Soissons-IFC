@@ -74,7 +74,7 @@ export default function Events() {
             if (!user) return;
 
             // Fetch All Children for this parent
-            const { data: allChildren } = await supabase.from('players').select('*').eq('parent_id', user.id);
+            const { data: allChildren } = await supabase.from('players').select('id, first_name, last_name, full_name, position, parent_id').eq('parent_id', user.id);
 
             // Read Context
             const savedCtx = localStorage.getItem('sb-active-context');
@@ -467,7 +467,7 @@ export default function Events() {
     const fetchMembers = async () => {
         const { data, error } = await supabase
             .from('team_members')
-            .select('player_id, players(id, full_name, first_name, position, avatar_url, parent_id)')
+            .select('player_id, players(id, full_name, first_name, position, parent_id)')
             .eq('team_id', team);
 
         if (data) setMembers(data.map(d => d.players).filter(Boolean));

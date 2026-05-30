@@ -252,13 +252,43 @@ export default function Chat() {
 
         try {
             setUploading(true);
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
+
+            let fileToUpload = file;
+            let fileName;
+            // Compress images to max 1024px / 75% JPEG before upload to reduce egress
+            if (file.type.startsWith('image/')) {
+                fileToUpload = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const img = new Image();
+                        img.src = evt.target.result;
+                        img.onload = () => {
+                            const MAX = 1024;
+                            let w = img.width, h = img.height;
+                            if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = w; canvas.height = h;
+                            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                            canvas.toBlob((blob) => {
+                                if (blob) resolve(new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+                                else reject(new Error('Compression échouée'));
+                            }, 'image/jpeg', 0.75);
+                        };
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                fileName = `${Math.random()}.jpg`;
+            } else {
+                const fileExt = file.name.split('.').pop();
+                fileName = `${Math.random()}.${fileExt}`;
+            }
+
             const filePath = `${team}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('chat_attachments')
-                .upload(filePath, file);
+                .upload(filePath, fileToUpload);
 
             if (uploadError) throw uploadError;
 

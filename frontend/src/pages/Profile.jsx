@@ -276,17 +276,27 @@ export default function Profile() {
                                     className="hidden"
                                     onChange={(e) => {
                                         const file = e.target.files[0];
-                                        if (file) {
-                                            if (file.size > 500000) {
-                                                alert("Image trop lourde (max 500ko)");
-                                                return;
-                                            }
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                                setProfile({ ...profile, avatar_url: reader.result });
+                                        if (!file) return;
+                                        // Compress avatar to max 200px before Base64 to reduce DB egress
+                                        const reader = new FileReader();
+                                        reader.onload = (evt) => {
+                                            const img = new Image();
+                                            img.src = evt.target.result;
+                                            img.onload = () => {
+                                                const MAX = 200;
+                                                let w = img.width;
+                                                let h = img.height;
+                                                if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+                                                else { w = Math.round(w * MAX / h); h = MAX; }
+                                                const canvas = document.createElement('canvas');
+                                                canvas.width = w;
+                                                canvas.height = h;
+                                                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                                                const compressed = canvas.toDataURL('image/jpeg', 0.8);
+                                                setProfile({ ...profile, avatar_url: compressed });
                                             };
-                                            reader.readAsDataURL(file);
-                                        }
+                                        };
+                                        reader.readAsDataURL(file);
                                     }}
                                 />
                             </label>
